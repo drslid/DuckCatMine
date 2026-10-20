@@ -5,7 +5,7 @@
 
 ![DuckCatMine dashboard — real interface with fictional demo data](site/public/screens/desktop-home.jpg)
 
-> **Alpha — v0.2.0-alpha.2.** Built for a private Minecraft Java server and a small trusted group. Back up before migrating an existing world. The installer creates a fresh stack and refuses to overwrite an existing installation. Automated upgrades and fine-grained web roles are not included yet.
+> **Alpha — v0.2.0-alpha.3.** Built for a private Minecraft Java server and a small trusted group. Back up before migrating an existing world. The installer creates a fresh stack and refuses to overwrite an existing installation. Automated upgrades and fine-grained web roles are not included yet.
 
 ## Quick install
 
@@ -19,7 +19,7 @@ Requirements:
 - Official Minecraft Java accounts. You must read and accept the Minecraft EULA.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.2/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.3/install.sh | sudo bash
 ```
 
 [Inspect the bootstrap first](install.sh). The command is pinned to a release tag. It does not upgrade the operating system or change its firewall.
@@ -56,6 +56,8 @@ Included features:
 - **Small defense towers:** three original 3 × 3 × 6 presets, 32-block range against monsters in loaded chunks.
 - **Friendly arrival:** `/guide`, `/spawn`, `/home`, warps and volunteers who can help.
 - **Maintenance:** daily backups, download and restore, staged settings, backup before a scheduled restart.
+- **Extensions:** searchable Modrinth catalogue, compatible version selection and `.jar` imports; stage, review dependencies, cancel or activate during a backed-up restart.
+- **Server health:** a compact colour and text indicator, Minecraft CPU share of VPS capacity and container RAM, with a diagnostic one click away.
 - **Game priority:** one map-render thread, terrain updates paused while players are online; positions stay live.
 - **Private by default:** authenticated panel and map, noindex headers, no public RCON port.
 
@@ -118,11 +120,12 @@ Use Node.js **24** for the site and UI, Python 3.12+ for worker tests. Maven bui
 
 ```bash
 # Panel/API checks
-cd admin && npm ci && node --test runtime.test.js && node smoke-test.js
-python3 -m unittest worker_test
+cd admin && npm ci && node --test runtime.test.js plugins.test.js && node smoke-test.js
+python3 -m pip install PyYAML==6.0.2
+python3 -m unittest worker_test plugin_manager_test
 
 # UI and standalone, server-free demo
-cd client && npm ci && npm run check && npm run build && npm run build:demo
+cd client && npm ci && npm run check && node --test health.test.js && npm run build && npm run build:demo
 
 # Documentation and public website
 cd ../../site && npm ci && npm run build && npm run dev

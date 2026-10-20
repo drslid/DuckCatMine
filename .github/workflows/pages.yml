@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -27,13 +30,16 @@ jobs:
         run: |
           npm ci
           node --test runtime.test.js
+          node --test plugins.test.js
           node smoke-test.js
-          python3 -m unittest worker_test
+          python3 -m pip install PyYAML==6.0.2
+          python3 -m unittest worker_test plugin_manager_test
       - name: Build UI and server-free demo
         working-directory: admin/client
         run: |
           npm ci
           npm run check
+          node --test health.test.js
           npm run build
           npm run build:demo
       - name: Build public site and documentation

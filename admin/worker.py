@@ -10,6 +10,7 @@ import subprocess
 import tarfile
 import time
 from datetime import datetime, timezone
+from plugin_manager import PluginManager
 
 
 PROJECT = pathlib.Path(os.environ.get('PROJECT_DIR', '/srv/duckcatmine'))
@@ -89,6 +90,8 @@ def update_metrics():
         pass
     value = {
         'memory': game.get('MemUsage', ''),
+        'memoryBytes': bytes_used(game.get('MemUsage', '')),
+        'memoryLimitBytes': bytes_used(game.get('MemUsage', '').split('/')[-1]),
         'cpu': game.get('CPUPerc', ''),
         'at': at,
         'services': services,
@@ -171,6 +174,10 @@ def clear_data():
 
 def run_job(job):
     kind = job.get('type')
+    if kind == 'plugin-stage':
+        return PluginManager(DATA, JOBS).stage(job)
+    if kind == 'plugin-cancel':
+        return PluginManager(DATA, JOBS).cancel(job.get('artifact'))
     if kind == 'backup':
         compose('exec', '-T', 'backups', 'backup', 'now', timeout=1800)
         return 'Sauvegarde créée.'
@@ -206,6 +213,7 @@ def run_job(job):
         try:
             compose('stop', 'backups', 'minecraft', timeout=180)
             stage_properties(settings)
+            PluginManager(DATA, JOBS).apply()
         finally:
             compose('up', '-d', 'minecraft', 'backups', timeout=300)
         if PENDING.exists() and json.loads(PENDING.read_text(encoding='utf-8')) == settings:
@@ -220,6 +228,7 @@ def run_job(job):
             compose('stop', 'backups', 'minecraft', timeout=180)
             if settings:
                 stage_properties(settings)
+            PluginManager(DATA, JOBS).apply()
         finally:
             compose('up', '-d', 'minecraft', 'backups', timeout=300)
         if settings and PENDING.exists() and json.loads(PENDING.read_text(encoding='utf-8')) == settings:
@@ -235,8 +244,10 @@ def run_job(job):
         with tarfile.open(source, 'r:gz') as archive:
             members = safe_members(archive)
             archived = {member.name.removeprefix('./') for member in members}
-            required = {str(filename.relative_to(DATA)) for filename in (DATA / 'plugins').glob('*.jar')}
-            if not required.issubset(archived):
+            installed = PluginManager(DATA, JOBS).inventory()
+            required = {'plugins/' + item['filename'] for item in installed if item['core']}
+            has_jars = any(re.fullmatch(r'plugins/[^/]+\.jar', name) for name in archived)
+            if not required.issubset(archived) or (installed and not has_jars):
                 raise ValueError('Cette ancienne archive ne contient pas toutes les extensions. Crée une sauvegarde complète récente ; pour récupérer cette archive, utilise une restauration manuelle en conservant les extensions.')
         no_players()
         compose('stop', 'backups', 'minecraft', timeout=180)
@@ -281,12 +292,14 @@ def main():
         failed.write_text(json.dumps({'ok': False, 'error': 'Opération interrompue ; vérifier le serveur avant de réessayer.'}), encoding='utf-8')
         stale.unlink()
     last_metrics = 0
+    plugins = PluginManager(DATA, JOBS)
     idle_since = {}
     last_idle_check = {}
     while True:
         if time.monotonic() - last_metrics > 15:
             try:
                 update_metrics()
+                plugins.publish()
             except Exception as error:
                 print(f'Metrics unavailable: {error}', flush=True)
             last_metrics = time.monotonic()

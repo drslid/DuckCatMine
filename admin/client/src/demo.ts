@@ -94,6 +94,9 @@ const state: any = {
     },
   ],
   metrics: {
+    cpuCount: 4,
+    memoryBytes: 2.4 * 1024 ** 3,
+    memoryLimitBytes: 4 * 1024 ** 3,
     cpu: '18.4%',
     memory: '2.4 GiB / 4 GiB',
     host: { MemAvailable: 5.6 * 1024 ** 3 },
@@ -140,10 +143,117 @@ const towers = [
     defensive: true,
   },
 ];
+const demoPlugins = [
+  {
+    name: 'DuckCatWelcome',
+    version: '2.0.0',
+    filename: 'DuckCatWelcome.jar',
+    core: true,
+  },
+  {
+    name: 'DuckCatTowers',
+    version: '2.0.0',
+    filename: 'DuckCatTowers.jar',
+    core: true,
+  },
+  { name: 'BlueMap', version: '5.29', filename: 'BlueMap.jar', core: true },
+  {
+    name: 'WorldEdit',
+    version: '7.4.6',
+    filename: 'WorldEdit.jar',
+    core: true,
+  },
+  {
+    name: 'SkinsRestorer',
+    version: '15.12.6',
+    filename: 'SkinsRestorer.jar',
+    core: true,
+  },
+];
+let demoPending: any[] = [];
+const demoCatalog = [
+  {
+    id: 'permissions',
+    name: 'Permissions du village',
+    description:
+      'Des rôles simples pour les joueurs, les bâtisseurs et les administrateurs.',
+    author: 'Exemple fictif',
+    downloads: 24500,
+  },
+  {
+    id: 'quests',
+    name: 'Les petites quêtes',
+    description:
+      'Quelques objectifs à partager pour animer les soirées de jeu.',
+    author: 'Exemple fictif',
+    downloads: 18200,
+  },
+  {
+    id: 'protect',
+    name: 'Protection des constructions',
+    description: 'Protéger sa maison et inviter ses amis à y construire.',
+    author: 'Exemple fictif',
+    downloads: 46700,
+  },
+];
 export async function request(url: string, method = 'GET', data: any = {}) {
   const u = new URL(url, 'https://demo.invalid');
   if (u.pathname === '/api/me' || u.pathname === '/api/login')
     return { username: 'Alex', csrf: 'demo' };
+  state.metrics.at = new Date().toISOString();
+  if (u.pathname === '/api/plugins')
+    return {
+      gameVersion: '26.3',
+      observedAt: Date.now(),
+      installed: demoPlugins,
+      pending: demoPending,
+    };
+  if (u.pathname === '/api/plugins/search')
+    return {
+      gameVersion: '26.3',
+      hits: demoCatalog.filter((p) =>
+        (p.name + ' ' + p.description)
+          .toLowerCase()
+          .includes((u.searchParams.get('query') || '').toLowerCase()),
+      ),
+    };
+  if (u.pathname.startsWith('/api/plugins/project/')) {
+    const p =
+      demoCatalog.find((p) => p.id === u.pathname.split('/').at(-1)) ||
+      demoCatalog[0];
+    return {
+      ...p,
+      gameVersion: '26.3',
+      url: 'https://modrinth.com/plugins',
+      versions: [
+        {
+          id: p.id + '-v',
+          name: '1.0.0',
+          type: 'release',
+          date: '2026-10-01',
+          dependencies: [],
+        },
+      ],
+    };
+  }
+  if (
+    u.pathname === '/api/plugins/install' ||
+    u.pathname === '/api/plugins/upload'
+  ) {
+    const p = demoCatalog.find((p) => p.id === data.projectId);
+    demoPending.push({
+      id: 'demo-' + Date.now(),
+      name: p?.name || data.filename.replace(/\.jar$/i, ''),
+      version: '1.0.0',
+      source: 'Démonstration',
+      missingDependencies: [],
+    });
+    return { id: 'demo-job' };
+  }
+  if (u.pathname === '/api/plugins/cancel') {
+    demoPending = demoPending.filter((p) => p.id !== data.artifact);
+    return { id: 'demo-job' };
+  }
   if (u.pathname === '/api/status')
     return structuredClone({ ...state, observedAt: new Date().toISOString() });
   if (u.pathname === '/api/chat') return { messages: [...messages] };
@@ -293,7 +403,20 @@ export async function request(url: string, method = 'GET', data: any = {}) {
     state.mapPolicy = data.policy;
     return { id: 'demo-policy' };
   }
-  if (u.pathname === '/api/jobs') return { id: 'demo-job' };
+  if (u.pathname === '/api/jobs') {
+    if (data.type === 'restart') {
+      demoPlugins.push(
+        ...demoPending.map((p) => ({
+          name: p.name,
+          version: p.version,
+          filename: p.name + '.jar',
+          core: false,
+        })),
+      );
+      demoPending = [];
+    }
+    return { id: 'demo-job' };
+  }
   if (u.pathname.startsWith('/api/jobs/'))
     return { status: 'done', ok: true, message: 'Opération simulée terminée.' };
   return { ok: true, result: 'Action simulée.' };

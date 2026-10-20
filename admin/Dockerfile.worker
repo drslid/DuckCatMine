@@ -1,6 +1,7 @@
 FROM docker:29-cli
 
-RUN apk add --no-cache python3
+RUN apk add --no-cache python3 py3-yaml
 COPY worker.py /worker.py
+COPY plugin_manager.py /plugin_manager.py
 
 ENTRYPOINT ["python3", "/worker.py"]

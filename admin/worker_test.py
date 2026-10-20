@@ -11,6 +11,28 @@ import worker
 
 
 class WorkerTests(unittest.TestCase):
+    def test_restore_backup_from_before_an_addon_was_installed(self):
+        from plugin_manager_test import jar
+        with tempfile.TemporaryDirectory() as directory:
+            old_data, old_backups, old_jobs = worker.DATA, worker.BACKUPS, worker.JOBS
+            try:
+                root = pathlib.Path(directory)
+                worker.DATA, worker.BACKUPS, worker.JOBS = root / 'data', root / 'backups', root / 'jobs'
+                (worker.DATA / 'plugins').mkdir(parents=True)
+                worker.BACKUPS.mkdir()
+                worker.JOBS.mkdir()
+                jar(worker.DATA / 'plugins' / 'BlueMap.jar', name='BlueMap')
+                jar(worker.DATA / 'plugins' / 'Addon.jar')
+                filename = worker.BACKUPS / 'world-20260101-000000.tar.gz'
+                with tarfile.open(filename, 'w:gz') as archive:
+                    archive.add(worker.DATA / 'plugins' / 'BlueMap.jar', arcname='./plugins/BlueMap.jar')
+                with patch.object(worker, 'compose', return_value='There are 0 of a max of 10 players online:'):
+                    worker.run_job({'type': 'restore', 'backup': filename.name})
+                self.assertTrue((worker.DATA / 'plugins' / 'BlueMap.jar').exists())
+                self.assertFalse((worker.DATA / 'plugins' / 'Addon.jar').exists())
+            finally:
+                worker.DATA, worker.BACKUPS, worker.JOBS = old_data, old_backups, old_jobs
+
     def test_clear_data_keeps_panel_mount_directories_but_removes_contents(self):
         with tempfile.TemporaryDirectory() as directory:
             previous = worker.DATA

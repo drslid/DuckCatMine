@@ -1,6 +1,12 @@
 <script lang="ts">
   let { name, size = 20 }: { name: string; size?: number } = $props();
   const paths = {
+    cpu: 'M7 7h10v10H7zM9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4M10 10h4v4h-4z',
+    memory:
+      'M3 6h18v12H3zM7 10h3v4H7zM14 10h3v4h-3zM6 18v3M10 18v3M14 18v3M18 18v3',
+    plugin:
+      'M9 3H4v6h2a3 3 0 1 1 0 6H4v6h6v-2a3 3 0 1 1 6 0v2h5v-6h-2a3 3 0 1 1 0-6h2V3h-6v2a3 3 0 1 1-6 0z',
+    upload: 'M12 16V3m-5 5 5-5 5 5M3 16v5h18v-5',
     home: 'm3 10 9-7 9 7v10H15v-6H9v6H3z',
     users:
       'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',

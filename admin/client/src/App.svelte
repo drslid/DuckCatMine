@@ -4,6 +4,9 @@
   import { api, setCsrf, demo, fold, asset } from './api';
   import Icon from './Icon.svelte';
   import Chat from './Chat.svelte';
+  import Health from './Health.svelte';
+  import { serverHealth } from './health.js';
+  let healthClock = $state(Date.now());
   let user = $state(''),
     loading = $state(true),
     username = $state(''),
@@ -29,6 +32,7 @@
     query = $state(''),
     notifications = $state(false),
     installPrompt: any = null;
+  let health = $derived(serverHealth(status, healthClock));
   let World = $state<any>(null),
     Player = $state<any>(null),
     Settings = $state<any>(null),
@@ -54,6 +58,7 @@
     ['Faire apparaître une créature', 'world'],
     ['Chat de la partie', 'chat'],
     ['Sauvegardes', 'settings', 'backups'],
+    ['Extensions, catalogue et import .jar', 'settings', 'plugins'],
     ['Consommation et performances', 'settings', 'performance'],
     ['Console Minecraft', 'settings', 'console'],
   ];
@@ -140,10 +145,10 @@
       status = await api('/api/status');
       receiveChat(await api('/api/chat'));
       connected = true;
-      demoTimer = setInterval(
-        async () => receiveChat(await api('/api/chat')),
-        1000,
-      );
+      demoTimer = setInterval(async () => {
+        receiveChat(await api('/api/chat'));
+        status = await api('/api/status');
+      }, 1000);
       return;
     }
     source = new EventSource('/api/events');
@@ -254,6 +259,7 @@
       );
   }
   onMount(() => {
+    const healthTimer = setInterval(() => (healthClock = Date.now()), 15000);
     let cancelled = false;
     const setup = async () => {
       try {
@@ -305,6 +311,7 @@
     document.addEventListener('visibilitychange', visibility);
     return () => {
       cancelled = true;
+      clearInterval(healthTimer);
       clearConnection();
       clearTimeout(noticeTimer);
       document.removeEventListener('keydown', key);
@@ -446,15 +453,11 @@
           >{nav.find((n) => n[0] === section)?.[2]}</span
         >
         <div class="spacer"></div>
-        {#if demo}<span class="demo-badge">Démo interactive</span>{:else}<span
-            class="server-status"
-            class:offline={!status.online}
-            ><span></span>{status.observedAt
-              ? status.online
-                ? 'Serveur en ligne'
-                : 'Serveur indisponible'
-              : 'Connexion…'}</span
-          >{/if}<button
+        {#if demo}<span class="demo-badge">Démo</span>{/if}
+        <Health
+          {health}
+          open={() => navigate('settings', 'performance')}
+        /><button
           class="icon-button"
           aria-label="Rechercher une action"
           onclick={() => {
@@ -570,19 +573,19 @@
                   Le monde est calme. La prochaine aventure commence avec vous.
                 </p>{/if}
             </article>
-            <article class="card server-health">
+            <article class="card server-health" data-health={health.level}>
               <div>
-                <span class="health-orb" class:offline={!status.online}
-                  ><Icon name="check" /></span
+                <span class="health-orb"
+                  ><Icon
+                    name={health.level === 'healthy' ? 'check' : 'heart'}
+                  /></span
                 >
                 <div>
                   <h2>
-                    {status.online ? 'Le serveur est prêt.' : 'État du serveur'}
+                    {health.label}
                   </h2>
                   <p class="muted">
-                    {status.online
-                      ? `${tps} TPS · ${connected ? 'Données en direct' : 'Reconnexion en cours'}`
-                      : 'Vérification de la connexion…'}
+                    {health.detail}
                   </p>
                 </div>
               </div>

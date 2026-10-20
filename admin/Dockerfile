@@ -12,6 +12,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY server.js ./server.js
 COPY runtime.js ./runtime.js
+COPY plugins.js ./plugins.js
 COPY items.json ./items.json
 COPY public ./public
 COPY --from=interface /build/public/v2 ./public/v2

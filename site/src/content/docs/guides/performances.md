@@ -6,6 +6,10 @@ sidebar: { order: 4 }
 
 ## Lire les bons chiffres
 
+Le bandeau en haut du panneau résume la santé : **vert** si le jeu tourne normalement, **orange** si la fluidité baisse ou les ressources se tendent, **rouge** si la partie ralentit fortement, le disque manque de place ou Minecraft ne répond plus. Un état **gris** signifie que les mesures manquent ou sont anciennes. Le texte rend l’état lisible sans dépendre seulement de la couleur.
+
+Le **CPU** du bandeau est la consommation de Minecraft rapportée à tous les vCPU du VPS ; ce n’est pas la charge totale de tous ses services. La **RAM** indique la mémoire du conteneur Minecraft et sa limite Docker. Un clic ouvre **Réglages → Performances**. Les mesures proviennent du flux partagé déjà utilisé par le panneau.
+
 Dans Docker, **100 % de CPU correspond à un cœur utilisé**. Une valeur supérieure à 100 % peut donc être normale sur une machine à plusieurs cœurs. Pour juger la fluidité, regardez aussi les TPS et le temps par tick : le budget à 20 TPS est de 50 ms par tick.
 
 La mémoire du conteneur comprend le tas Java, des données natives et les ressources des extensions. Elle ne redescend pas nécessairement dès qu’un joueur se déconnecte. Réduire arbitrairement le tas peut augmenter le travail du ramasse-miettes et provoquer des ralentissements.

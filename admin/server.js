@@ -7,6 +7,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { promisify } = require('node:util');
 const { LogReader, SharedSnapshot } = require('./runtime');
+const { pluginRoutes } = require('./plugins');
 const scrypt = promisify(crypto.scrypt);
 
 const PORT = Number(process.env.PORT || 3000);
@@ -613,9 +614,12 @@ function properties() {
   } catch { return {}; }
 }
 
+const servePlugins = pluginRoutes({ jobs: JOBS_DIR, requireSession, requireCsrf, body, json, enqueueJob, audit, HttpError });
+
 async function serve(req, res) {
   securityHeaders(res);
   const url = new URL(req.url, ORIGIN);
+  if (await servePlugins(req, res, url)) return;
   if (req.method === 'POST' && /^\/api\/(?:command|settings|jobs|map\/policy)$/.test(url.pathname)) {
     res.once('finish', () => { if (res.statusCode < 400) {
       if (url.pathname === '/api/command') metadata.invalidate();

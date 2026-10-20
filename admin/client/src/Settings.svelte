@@ -3,12 +3,21 @@
   import { onMount } from 'svelte';
   import { api, command, bytes, demo } from './api';
   import Icon from './Icon.svelte';
+  import { serverHealth } from './health.js';
+  let Plugins = $state<any>(null);
   let {
     status = {},
     toast,
     initial = 'game',
   }: { status?: any; toast: any; initial?: string } = $props();
   let mapPolicy = $state('live');
+  $effect(() => {
+    tab = initial;
+  });
+  $effect(() => {
+    if (tab === 'plugins' && !Plugins)
+      import('./Plugins.svelte').then((module) => (Plugins = module.default));
+  });
   let tab = $state('game'),
     motd = $state(''),
     maxPlayers = $state(10),
@@ -153,7 +162,7 @@
   </div>
 </div>
 <div class="segments wrap settings-tabs">
-  {#each [['game', 'Partie'], ['backups', 'Sauvegardes'], ['performance', 'Performances'], ['console', 'Console'], ['account', 'Mon compte']] as [id, label]}<button
+  {#each [['game', 'Partie'], ['plugins', 'Extensions'], ['backups', 'Sauvegardes'], ['performance', 'Performances'], ['console', 'Console'], ['account', 'Mon compte']] as [id, label]}<button
       class:active={tab === id}
       onclick={() => (tab = id)}>{label}</button
     >{/each}
@@ -320,7 +329,27 @@
         </p>{/if}
     </div>
   </article>
-{:else if tab === 'performance'}<article class="card map-policy-card">
+{:else if tab === 'plugins' && Plugins}<Plugins
+    {toast}
+    scheduled={!!status.scheduledRestart || !!job}
+    restart={() => (operation = 'restart')}
+  />
+  {#if jobText}<p role="status">{jobText}</p>{/if}
+{:else if tab === 'performance'}<article
+    class="card health-diagnostic"
+    data-health={serverHealth(status).level}
+  >
+    <Icon name="heart" size={26} />
+    <div>
+      <h2>{serverHealth(status).label}</h2>
+      <p class="muted">{serverHealth(status).detail}</p>
+      <small class="muted"
+        >Le CPU du bandeau représente la part du VPS utilisée par Minecraft. La
+        RAM est celle du conteneur du jeu, limite comprise.</small
+      >
+    </div>
+  </article>
+  <article class="card map-policy-card">
     <h2>Priorité de la carte</h2>
     <p class="muted">
       Les positions des joueurs restent en direct. Pour réduire la charge, le

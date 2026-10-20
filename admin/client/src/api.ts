@@ -20,6 +20,27 @@ export async function api(url: string, method = 'GET', data?: any) {
     throw new Error(result.error || `Erreur ${response.status}`);
   return result;
 }
+export async function uploadPlugin(file: File) {
+  if (file.size > 50 * 1024 ** 2)
+    throw new Error('50 Mio maximum par fichier .jar.');
+  if (demo) return api('/api/plugins/upload', 'POST', { filename: file.name });
+  const response = await fetch(
+    '/api/plugins/upload?filename=' + encodeURIComponent(file.name),
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-CSRF-Token': csrf,
+      },
+      body: file,
+    },
+  );
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(result.error || `Erreur ${response.status}`);
+  return result;
+}
 export const fold = (s: string) =>
   String(s)
     .normalize('NFD')

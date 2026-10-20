@@ -1,0 +1,5 @@
+name: DCTestPlugin
+version: '1.0.0'
+main: duckcatmine.test.DCTestPlugin
+api-version: '26.3'
+description: Harmless DuckCatMine integration fixture. Never install on production.

@@ -1033,6 +1033,7 @@ canvas {
 }
 .map-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 9px;
   padding: 10px 13px;

@@ -659,6 +659,10 @@
             players={online}
             start={status.mapStart}
             policy={status.mapPolicy}
+            openPlayer={(name) => {
+              selectedPlayer = name;
+              navigate('players');
+            }}
             {toast}
           />
         {:else if section === 'chat'}<div class="section-heading">

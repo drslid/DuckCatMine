@@ -14,11 +14,13 @@
     toast,
     start = '',
     policy = 'live',
+    openPlayer = (_name: string) => {},
   }: {
     players?: string[];
     toast: any;
     start?: string;
     policy?: string;
+    openPlayer?: (name: string) => void;
   } = $props();
 
   let mode = $state('explore'),
@@ -264,6 +266,11 @@
         title="Centrer sur le joueur"
         onclick={center}><Icon name="pin" /></button
       >
+      {#if chosenPlayer}<button
+        class="icon-button"
+        title="Ouvrir la fiche du joueur"
+        aria-label="Ouvrir la fiche du joueur"
+        onclick={() => openPlayer(chosenPlayer)}><Icon name="users" /></button>{/if}
     </div>
 
     <div class="world-map">

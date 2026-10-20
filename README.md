@@ -1,11 +1,13 @@
 <p align="center"><img src="site/public/logo.svg" width="88" alt="DuckCatMine logo"></p>
 <h1 align="center">DuckCatMine</h1>
-<p align="center"><strong>Your Minecraft server, simply.</strong><br>Free, open source, self-hosted. A visual control panel for your world and your friends.</p>
+<p align="center"><strong>Your friends. Your world. Your next adventure.</strong><br>Build a village, gear up for an expedition, try a new skin. Bring your Minecraft server to life from your PC or phone.<br>Free, open source and self-hosted.</p>
 <p align="center"><a href="https://drslid.github.io/DuckCatMine/">Website</a> · <a href="https://drslid.github.io/DuckCatMine/demo/">Interactive demo</a> · <a href="https://drslid.github.io/DuckCatMine/guides/installation/">Installation guide</a> · <a href="https://github.com/drslid/DuckCatMine/issues">Issues</a></p>
 
 ![DuckCatMine dashboard — real interface with fictional demo data](site/public/screens/desktop-home.jpg)
 
 > **Alpha — v0.2.0-alpha.4.** Built for a private Minecraft Java server and a small trusted group. Back up before migrating an existing world. The installer creates a fresh stack and refuses to overwrite an existing installation. Automated upgrades and fine-grained web roles are not included yet.
+
+> **Play with Minecraft Java Edition 26.3 on PC.** This release installs Paper build 202 for that specific game version. Select a 26.3 profile in your launcher before joining. Other game versions require a compatibility review of the server and plugins.
 
 ## Quick install
 
@@ -45,7 +47,7 @@ The VPS, domain if purchased, and Minecraft accounts remain at your expense. Duc
 
 ## What DuckCatMine is
 
-A Docker Compose stack combining Minecraft Paper, a compact web panel, a private live map and routine maintenance. Use it from a desktop or an installed mobile web app.
+Turn “let’s start a server” into a place your friends come back to. Find each other on the map, help someone gear up, choose a skin, drop a new build into the world and keep chatting between sessions. DuckCatMine brings Minecraft Paper, a visual web panel and backups together in one Docker Compose stack.
 
 Included features:
 
@@ -61,7 +63,9 @@ Included features:
 - **Game priority:** one map-render thread, terrain updates paused while players are online; positions stay live.
 - **Private by default:** authenticated panel and map, noindex headers, no public RCON port.
 
-The public demo uses fictional data and original illustrative assets. Its actions never reach a Minecraft server.
+The public demo combines fictional players and simulated actions with a screenshot from a real played world. It never connects to the private game server. A fresh installation generates its own world.
+
+![Explore a real played Minecraft world in the World demo](site/public/screens/desktop-world.jpg)
 
 ## Join your server
 
@@ -81,7 +85,7 @@ Slot counts are caps, not performance guarantees. CPU speed, exploration, entiti
 
 <p><img src="site/public/screens/desktop-skins.jpg" width="740" alt="Visual skin preview in a player profile"><img src="site/public/screens/mobile-home.jpg" width="215" alt="Compact DuckCatMine mobile navigation"></p>
 
-Real interface, fictional players and demo assets. [Try it yourself](https://drslid.github.io/DuckCatMine/demo/).
+Real interface, fictional players, and a real world screenshot in the World tab. [Explore the world demo](https://drslid.github.io/DuckCatMine/demo/#world).
 
 ## Architecture
 

@@ -20,4 +20,6 @@ Minecraft is proprietary software owned by Mojang/Microsoft. Installation requir
 
 Skin search uses third-party services at runtime; skins and user schematics retain their authors' rights. Obtain appropriate permission before importing or redistributing builds.
 
-The DuckCatMine logo, original schematic presets, illustrative demo map/icons/characters and screenshots of that demo are original project assets. Screenshots use fictional names and demo content.
+The DuckCatMine logo, original schematic presets and illustrative demo icons/characters are original project assets. Demo players and actions are fictional.
+
+`site/public/screens/world-real.jpg` is a gameplay screenshot of an existing played world, published with the server owner's permission. It is also visible in the demo's World tab and related screenshots. The underlying Minecraft visuals and player builds retain their respective rights; they are not relicensed as original GPL graphics. No world save or game texture bundle accompanies the image.

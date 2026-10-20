@@ -2975,3 +2975,13 @@ canvas {
   gap: 10px;
   min-width: 0;
 }
+.welcome .join-version {
+  margin: 13px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--soft);
+}
+.welcome .join-version strong {
+  font-weight: 600;
+  color: var(--text);
+}

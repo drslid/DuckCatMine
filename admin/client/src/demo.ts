@@ -58,6 +58,7 @@ const messages = [
   },
 ];
 const state: any = {
+  gameVersion: '26.3',
   mapPolicy: 'idle',
   online: true,
   address: 'votre-monde.duckdns.org',

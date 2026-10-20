@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  import { api, command, demo, fold, iconUrl } from './api';
+  import { api, command, demo, fold, iconUrl, asset } from './api';
 
   import { getCatalog } from './catalog';
 
@@ -241,7 +241,7 @@
 <div class="section-heading">
   <div>
     <p class="eyebrow">LE MONDE, EN DIRECT</p>
-    <h1>Une carte. Toutes les possibilités.</h1>
+    <h1>La prochaine aventure commence ici.</h1>
   </div>
   <div class="segments">
     {#each [['explore', 'map', 'Explorer'], ['build', 'build', 'Construire'], ['mobs', 'paw', 'Créatures']] as [id, icon, label]}<button
@@ -255,7 +255,11 @@
 <div class="world-workspace" class:with-tools={mode !== 'explore'}>
   <div class="world-map-panel">
     <div class="map-toolbar">
-      <span class="status-dot"></span><strong>Carte du serveur</strong>
+      <span class="status-dot"></span><strong
+        >{demo
+          ? 'Un aperçu de votre prochain monde'
+          : 'Votre monde en direct'}</strong
+      >
       <div class="spacer"></div>
       <select aria-label="Joueur à voir sur la carte" bind:value={chosenPlayer}
         ><option value="">Voir un joueur…</option>{#each players as p}<option
@@ -267,55 +271,28 @@
         onclick={center}><Icon name="pin" /></button
       >
       {#if chosenPlayer}<button
-        class="icon-button"
-        title="Ouvrir la fiche du joueur"
-        aria-label="Ouvrir la fiche du joueur"
-        onclick={() => openPlayer(chosenPlayer)}><Icon name="users" /></button>{/if}
+          class="icon-button"
+          title="Ouvrir la fiche du joueur"
+          aria-label="Ouvrir la fiche du joueur"
+          onclick={() => openPlayer(chosenPlayer)}><Icon name="users" /></button
+        >{/if}
     </div>
 
     <div class="world-map">
       {#if demo}<svg
           class="demo-map"
           viewBox="0 0 800 600"
+          preserveAspectRatio="xMidYMid slice"
           role="img"
-          aria-label="Carte de démonstration, cliquer pour choisir un point"
-          ><defs
-            ><pattern
-              id="tiles"
-              width="40"
-              height="40"
-              patternUnits="userSpaceOnUse"
-              ><rect width="40" height="40" fill="#294c3f" /><path
-                d="M0 0H40V40"
-                fill="none"
-                stroke="#325745"
-              /></pattern
-            ></defs
-          ><rect width="800" height="600" fill="url(#tiles)" /><path
-            d="M0 80Q300 90 280 300T800 500"
-            fill="none"
-            stroke="#3a777e"
-            stroke-width="70"
-          /><path
-            d="M60 600 380 260 700 120"
-            stroke="#9a9474"
-            stroke-width="24"
-            fill="none"
-          />{#each [[180, 190], [260, 90], [510, 310], [600, 230], [620, 460], [120, 450]] as [x, y]}<path
-              d={`M${x} ${y}h55v45h-55z`}
-              fill="#7d8b6b"
-            /><path d={`m${x - 7} ${y} 34-24 35 24z`} fill="#b1956c" />{/each}<g
-            transform="translate(380 260)"
-            ><rect x="-35" y="-35" width="70" height="70" fill="#c9b68a" /><rect
-              x="-23"
-              y="-23"
-              width="46"
-              height="46"
-              fill="#7e9472"
-            /><text y="70" text-anchor="middle" fill="#e8eee4" font-size="16"
-              >Village du spawn</text
-            ></g
-          >{#each [[440, 220, 'Alex'], [250, 380, 'Sam']] as [x, y, name]}<g
+          aria-label="Capture d’un monde Minecraft réel. Cliquer pour tester un emplacement."
+        >
+          <image
+            href={asset('../screens/world-real.jpg')}
+            width="800"
+            height="600"
+            preserveAspectRatio="xMidYMid slice"
+          />
+          {#each [[440, 220, 'Alex'], [250, 380, 'Sam']] as [x, y, name]}<g
               transform={`translate(${x} ${y})`}
               ><circle
                 r="12"
@@ -389,11 +366,13 @@
     <div class="map-caption">
       <Icon name="pin" />{point
         ? `Point choisi · X ${point.x} · Z ${point.z}`
-        : mode === 'explore'
-          ? policy === 'idle'
-            ? 'Joueurs en direct. Terrain actualisé hors partie.'
-            : 'Les positions des joueurs sont affichées sur cette carte.'
-          : 'Touche la carte pour choisir un emplacement.'}
+        : demo
+          ? 'Capture d’un monde joué · joueurs et actions simulés dans la démo.'
+          : mode === 'explore'
+            ? policy === 'idle'
+              ? 'Joueurs en direct. Terrain actualisé hors partie.'
+              : 'Les positions des joueurs sont affichées sur cette carte.'
+            : 'Touche la carte pour choisir un emplacement.'}
     </div>
   </div>
 

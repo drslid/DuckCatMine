@@ -370,6 +370,12 @@ function readJsonFile(filename, fallback) {
   catch { return fallback; }
 }
 
+function gameVersion() {
+  const manifest = readJsonFile('.papermc-manifest.json', {});
+  const version = manifest?.minecraftVersion;
+  return typeof version === 'string' && /^[0-9]+(?:\.[0-9]+){1,2}$/.test(version) ? version : null;
+}
+
 const logReader = new LogReader(path.join(MC_DATA_DIR, 'logs', 'latest.log'));
 async function recentLog() { return (await logReader.read()).logs; }
 async function recentChat() { return (await logReader.read()).messages; }
@@ -412,6 +418,7 @@ const statusSnapshot = new SharedSnapshot(async () => {
     backups: backups(), properties: properties(), logs: await recentLog(), metrics: systemMetrics(),
     pending: pendingSettings(), scheduledRestart: scheduledRestart(), observedAt: new Date().toISOString(),
     address: process.env.MC_ADDRESS || new URL(ORIGIN).hostname, mapStart: mapStart(), mapPolicy: mapPolicy(),
+    gameVersion: gameVersion(),
   };
 });
 const eventClients = new Set();

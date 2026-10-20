@@ -1,14 +1,22 @@
 ---
 title: Découvrir DuckCatMine
-description: Une administration visuelle pour votre petit serveur Minecraft Java entre amis.
+description: "Retrouvez votre bande sur Minecraft Java 26.3 : construisez un village, explorez, changez de skin et faites vivre votre monde."
 sidebar: { order: 1 }
 ---
 
-DuckCatMine réunit un serveur Minecraft Paper, un panneau web et les services utiles pour jouer entre amis. Le panneau fonctionne sur ordinateur et téléphone. Le code est ouvert ; vos mondes et vos comptes restent sur votre machine.
+Un village à bâtir, une base à défendre, une prochaine expédition à préparer. **DuckCatMine** vous aide à faire vivre votre serveur entre amis : carte du monde, skins, objets, chat et sauvegardes, depuis votre PC ou votre téléphone.
+
+**Pour jouer : Minecraft Java Edition 26.3 sur PC.** C’est la version précise configurée et testée avec Paper build 202. Lancez ce profil dans votre launcher avant de rejoindre le serveur. Les autres versions demandent de vérifier la compatibilité du serveur et des plugins.
+
+Le code est ouvert ; vos mondes et vos comptes restent sur votre machine.
 
 [**Essayer la démo →**](/DuckCatMine/demo/) · [Installer mon serveur](/DuckCatMine/guides/installation/)
 
-La démo simule Alex, Sam et Robin. Ses actions restent dans le navigateur ; elle ne se connecte à aucun serveur de jeu.
+La démo simule Alex, Sam et Robin. L’onglet **Monde** utilise la capture d’un vrai monde joué ; les joueurs, les coordonnées sélectionnées et les actions sont fictifs. La démo ne se connecte à aucun serveur de jeu.
+
+[**Voir le monde dans la démo →**](/DuckCatMine/demo/#world)
+
+![Un vrai village Minecraft vu du dessus, avec ses chemins et ses constructions](/DuckCatMine/screens/world-real.jpg)
 
 ![Accueil de la démo DuckCatMine](/DuckCatMine/screens/desktop-home.jpg)
 

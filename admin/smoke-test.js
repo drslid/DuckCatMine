@@ -12,6 +12,7 @@ test('activation, login, session, CSRF and logout', async () => {
   const state = fs.mkdtempSync(path.join(os.tmpdir(), 'duckcatmine-admin-test-'));
   const mcdata = path.join(state, 'mc-data');
   fs.mkdirSync(path.join(mcdata, 'logs'), { recursive: true });
+  fs.writeFileSync(path.join(mcdata, '.papermc-manifest.json'), JSON.stringify({ minecraftVersion: '26.3' }));
   fs.writeFileSync(path.join(mcdata, 'logs', 'latest.log'), [
     '[18:01:02] [Async Chat Thread - #2/INFO]: <Alex> Salut la team',
     '[18:01:03] [Server thread/INFO]: [Not Secure] [Rcon] Bienvenue',
@@ -91,7 +92,7 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal((await fetch(`${origin}/api/events`)).status, 401);
     const warm = await fetch(`${origin}/api/status`, { headers: { Cookie: cookie } });
     assert.equal(warm.status, 200);
-    await warm.json();
+    assert.equal((await warm.json()).gameVersion, '26.3');
     const collected = rconCommands.length;
     const started = performance.now();
     const simultaneous = await Promise.all(Array.from({ length: 30 }, async () => {

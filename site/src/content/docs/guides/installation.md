@@ -6,6 +6,8 @@ sidebar: { order: 2 }
 
 ## Avant de commencer
 
+**Pour rejoindre la partie : Minecraft Java Edition 26.3 sur PC.** La stack installe Paper build 202 pour cette version. Créez ou sélectionnez un profil **26.3** dans le launcher ; changer de version demande de revérifier les plugins.
+
 - Un **VPS neuf Ubuntu LTS ou Debian**, architecture x86-64. L’installation Docker a été testée sur un hôte Ubuntu ; la matrice complète des distributions reste à compléter.
 - **4 Go de RAM au minimum**, 8 Go conseillés pour dix places ; 15 Go de disque libre pour l’installation, davantage pour le monde et les sauvegardes.
 - Un accès `sudo`, `curl`, `tar`, `python3` et des certificats système à jour.

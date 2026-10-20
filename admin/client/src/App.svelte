@@ -140,7 +140,12 @@
       readId = localStorage.getItem(`duckcatmine.chat.read.${user}`) || '';
     } catch {}
     chatInitialized = false;
-    await navigate(location.hash === '#chat' ? 'chat' : 'home');
+    const requestedSection = location.hash.slice(1);
+    await navigate(
+      ['world', 'players', 'settings', 'chat'].includes(requestedSection)
+        ? requestedSection
+        : 'home',
+    );
     if (demo) {
       status = await api('/api/status');
       receiveChat(await api('/api/chat'));
@@ -194,7 +199,7 @@
     history.replaceState(
       null,
       '',
-      `${location.pathname}${value === 'chat' ? '#chat' : ''}`,
+      `${location.pathname}${value === 'home' ? '' : '#' + value}`,
     );
     window.scrollTo({ top: 0 });
   }
@@ -475,7 +480,10 @@
             <div>
               <p class="eyebrow">TON PROCHAIN MOMENT ENSEMBLE</p>
               <h1>On se retrouve<br />dans le monde ?</h1>
-              <p>Tout est prêt pour jouer et créer.</p>
+              <p>
+                Un village à agrandir, une expédition à préparer. À vous de
+                jouer.
+              </p>
               <button
                 class="join-address"
                 onclick={async () => {
@@ -493,6 +501,11 @@
                   size={17}
                 /></button
               >
+              {#if status.gameVersion}<p class="join-version">
+                  Rejoins avec <strong
+                    >Minecraft Java {status.gameVersion}</strong
+                  > sur PC.
+                </p>{/if}
             </div>
             <div class="welcome-landscape" aria-hidden="true">
               <svg viewBox="0 0 420 260"

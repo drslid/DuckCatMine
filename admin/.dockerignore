@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+client/*-output.txt
+client/node_modules
+public/v2
+state
+jobs
+*.before-*
+__pycache__
+*.pyc
+smoke-test.js
+ui-smoke-test.js
+worker_test.py

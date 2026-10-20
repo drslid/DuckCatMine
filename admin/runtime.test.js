@@ -1,0 +1,51 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { LogReader, SharedSnapshot } = require('./runtime');
+
+test('log cursor handles partial UTF-8 lines, append, truncation and rotation', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'duckcatmine-log-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const filename = path.join(dir, 'latest.log');
+  const line = '[12:00:00] [Server thread/INFO]: <Alex> Héllo';
+  await fs.writeFile(filename, line);
+  const reader = new LogReader(filename);
+  assert.equal((await reader.read()).messages[0].message, 'Héllo');
+  const id = reader.messages[0].id;
+  await fs.appendFile(filename, ' !\n[12:00:01] [Server thread/INFO]: [Rcon] [Web:Sam] Salut\n');
+  assert.deepEqual((await reader.read()).messages.map(x => x.message), ['Héllo !', 'Salut']);
+  assert.equal(reader.messages[0].id, id);
+  const messages = reader.messages;
+  assert.equal((await reader.read()).messages, messages);
+  await fs.rename(filename, path.join(dir, 'old.log'));
+  await fs.writeFile(filename, '[12:00:03] [Server thread/INFO]: <Alex> Nouveau\n');
+  assert.deepEqual((await reader.read()).messages.map(x => x.message), ['Nouveau']);
+  await fs.writeFile(filename, '');
+  assert.deepEqual((await reader.read()).messages, []);
+  await fs.appendFile(filename, 'x'.repeat(20000));
+  await reader.read();
+  assert(reader.partial.bytes.length <= 8192);
+  await fs.appendFile(filename, 'x'.repeat(20000));
+  await reader.read();
+  assert(reader.partial.bytes.length <= 8192, 'a malformed log line must not grow the retained buffer forever');
+});
+
+test('parallel status requests share one collection and invalidation survives a running collection', async () => {
+  let calls = 0, release;
+  const cache = new SharedSnapshot(async () => { calls++; await new Promise(r => { release = r; }); return calls; });
+  const requests = Array.from({ length: 30 }, () => cache.get());
+  await new Promise(setImmediate);
+  assert.equal(calls, 1);
+  cache.invalidate();
+  release();
+  assert.deepEqual(await Promise.all(requests), Array(30).fill(1));
+  const next = cache.get();
+  await new Promise(setImmediate);
+  assert.equal(calls, 2);
+  release();
+  assert.equal(await next, 2);
+  assert.equal(await cache.get(), 2);
+});

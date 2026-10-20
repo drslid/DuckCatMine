@@ -1,0 +1,157 @@
+name: ${COMPOSE_PROJECT_NAME:-duckcatmine}
+
+services:
+  minecraft:
+    image: itzg/minecraft-server:2026.9.2-java25
+    ports:
+      - "${GAME_BIND:-25565}:25565/tcp"
+    environment:
+      EULA: "${EULA:?Accept the Minecraft EULA in the installer}"
+      TYPE: PAPER
+      VERSION: "26.3"
+      PAPER_BUILD: "202"
+      UID: "${PUID:-1000}"
+      GID: "${PGID:-1000}"
+      INIT_MEMORY: 1G
+      MEMORY: "${MC_HEAP:-4G}"
+      MAX_PLAYERS: "${MAX_PLAYERS:-10}"
+      VIEW_DISTANCE: "${VIEW_DISTANCE:-8}"
+      SIMULATION_DISTANCE: "${SIMULATION_DISTANCE:-6}"
+      ONLINE_MODE: "TRUE"
+      OPS: "${ADMINS:?Set at least one administrator}"
+      EXISTING_OPS_FILE: SKIP
+      WHITELIST: "${ADMINS}"
+      EXISTING_WHITELIST_FILE: SKIP
+      ENFORCE_WHITELIST: "TRUE"
+      ENABLE_WHITELIST: "TRUE"
+      USER_API_PROVIDER: mojang
+      MOTD: DuckCatMine · Votre monde entre amis
+      TZ: "${TZ:-Europe/Paris}"
+      RCON_PASSWORD_FILE: /run/secrets/rcon_password
+    secrets: [rcon_password]
+    volumes: ["./data:/data"]
+    mem_limit: "${MC_LIMIT:-6g}"
+    stop_grace_period: 2m
+    restart: unless-stopped
+
+  panel:
+    build: ./admin
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:?Set the public HTTPS URL}"
+      MC_ADDRESS: "${MC_ADDRESS:-}"
+      RCON_HOST: minecraft
+      RCON_PASSWORD_FILE: /run/secrets/rcon_password
+      STATE_DIR: /state
+      MC_DATA_DIR: /mc-data
+      BACKUP_DIR: /backups
+      JOBS_DIR: /jobs
+      CUSTOM_ITEMS_DIR: /custom-items
+      TOWER_SCHEMATICS_DIR: /tower-schematics
+    secrets: [rcon_password]
+    volumes:
+      - ./admin/state:/state
+      - ./admin/jobs:/jobs
+      - ./data:/mc-data:ro
+      - ./backups:/backups:ro
+      - ./data/plugins/mCraft/items:/custom-items
+      - ./data/plugins/DuckCatTowers/schematics:/tower-schematics
+      - ./admin/public/icons:/app/public/icons:ro
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 64
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile.worker
+    user: "${PUID:-1000}:${PGID:-1000}"
+    group_add: ["${DOCKER_GID:?Run the installer to detect the Docker group}"]
+    environment:
+      PROJECT_DIR: "${INSTALL_DIR:?Run the installer}"
+      JOBS_DIR: /jobs
+      MC_CONTAINER_NAME: "${COMPOSE_PROJECT_NAME:-duckcatmine}-minecraft-1"
+    network_mode: none
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${INSTALL_DIR}:${INSTALL_DIR}
+      - ./admin/jobs:/jobs
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    pids_limit: 64
+    restart: unless-stopped
+
+  backups:
+    image: itzg/mc-backup:2026.7.3
+    user: "${PUID:-1000}:${PGID:-1000}"
+    depends_on:
+      minecraft: {condition: service_healthy}
+    environment:
+      RCON_HOST: minecraft
+      RCON_PASSWORD_FILE: /run/secrets/rcon_password
+      BACKUP_INTERVAL: 24h
+      INITIAL_DELAY: "2m"
+      PRUNE_BACKUPS_DAYS: "7"
+      EXCLUDES: cache,logs,*.tmp,bluemap
+      TZ: "${TZ:-Europe/Paris}"
+    secrets: [rcon_password]
+    volumes: ["./data:/data:ro", "./backups:/backups"]
+    mem_limit: 128m
+    restart: unless-stopped
+
+  https:
+    image: caddy:2.11.3-alpine
+    environment:
+      SITE_ADDRESS: "${SITE_ADDRESS:?Run the installer}"
+    ports: ["${HTTP_BIND:-80}:80/tcp", "${HTTPS_BIND:-443}:443/tcp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      panel: {condition: service_healthy}
+    mem_limit: 128m
+    restart: unless-stopped
+
+  plugins:
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: Dockerfile.plugins
+    user: "${PUID:-1000}:${PGID:-1000}"
+    volumes: ["./data/plugins:/plugins"]
+
+  duckdns:
+    profiles: [duckdns]
+    image: python:3.13-alpine
+    user: "${PUID:-1000}:${PGID:-1000}"
+    entrypoint: [python, /update.py]
+    environment:
+      DUCKDNS_SUBDOMAIN: "${DUCKDNS_SUBDOMAIN:-}"
+    volumes: ["./scripts/duckdns.py:/update.py:ro"]
+    secrets: [duckdns_token]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 32m
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  rcon_password: {file: ./secrets/rcon_password}
+  duckdns_token: {file: ./secrets/duckdns_token}

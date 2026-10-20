@@ -1,0 +1,29 @@
+#cloud-config
+# Example only: replace domain and administrator names, configure DNS first.
+# Read the Minecraft EULA before setting ACCEPT_MINECRAFT_EULA to true.
+# No token or password belongs in this template.
+package_update: true
+packages: [curl, python3, ca-certificates]
+write_files:
+  - path: /root/duckcatmine-first-boot.sh
+    permissions: '0700'
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      DOMAIN="minecraft.example.com"
+      ADMINS="YourJavaName"
+      ACCEPT_MINECRAFT_EULA=false
+      if [ "$ACCEPT_MINECRAFT_EULA" != true ]; then
+        echo 'Read https://www.minecraft.net/eula and explicitly accept before deployment.'
+        exit 1
+      fi
+      curl -fsSL https://get.docker.com -o /root/install-docker.sh
+      sh /root/install-docker.sh
+      mkdir -p /opt/duckcatmine
+      curl -fsSL https://github.com/drslid/DuckCatMine/archive/refs/tags/v0.2.0-alpha.1.tar.gz -o /root/duckcatmine.tar.gz
+      tar -xzf /root/duckcatmine.tar.gz -C /opt/duckcatmine --strip-components=1
+      # Invitation links are generated later in the provider console, not in cloud-init logs.
+      python3 /opt/duckcatmine/scripts/setup.py --non-interactive --accept-eula --domain "$DOMAIN" --admins "$ADMINS" --profile friends --no-invites
+runcmd:
+  - [bash, /root/duckcatmine-first-boot.sh]
+# After boot: cd /opt/duckcatmine && docker compose exec -T panel node server.js invite YourJavaName

@@ -1,0 +1,60 @@
+name: Verify and publish website
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            admin/package-lock.json
+            admin/client/package-lock.json
+            site/package-lock.json
+      - name: API and worker checks
+        working-directory: admin
+        run: |
+          npm ci
+          node --test runtime.test.js
+          node smoke-test.js
+          python3 -m unittest worker_test
+      - name: Build UI and server-free demo
+        working-directory: admin/client
+        run: |
+          npm ci
+          npm run check
+          npm run build
+          npm run build:demo
+      - name: Build public site and documentation
+        working-directory: site
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/upload-pages-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          path: site/dist
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v5
+        id: deployment

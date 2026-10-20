@@ -1,0 +1,6 @@
+FROM docker:29-cli
+
+RUN apk add --no-cache python3
+COPY worker.py /worker.py
+
+ENTRYPOINT ["python3", "/worker.py"]

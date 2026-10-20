@@ -1,0 +1,40 @@
+name: DuckCatWelcome
+version: '1.0.0'
+main: org.duckcatmine.welcome.DuckCatWelcome
+api-version: '26.3'
+description: Accueil et commandes pratiques de DuckCatMine.
+commands:
+  guide:
+    description: Ouvre le guide visuel du serveur.
+    aliases: [bienvenue, menu]
+  nouveautes:
+    description: Affiche les nouveautes du serveur.
+    aliases: [news]
+  spawn:
+    description: Retourne a la place d'accueil.
+  sethome:
+    description: Enregistre votre maison.
+  home:
+    description: Retourne a votre maison.
+  delhome:
+    description: Supprime votre maison.
+  warp:
+    description: Liste les destinations ou vous y teleporte.
+  setwarp:
+    description: Cree un point de voyage.
+    permission: duckcat.warp.manage
+  delwarp:
+    description: Supprime un point de voyage.
+    permission: duckcat.warp.manage
+  construire:
+    description: Rejoint la zone de depart des constructions.
+  aider:
+    description: Indique que vous etes disponible pour aider les autres joueurs.
+  aides:
+    description: Liste les volontaires actuellement en ligne.
+  dcpanel:
+    description: Passerelle privee du panneau d'administration.
+permissions:
+  duckcat.warp.manage:
+    description: Gere les warps du serveur.
+    default: op

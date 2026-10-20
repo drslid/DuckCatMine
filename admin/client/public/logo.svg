@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Logo DuckCatMine">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#203a3b"/>
+      <stop offset="1" stop-color="#102024"/>
+    </linearGradient>
+    <linearGradient id="cat" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#d9fc99"/>
+      <stop offset="1" stop-color="#80d8bd"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#background)"/>
+  <path d="M96 237 256 91l160 146v103L256 428 96 340Z" fill="none" stroke="#5b9886" stroke-width="16" stroke-linejoin="round" opacity=".75"/>
+  <path d="M123 240 256 120l133 120v88L256 402 123 328Z" fill="#213e3d"/>
+  <path d="M145 145 208 176c14-5 30-7 48-7s34 2 48 7l63-31v113c0 74-46 131-111 131s-111-57-111-131Z" fill="url(#cat)"/>
+  <path d="m164 176 37 22-37 18Zm184 22 37-22v40Z" fill="#325e55"/>
+  <path d="M178 253h43v37h-43zm113 0h43v37h-43z" fill="#183034"/>
+  <path d="M193 262h11v17h-11zm104 0h11v17h-11z" fill="#d9fc99"/>
+  <path d="m240 308 16 14 16-14Z" fill="#183034"/>
+  <path d="M256 322v15m0 0-18 11m18-11 18 11" fill="none" stroke="#183034" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m215 320-48-8m48 19-45 9m127-20 48-8m-48 19 45 9" fill="none" stroke="#325e55" stroke-width="7" stroke-linecap="round"/>
+</svg>

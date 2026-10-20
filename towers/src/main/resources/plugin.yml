@@ -1,0 +1,13 @@
+name: DuckCatTowers
+version: '1.0.7'
+main: org.duckcatmine.towers.DuckCatTowers
+api-version: '26.3'
+depend: [WorldEdit]
+description: Tours actives et schematics du panneau DuckCatMine.
+commands:
+  dctower:
+    description: Passerelle privée du catalogue de tours.
+    permission: duckcat.towers.manage
+permissions:
+  duckcat.towers.manage:
+    default: op

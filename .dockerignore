@@ -1,0 +1,13 @@
+**/node_modules
+**/target
+**/__pycache__
+.git
+data
+backups
+secrets
+.env
+admin/state
+admin/jobs
+admin/public/icons
+admin/public/v2
+site

@@ -1,0 +1,5 @@
+open-menu-on-join: true
+news:
+  - "Bienvenue ! Ouvre le guide avec /guide."
+  - "Ta maison : /sethome puis /home. Retour : /spawn."
+  - "Le panneau web permet de suivre le chat et d explorer le monde."

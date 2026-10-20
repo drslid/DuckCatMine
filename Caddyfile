@@ -1,0 +1,21 @@
+{$SITE_ADDRESS} {
+    encode zstd gzip
+    header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+    redir /map /map/ 308
+    redir /map-picker-view /map-picker-view/ 308
+    handle_path /map-picker-view/* {
+        forward_auth panel:3000 {
+            uri /api/map-auth
+        }
+        reverse_proxy minecraft:8100
+    }
+    handle_path /map/* {
+        forward_auth panel:3000 {
+            uri /api/map-auth
+        }
+        reverse_proxy minecraft:8100
+    }
+    handle {
+        reverse_proxy panel:3000
+    }
+}

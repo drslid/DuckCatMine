@@ -1,0 +1,9 @@
+{
+  "name": "duckcatmine-admin",
+  "private": true,
+  "version": "1.1.0",
+  "type": "commonjs",
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}

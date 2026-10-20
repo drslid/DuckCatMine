@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /DuckCatMine/
+Disallow: /DuckCatMine/demo/
+Sitemap: https://drslid.github.io/DuckCatMine/sitemap-index.xml

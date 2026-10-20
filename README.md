@@ -80,18 +80,39 @@ Start with your regular crew and grow when the community does. These are **DuckC
 
 RAM below is for the **whole VPS**. The Java heap and Minecraft container limit are separate budgets; the panel, operating system, file cache and backups also need headroom.
 
-| Concurrent player target | CPU allocation | VPS RAM | Java heap / Minecraft container limit | SSD/NVMe capacity to start with |
-| --- | --- | --- | --- | --- |
-| Up to **6** — Small installer preset | 2 fast vCPU | 4 GB | 2 GB / 3 GB | 40 GB |
-| Up to **10** — Friends installer preset | 4 fast vCPU | 8 GB | 4 GB / 6 GB | 80 GB |
-| Up to **25** — manual tuning | 4 fast, dedicated vCPU | 16 GB | 6 GB / 8 GB | 120 GB |
-| Up to **50** — manual tuning | 6 fast, dedicated vCPU | 16 GB | 8 GB / 11 GB | 160 GB |
-| Up to **75** — manual tuning | 8 fast, dedicated vCPU | 24 GB | 10 GB / 14 GB | 240 GB |
-| Up to **100** — manual tuning | 8–12 fast, dedicated vCPU | 32 GB | 12 GB / 16 GB | 320 GB |
+| Concurrent player target | CPU allocation | VPS RAM | Java heap / Minecraft container limit | SSD/NVMe capacity to start with | Host budget / month¹ |
+| --- | --- | --- | --- | --- | --- |
+| Up to **6** — Small installer preset | 2 fast vCPU | 4 GB | 2 GB / 3 GB | 40 GB | €4–8 |
+| Up to **10** — Friends installer preset | 4 fast vCPU | 8 GB | 4 GB / 6 GB | 80 GB | €4–15 |
+| Up to **25** — manual tuning | 4 fast, dedicated vCPU | 16 GB | 6 GB / 8 GB | 120 GB | €35–55 |
+| Up to **50** — manual tuning | 6 fast, dedicated vCPU | 16 GB | 8 GB / 11 GB | 160 GB | €35–75 |
+| Up to **75** — manual tuning | 8 fast, dedicated vCPU | 24 GB | 10 GB / 14 GB | 240 GB | €67–100 |
+| Up to **100** — manual tuning | 8–12 fast, dedicated vCPU | 32 GB | 12 GB / 16 GB | 320 GB | €67–120 |
+
+¹ Indicative host-only planning ranges based on the shortlist below, checked **20 October 2026**, for European locations and approximately French consumer VAT. External backups, a purchased domain and setup fees are extra. The lower end can require a promotion or long prepayment; these ranges are not a statistical market average.
 
 **Prioritize a fast core and predictable CPU time.** Paper's main tick loop runs on one thread, so extra vCPU alone cannot guarantee a smooth game. Keep the container limit above the Java heap and leave RAM outside that container for the rest of the stack. See [Paper's CPU and memory guidance](https://docs.papermc.io/paper/basic-troubleshooting/).
 
 Disk sizes are starting budgets, including some local backup space. World size, BlueMap tiles and backup retention can push usage much higher. Keep an additional backup off the VPS, choose a region close to your players and check the provider's network transfer allowance.
+
+### Low-cost offers from well-known hosts
+
+A price-first shortlist among **Contabo, OVHcloud, Hetzner and netcup**, with direct official links and no affiliate tracking. All configurations below are x86-64. Shared-CPU offers are starting candidates for a small group; they do not satisfy the dedicated-CPU recommendations for the larger tiers just by matching their RAM.
+
+| Offer | CPU / RAM / storage | Monthly price reference | Tax basis and conditions |
+| --- | --- | --- | --- |
+| [Contabo Cloud VPS 4](https://contabo.com/en-us/vps/) | 4 shared vCPU / 8 GB / 100 GB SSD | **€4.40 promotional**, €5.50 regular price displayed | VAT included as advertised; promotion shown for the first 24 months. Confirm local VAT, contract, setup and location charges at checkout. |
+| [OVHcloud VPS-1](https://www.ovhcloud.com/fr/vps/) | 2 vCore / 4 GB / 40 GB NVMe | From **€4.57** | French VAT included; the advertised configurator link selects 12-month prepayment. |
+| [Hetzner CX23](https://www.hetzner.com/cloud/cost-optimized/) | 2 shared vCPU / 4 GB / 40 GB NVMe | About **€7.19** | Calculated with French 20% VAT and one Primary IPv4; hourly billing with a monthly cap. Check stock. |
+| [OVHcloud VPS-2](https://www.ovhcloud.com/fr/vps/) | 4 vCore / 8 GB / 75 GB NVMe | From **€8.65** | French VAT included; 12-month prepayment in the advertised link. Disk is slightly below the 80-GB planning budget. |
+| [Hetzner CX33](https://www.hetzner.com/cloud/cost-optimized/) | 4 shared vCPU / 8 GB / 80 GB NVMe | About **€10.79** | Calculated with French 20% VAT and one Primary IPv4; hourly billing with a monthly cap. Check stock. |
+| [netcup RS 2000 G12.5 — 24M EU](https://www.netcup.com/en/server/root-server/rs-2000-g12.5-iv-24m-eu) | 8 dedicated cores / 16 GB / 256 GB NVMe | About **€34.89** | French-VAT estimate from €34.60 incl. German 19% VAT; **24-month contract and billing period**, automatic EU location, IPv4 included. |
+| [netcup RS 4000 G12.5 — 24M EU](https://www.netcup.com/en/server/root-server/rs-4000-g12.5-iv-24m-eu) | 12 dedicated cores / 32 GB / 512 GB NVMe | About **€66.72** | French-VAT estimate from €66.16 incl. German 19% VAT; **24-month contract and billing period**, automatic EU location, IPv4 included. |
+| [Hetzner EX44-1-LTD](https://www.hetzner.com/dedicated-rootserver/ex44/) | Dedicated i5-13500 machine / 64 GB / 2 × 512 GB NVMe | About **€70.80** | French 20% VAT and Primary IPv4 included in this estimate; limited-stock price, €0 advertised setup. Verify the exact LTD offer is available. |
+
+Price sources and calculation: [OVHcloud's advertised 12-month configuration](https://www.ovhcloud.com/fr/vps/configurator/?brick=VPS%2BModel%2B1&planCode=vps-2027-model1&pricing=upfront12&processor=+&storage=40__SSD__NVMe&vcore=2__vCore), [Contabo's VAT-inclusive price list](https://contabo.com/en-us/pricing/), [Hetzner's current price schedule](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) and [IPv4 fees](https://docs.hetzner.com/general/infrastructure-and-availability/ipv4-pricing/). Hetzner totals use `(net monthly price + IPv4) × 1.20`; netcup estimates use `advertised German total ÷ 1.19 × 1.20`. The linked netcup product pages give the exact commitment and billing period. Checkout determines the final local price, renewal and availability.
+
+For the lowest entry cost, compare **Contabo's promotion and OVHcloud VPS-1**. For ten slots, compare **Contabo, OVHcloud VPS-2 and Hetzner CX33**. For the larger CPU-dedicated targets, start with the **netcup RS** offers and compare [Hetzner's Server Auction](https://www.hetzner.com/sb/); auction prices and hardware change, so no fixed auction quote is promised here. None of these providers has been load-tested by DuckCatMine at the larger player targets.
 
 ### What the current alpha supports
 

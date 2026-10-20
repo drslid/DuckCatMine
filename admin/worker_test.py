@@ -11,6 +11,14 @@ import worker
 
 
 class WorkerTests(unittest.TestCase):
+    def setUp(self):
+        # Tests must never create /jobs or depend on the developer's permissions.
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        jobs = patch.object(worker, 'JOBS', pathlib.Path(directory.name))
+        jobs.start()
+        self.addCleanup(jobs.stop)
+
     def test_restore_backup_from_before_an_addon_was_installed(self):
         from plugin_manager_test import jar
         with tempfile.TemporaryDirectory() as directory:

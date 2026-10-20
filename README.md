@@ -74,12 +74,39 @@ The public demo combines fictional players and simulated actions with a screensh
 3. Enter your domain as the server address.
 4. Join and open `/guide`.
 
-| Initial profile | Target VPS | Java heap / container limit | Slots |
-| --- | --- | --- | --- |
-| Small | 2 vCPU, 4 GB RAM | 2 GB / 3 GB | 6 |
-| Friends | 4 vCPU, 8 GB RAM | 4 GB / 6 GB | 10 |
+## VPS sizing: from a few friends to 100 concurrent players
 
-Slot counts are caps, not performance guarantees. CPU speed, exploration, entities and plugins matter. [Sizing and budget guide](https://drslid.github.io/DuckCatMine/guides/choisir-un-vps/).
+Start with your regular crew and grow when the community does. These are **DuckCatMine planning estimates, not measured player capacities or hosting guarantees**. The larger tiers have not been load-tested at their target player counts. They assume one Paper survival world, a modest plugin set, pre-generated terrain and controlled entity/farm activity.
+
+RAM below is for the **whole VPS**. The Java heap and Minecraft container limit are separate budgets; the panel, operating system, file cache and backups also need headroom.
+
+| Concurrent player target | CPU allocation | VPS RAM | Java heap / Minecraft container limit | SSD/NVMe capacity to start with |
+| --- | --- | --- | --- | --- |
+| Up to **6** — Small installer preset | 2 fast vCPU | 4 GB | 2 GB / 3 GB | 40 GB |
+| Up to **10** — Friends installer preset | 4 fast vCPU | 8 GB | 4 GB / 6 GB | 80 GB |
+| Up to **25** — manual tuning | 4 fast, dedicated vCPU | 16 GB | 6 GB / 8 GB | 120 GB |
+| Up to **50** — manual tuning | 6 fast, dedicated vCPU | 16 GB | 8 GB / 11 GB | 160 GB |
+| Up to **75** — manual tuning | 8 fast, dedicated vCPU | 24 GB | 10 GB / 14 GB | 240 GB |
+| Up to **100** — manual tuning | 8–12 fast, dedicated vCPU | 32 GB | 12 GB / 16 GB | 320 GB |
+
+**Prioritize a fast core and predictable CPU time.** Paper's main tick loop runs on one thread, so extra vCPU alone cannot guarantee a smooth game. Keep the container limit above the Java heap and leave RAM outside that container for the rest of the stack. See [Paper's CPU and memory guidance](https://docs.papermc.io/paper/basic-troubleshooting/).
+
+Disk sizes are starting budgets, including some local backup space. World size, BlueMap tiles and backup retention can push usage much higher. Keep an additional backup off the VPS, choose a region close to your players and check the provider's network transfer allowance.
+
+### What the current alpha supports
+
+The installer offers **Small (6 slots)** and **Friends (10 slots)**. Larger tiers require manual configuration through the Compose variables `MC_HEAP`, `MC_LIMIT`, `MAX_PLAYERS`, `VIEW_DISTANCE` and `SIMULATION_DISTANCE`, followed by a backed-up restart. The web settings currently accept **at most 50 slots**: the 75- and 100-player rows are infrastructure targets, with a manual slot override required and no complete panel workflow validated at that scale. A slot cap is not a capacity test.
+
+### Before inviting 50–100 players
+
+- **Prepare the adventure:** set a world border and pre-generate the playable areas of the Overworld, Nether and End before opening. Watch disk growth while doing this.
+- **Tune how much world stays active:** try a view/simulation distance of **6/4 chunks** for 25–50 players and **4–6/4 chunks** for 75–100, then measure. Lower distances affect scenery and how far entities and farms keep ticking; review the [Paper setting definitions](https://docs.papermc.io/paper/reference/server-properties/).
+- **Give the game priority:** keep DuckCatMine's single BlueMap render thread and pause terrain rendering while players are online. A busy server needs an empty-server maintenance window to catch up on terrain changes; player positions still update live. [BlueMap documents these controls](https://bluemap.bluecolored.de/wiki/getting-started/Configuration.html).
+- **Validate during real play:** grow in stages, check tick times and garbage collection, and capture a [spark profile](https://docs.papermc.io/paper/profiling/) during a busy session. Aim for **20 TPS**, with tick times comfortably below the **50 ms** budget. [Paper explains the tick budget](https://docs.papermc.io/paper/reference/commands/).
+
+For a 100-player community, trial a VPS with dedicated CPU allocation or a dedicated machine before committing long term. Heavy farms, entities, plugins or simultaneous exploration can exhaust the main thread even on the largest tier. If that remains the bottleneck, a multi-server architecture needs a separate design and compatibility review; this alpha manages one Paper server.
+
+[Small-server budget and provider guide](https://drslid.github.io/DuckCatMine/guides/choisir-un-vps/).
 
 ## Screenshots
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Stable release bootstrap. No world or credential is shipped in this archive.
-VERSION="v0.2.0-alpha.4"
+VERSION="v0.2.0-alpha.5"
 DEST="${DUCKCATMINE_DIR:-/opt/duckcatmine}"
 for tool in curl tar python3; do
   command -v "$tool" >/dev/null || { echo "Missing requirement: $tool (Ubuntu/Debian: apt install curl python3 ca-certificates)"; exit 1; }

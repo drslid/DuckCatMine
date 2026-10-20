@@ -4,6 +4,7 @@
   import { api, setCsrf, demo, fold, asset } from './api';
   import Icon from './Icon.svelte';
   import Chat from './Chat.svelte';
+  import { chatViewport } from './chat-viewport';
   import Health from './Health.svelte';
   import { serverHealth } from './health.js';
   let healthClock = $state(Date.now());
@@ -402,7 +403,11 @@
       ><small class="muted">Accès réservé aux membres autorisés.</small>
     </section>
   </main>
-{:else}<div class="app-shell">
+{:else}<div
+    class="app-shell"
+    class:chat-active={section === 'chat'}
+    use:chatViewport
+  >
     <aside class="sidebar">
       <a
         class="brand"
@@ -475,7 +480,11 @@
           onclick={openNotifications}><Icon name="bell" /></button
         >
       </header>
-      <main class="page-content" id="main-content">
+      <main
+        class="page-content"
+        class:chat-view={section === 'chat'}
+        id="main-content"
+      >
         {#if section === 'home'}<section class="welcome">
             <div>
               <p class="eyebrow">TON PROCHAIN MOMENT ENSEMBLE</p>
@@ -693,7 +702,7 @@
           <article class="card chat-page">
             <Chat {messages} {user} {toast} />
           </article>
-          <p class="muted">
+          <p class="muted chat-help">
             Les messages envoyés ici apparaissent dans Minecraft avec ton pseudo
             et la mention Web.
           </p>

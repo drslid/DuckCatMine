@@ -2985,3 +2985,115 @@ canvas {
   font-weight: 600;
   color: var(--text);
 }
+
+/* Mobile chat owns the visible viewport; navigation and composer share its flow. */
+@media (max-width: 850px) {
+  .app-shell.chat-active {
+    position: fixed;
+    top: var(--chat-visual-top, 0px);
+    left: 0;
+    width: 100%;
+    height: var(--chat-visual-height, 100dvh);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-active .main-shell {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+  .chat-active .app-header {
+    flex-shrink: 0;
+  }
+  .page-content.chat-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    padding: 12px 15px 10px;
+    overflow: hidden;
+  }
+  .chat-view > .section-heading {
+    flex-shrink: 0;
+    margin-bottom: 12px;
+  }
+  .chat-view .chat-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+  }
+  .chat-page .chat-thread {
+    flex: 1;
+    min-height: 0;
+  }
+  .chat-page .chat-feed {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+  .chat-compose {
+    flex-shrink: 0;
+  }
+  .chat-compose input {
+    font-size: 16px;
+  }
+  .chat-view .chat-help {
+    flex-shrink: 0;
+    font-size: 10px;
+    line-height: 1.5;
+    margin: 7px 0 0;
+  }
+  .mobile-nav {
+    bottom: var(--chat-keyboard-inset, 0px);
+  }
+  .chat-active .mobile-nav {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    flex-shrink: 0;
+  }
+  .chat-drawer {
+    display: flex;
+    flex-direction: column;
+    bottom: calc(
+      var(--chat-keyboard-inset, 0px) + var(--chat-nav-height, 64px) + 12px
+    );
+    height: min(
+      460px,
+      calc(
+        var(--chat-visual-height, 100dvh) - var(--chat-nav-height, 64px) - 24px
+      )
+    );
+    max-height: none;
+    min-height: 0;
+  }
+  .chat-drawer-heading {
+    flex-shrink: 0;
+  }
+  .chat-drawer .chat-thread {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  .chat-drawer .chat-feed {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+  .app-shell[data-chat-keyboard='true'] .health-strip {
+    display: none;
+  }
+  .chat-active[data-chat-keyboard='true'] .chat-view > .section-heading,
+  .chat-active[data-chat-keyboard='true'] .chat-help {
+    display: none;
+  }
+}

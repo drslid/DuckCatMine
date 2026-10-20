@@ -5,7 +5,7 @@
 
 ![DuckCatMine dashboard — real interface with fictional demo data](site/public/screens/desktop-home.jpg)
 
-> **Alpha — v0.2.0-alpha.4.** Built for a private Minecraft Java server and a small trusted group. Back up before migrating an existing world. The installer creates a fresh stack and refuses to overwrite an existing installation. Automated upgrades and fine-grained web roles are not included yet.
+> **Alpha — v0.2.0-alpha.5.** Built for a private Minecraft Java server and a small trusted group. Back up before migrating an existing world. The installer creates a fresh stack and refuses to overwrite an existing installation. Automated upgrades and fine-grained web roles are not included yet.
 
 > **Play with Minecraft Java Edition 26.3 on PC.** This release installs Paper build 202 for that specific game version. Select a 26.3 profile in your launcher before joining. Other game versions require a compatibility review of the server and plugins.
 
@@ -21,7 +21,7 @@ Requirements:
 - Official Minecraft Java accounts. You must read and accept the Minecraft EULA.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.4/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.5/install.sh | sudo bash
 ```
 
 [Inspect the bootstrap first](install.sh). The command is pinned to a release tag. It does not upgrade the operating system or change its firewall.
@@ -129,7 +129,7 @@ python3 -m pip install PyYAML==6.0.2
 python3 -m unittest worker_test plugin_manager_test
 
 # UI and standalone, server-free demo
-cd client && npm ci && npm run check && node --test health.test.js && npm run build && npm run build:demo
+cd client && npm ci && npm run check && node --experimental-strip-types --test health.test.js chat-viewport.test.js && npm run build && npm run build:demo
 
 # Documentation and public website
 cd ../../site && npm ci && npm run build && npm run dev

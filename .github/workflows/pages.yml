@@ -40,6 +40,7 @@ jobs:
           npm ci
           npm run check
           node --test health.test.js
+          node --experimental-strip-types --test chat-viewport.test.js
           npm run build
           npm run build:demo
       - name: Build public site and documentation

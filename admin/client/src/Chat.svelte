@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, onMount } from 'svelte';
   import { api } from './api';
   import Icon from './Icon.svelte';
   let {
@@ -17,6 +17,13 @@
     busy = $state(false),
     feed: HTMLDivElement,
     following = $state(true);
+  onMount(() => {
+    const observer = new ResizeObserver(() => {
+      if (following && feed) feed.scrollTop = feed.scrollHeight;
+    });
+    observer.observe(feed);
+    return () => observer.disconnect();
+  });
   $effect(() => {
     messages.length;
     if (following)
@@ -81,6 +88,7 @@
       maxlength="180"
       placeholder={`Écrire en tant que ${user}…`}
       autocomplete="off"
+      enterkeyhint="send"
     /><button
       class="primary icon-button"
       aria-label="Envoyer le message"

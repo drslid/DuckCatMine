@@ -20,10 +20,10 @@ L’assistant ne modifie pas le pare-feu et ne met pas à niveau votre système.
 Dans la console du VPS :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.1/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.2/install.sh | sudo bash
 ```
 
-Vous pouvez d’abord [lire le script](https://github.com/drslid/DuckCatMine/blob/v0.2.0-alpha.1/install.sh), le télécharger et l’exécuter ensuite. La commande utilise une version précise.
+Vous pouvez d’abord [lire le script](https://github.com/drslid/DuckCatMine/blob/v0.2.0-alpha.2/install.sh), le télécharger et l’exécuter ensuite. La commande utilise une version précise.
 
 L’assistant vous demande :
 

@@ -1,4 +1,4 @@
-# Verification — v0.2.0-alpha.1
+# Verification — v0.2.0-alpha.2
 
 Measurements from 20 October 2026. These are engineering checks, not universal performance promises or provider benchmarks.
 
@@ -42,7 +42,7 @@ The installer was run in a new Linux directory on the same VPS, using the Small 
 
 The restore exercise exposed the backup tool's default exclusion of JAR files. The stack now explicitly includes plugin binaries in backups and refuses older incomplete archives before stopping the game. Restore preserves the directories bind-mounted into the panel. Regression checks cover both behaviors. Six worker tests pass.
 
-This isolated test used HTTP on loopback. It did not request a certificate for a new public domain or change the existing DuckDNS record. The existing live panel uses HTTPS. Fresh-host Docker installation, real DuckDNS-token renewal, provider cloud-init and ARM hosts remain separate deployment tests; do not claim they were exercised by this run.
+This isolated test used HTTP on loopback. The release bootstrap is also checked with an existing Docker Engine and a fresh directory, without sudo. It did not request a certificate for a new public domain or change the existing DuckDNS record. The existing live panel uses HTTPS. Fresh-host Docker installation, real DuckDNS-token renewal, provider cloud-init and ARM hosts remain separate deployment tests; do not claim they were exercised by this run.
 
 ## Reproduce
 

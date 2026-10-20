@@ -20,7 +20,7 @@ write_files:
       curl -fsSL https://get.docker.com -o /root/install-docker.sh
       sh /root/install-docker.sh
       mkdir -p /opt/duckcatmine
-      curl -fsSL https://github.com/drslid/DuckCatMine/archive/refs/tags/v0.2.0-alpha.1.tar.gz -o /root/duckcatmine.tar.gz
+      curl -fsSL https://github.com/drslid/DuckCatMine/archive/refs/tags/v0.2.0-alpha.2.tar.gz -o /root/duckcatmine.tar.gz
       tar -xzf /root/duckcatmine.tar.gz -C /opt/duckcatmine --strip-components=1
       # Invitation links are generated later in the provider console, not in cloud-init logs.
       python3 /opt/duckcatmine/scripts/setup.py --non-interactive --accept-eula --domain "$DOMAIN" --admins "$ADMINS" --profile friends --no-invites

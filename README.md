@@ -5,7 +5,7 @@
 
 ![DuckCatMine dashboard — real interface with fictional demo data](site/public/screens/desktop-home.jpg)
 
-> **Alpha — v0.2.0-alpha.1.** Built for a private Minecraft Java server and a small trusted group. Back up before migrating an existing world. The installer creates a fresh stack and refuses to overwrite an existing installation. Automated upgrades and fine-grained web roles are not included yet.
+> **Alpha — v0.2.0-alpha.2.** Built for a private Minecraft Java server and a small trusted group. Back up before migrating an existing world. The installer creates a fresh stack and refuses to overwrite an existing installation. Automated upgrades and fine-grained web roles are not included yet.
 
 ## Quick install
 
@@ -19,7 +19,7 @@ Requirements:
 - Official Minecraft Java accounts. You must read and accept the Minecraft EULA.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.1/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/drslid/DuckCatMine/v0.2.0-alpha.2/install.sh | sudo bash
 ```
 
 [Inspect the bootstrap first](install.sh). The command is pinned to a release tag. It does not upgrade the operating system or change its firewall.

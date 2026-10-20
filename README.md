@@ -114,7 +114,7 @@ Runtime versions are pinned in [compose.yaml](compose.yaml), plugin URLs and SHA
 
 ## Development
 
-Use Node.js **24** for the site and UI, Python 3.10+ for worker tests. Maven builds use Java 25 in Docker.
+Use Node.js **24** for the site and UI, Python 3.12+ for worker tests. Maven builds use Java 25 in Docker.
 
 ```bash
 # Panel/API checks

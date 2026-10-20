@@ -11,6 +11,23 @@ import worker
 
 
 class WorkerTests(unittest.TestCase):
+    def test_clear_data_keeps_panel_mount_directories_but_removes_contents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            previous = worker.DATA
+            try:
+                worker.DATA = pathlib.Path(directory)
+                mount = worker.DATA / 'plugins/DuckCatTowers/schematics'
+                mount.mkdir(parents=True)
+                inode = mount.stat().st_ino
+                (mount / 'old.schem').write_bytes(b'old')
+                (worker.DATA / 'world').mkdir()
+                worker.clear_data()
+                self.assertEqual(mount.stat().st_ino, inode)
+                self.assertEqual(list(mount.iterdir()), [])
+                self.assertFalse((worker.DATA / 'world').exists())
+            finally:
+                worker.DATA = previous
+
     def test_restore_refuses_archives_missing_plugin_binaries_before_stopping_game(self):
         with tempfile.TemporaryDirectory() as directory:
             old_data, old_backups = worker.DATA, worker.BACKUPS

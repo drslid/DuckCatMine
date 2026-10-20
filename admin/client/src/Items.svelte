@@ -72,7 +72,8 @@
   async function loadCustom() {
     try {
       const response = await api('/api/custom-items');
-      custom = response.items; customAvailable = response.available !== false;
+      custom = response.items;
+      customAvailable = response.available !== false;
     } catch (e) {
       toast(e.message, true);
     }
@@ -217,48 +218,49 @@
     }}
   >
     <summary>Objets personnalisés · mCraft</summary>
-    {#if !customAvailable}<p class="muted">Extension optionnelle mCraft requise. Consulte le guide des extensions avant de l’installer.</p>{:else}{#each custom as item}<div
-        class="setting-row"
-      >
-        <span>{item.name}</span><button
-          class="secondary"
-          onclick={async () => {
-            try {
-              await api('/api/custom-items/give', 'POST', {
-                id: item.id,
-                player,
-                count: 1,
-              });
-              toast('Objet donné.');
-            } catch (e) {
-              toast(e.message, true);
-            }
-          }}>Donner</button
+    {#if !customAvailable}<p class="muted">
+        Extension optionnelle mCraft requise. Consulte le guide des extensions
+        avant de l’installer.
+      </p>{:else}{#each custom as item}<div class="setting-row">
+          <span>{item.name}</span><button
+            class="secondary"
+            onclick={async () => {
+              try {
+                await api('/api/custom-items/give', 'POST', {
+                  id: item.id,
+                  player,
+                  count: 1,
+                });
+                toast('Objet donné.');
+              } catch (e) {
+                toast(e.message, true);
+              }
+            }}>Donner</button
+          >
+        </div>{/each}
+      <form onsubmit={createCustom}>
+        <p class="muted">
+          Sélectionne l’objet de base dans le catalogue, puis personnalise son
+          nom et sa description.
+        </p>
+        <label
+          >Identifiant<input
+            bind:value={slug}
+            pattern={'[a-z][a-z0-9_]{2,31}'}
+            required
+            placeholder="mon_objet"
+          /></label
+        ><label
+          >Nom<input
+            bind:value={customName}
+            minlength="3"
+            maxlength="40"
+            required
+          /></label
+        ><label>Description<input bind:value={lore} maxlength="100" /></label
+        ><button class="secondary" disabled={!selected || busy}
+          >Créer avec l’objet choisi</button
         >
-      </div>{/each}
-    <form onsubmit={createCustom}>
-      <p class="muted">
-        Sélectionne l’objet de base dans le catalogue, puis personnalise son nom
-        et sa description.
-      </p>
-      <label
-        >Identifiant<input
-          bind:value={slug}
-          pattern={'[a-z][a-z0-9_]{2,31}'}
-          required
-          placeholder="mon_objet"
-        /></label
-      ><label
-        >Nom<input
-          bind:value={customName}
-          minlength="3"
-          maxlength="40"
-          required
-        /></label
-      ><label>Description<input bind:value={lore} maxlength="100" /></label
-      ><button class="secondary" disabled={!selected || busy}
-        >Créer avec l’objet choisi</button
-      >
-    </form>
+      </form>
     {/if}
   </details>{/if}

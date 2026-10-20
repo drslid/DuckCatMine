@@ -67,6 +67,9 @@
     search();
     return () => clearTimeout(timer);
   });
+  function previewLoaded(value: boolean) {
+    previewReady = value;
+  }
 </script>
 
 <div class="catalog-search">
@@ -113,7 +116,7 @@
             ? `/api/skins/texture/${selected.hash}`
             : ''}
         variant={Math.max(0, skins.indexOf(selected))}
-        onready={(value) => (previewReady = value)}
+        onready={previewLoaded}
       /><SkinFigure
         src={selected?.mode === 'player'
           ? `/api/skins/player-image/${selected.name}`

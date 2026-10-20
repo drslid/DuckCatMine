@@ -168,6 +168,8 @@ def main():
     write_file('secrets/duckdns_token', token + '\n', private=True)
     for folder in ['admin/state', 'admin/jobs', 'data/plugins/mCraft/items', 'data/plugins/DuckCatTowers/schematics', 'backups', 'admin/public/icons']:
         (ROOT / folder).mkdir(parents=True, exist_ok=True)
+    for folder in ['secrets', 'admin/state', 'admin/jobs']:
+        (ROOT / folder).chmod(0o700)
     configure(origin)
     download_plugins()
     print('Generate item previews locally from the official Minecraft client.', flush=True)

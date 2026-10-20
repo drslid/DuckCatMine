@@ -153,11 +153,20 @@ def snapshot_before_restore():
 
 
 def clear_data():
-    for child in DATA.iterdir():
-        if child.is_dir() and not child.is_symlink():
-            shutil.rmtree(child)
-        else:
-            child.unlink()
+    # These directories are bind-mounted into the panel. Keep their inodes so
+    # that uploads and custom item writes still reach the restored data tree.
+    mounted = [DATA / 'plugins/mCraft/items', DATA / 'plugins/DuckCatTowers/schematics']
+    def clear(directory):
+        for child in directory.iterdir():
+            keep = any(child == mount or child in mount.parents for mount in mounted)
+            if child.is_dir() and not child.is_symlink():
+                if keep:
+                    clear(child)
+                else:
+                    shutil.rmtree(child)
+            else:
+                child.unlink()
+    clear(DATA)
 
 
 def run_job(job):

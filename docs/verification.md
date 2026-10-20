@@ -37,7 +37,10 @@ The installer was run in a new Linux directory on the same VPS, using the Small 
 - Map data, item image, catalog and initial SSE event.
 - Terrain check, tower placement and automatic shots against a test monster in forced-loaded test chunks.
 - Worker map-policy job.
-- Real backup, archive download, restore and Minecraft returning online.
+- Real backup, streamed archive download, restore and Minecraft returning online.
+- All five plugins and the map returning after restore; panel upload directories remaining writable.
+
+The restore exercise exposed the backup tool's default exclusion of JAR files. The stack now explicitly includes plugin binaries in backups and refuses older incomplete archives before stopping the game. Restore preserves the directories bind-mounted into the panel. Regression checks cover both behaviors. Six worker tests pass.
 
 This isolated test used HTTP on loopback. It did not request a certificate for a new public domain or change the existing DuckDNS record. The existing live panel uses HTTPS. Fresh-host Docker installation, real DuckDNS-token renewal, provider cloud-init and ARM hosts remain separate deployment tests; do not claim they were exercised by this run.
 

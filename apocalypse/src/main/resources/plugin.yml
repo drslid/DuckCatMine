@@ -1,0 +1,20 @@
+name: DuckCatApocalypse
+version: '0.1.0-alpha.1'
+main: org.duckcatmine.apocalypse.DuckCatApocalypse
+api-version: '26.3'
+description: Scénario de survie Ground Zero (NEXUS-13) pour DuckCatMine.
+commands:
+  apocalypse:
+    description: Scénario de survie Ground Zero.
+    aliases: [apoc]
+    usage: /apocalypse help
+permissions:
+  duckcat.apocalypse.play:
+    description: Rejoindre et jouer Ground Zero.
+    default: true
+  duckcat.apocalypse.admin:
+    description: Administrer le scénario.
+    default: op
+  duckcat.apocalypse.bypass:
+    description: Traverser la frontière du scénario sans échange d'inventaire (observation, tracée).
+    default: op

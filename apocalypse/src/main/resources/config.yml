@@ -1,0 +1,68 @@
+# DuckCatApocalypse — réglages du scénario Ground Zero.
+# Durées en secondes. Une valeur invalide empêche le démarrage du plugin ;
+# /apocalypse admin reload conserve alors la dernière configuration valide.
+# Les nouvelles durées s'appliquent aux nouveaux événements : une infection
+# ou un sac en cours garde l'échéance calculée à sa création.
+config-version: 1
+
+scenario:
+  id: ground_zero
+  # Monde dédié créé par /apocalypse admin world create (jamais un monde existant).
+  world: ground_zero
+  border-size: 768
+  difficulty: NORMAL
+
+refuge:
+  center-x: 0
+  center-z: 0
+  # Demi-côté du refuge carré, murs compris.
+  radius: 12
+
+infection:
+  duration-seconds: 60
+  repeated-bites-reset-timer: false
+  antidote-use-seconds: 2.0
+  # Le mouvement n'interrompt pas l'administration ; ces réglages gardent une chance de fuite.
+  antidote-allow-sprint: true
+  antidote-speed-multiplier: 1.0
+
+death:
+  bag-lifetime-seconds: 300
+  bag-access-radius: 4.5
+
+respawn:
+  protection-seconds: 30
+
+loot:
+  contribution-window-seconds: 30
+  # Probabilité d'un bonus en plus de l'objet garanti.
+  bonus-roll-chance: 0.10
+
+spawning:
+  enabled: true
+  interval-seconds: 3
+  per-player-local-cap: 3
+  global-cap: 40
+  min-distance: 20
+  max-distance: 32
+  despawn-distance: 64
+
+archetypes:
+  walker:
+    health: 20
+    damage: 3.0
+    # Valeur d'attribut Minecraft, pas des blocs par seconde (un zombie vanilla : 0.23).
+    speed: 0.20
+    follow-range: 24
+    bite-chance: 1.0
+    guaranteed-loot:
+      - {item: apocalypse:scrap, weight: 50}
+      - {item: apocalypse:cloth, weight: 50}
+    bonus-loot:
+      - {item: minecraft:bread, weight: 65}
+      - {item: apocalypse:cloth, weight: 25, amount: 2}
+      - {item: apocalypse:scrap, weight: 8, amount: 3}
+      - {item: apocalypse:antidote, weight: 2}
+
+clock:
+  checkpoint-seconds: 5

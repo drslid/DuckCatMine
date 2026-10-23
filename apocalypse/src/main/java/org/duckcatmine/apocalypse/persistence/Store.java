@@ -288,6 +288,110 @@ public final class Store {
                 sysNow, System.currentTimeMillis(), actor, action, detail);
     }
 
+    // ------------------------------------------------------------------ teams
+
+    public record TeamRow(String id, String name, UUID leader, long createdAt, boolean bagAccess) {
+    }
+
+    public static List<TeamRow> teams(Connection c) throws SQLException {
+        List<TeamRow> teams = new ArrayList<>();
+        try (PreparedStatement s = c.prepareStatement("SELECT team_id, name, leader, created_sys_ms, bag_access FROM teams");
+             ResultSet r = s.executeQuery()) {
+            while (r.next()) teams.add(new TeamRow(r.getString(1), r.getString(2), UUID.fromString(r.getString(3)), r.getLong(4), r.getInt(5) != 0));
+        }
+        return teams;
+    }
+
+    /** Member to team id. */
+    public static java.util.Map<UUID, String> teamMembers(Connection c) throws SQLException {
+        java.util.Map<UUID, String> members = new java.util.LinkedHashMap<>();
+        try (PreparedStatement s = c.prepareStatement("SELECT uuid, team_id FROM team_members ORDER BY joined_sys_ms"); ResultSet r = s.executeQuery()) {
+            while (r.next()) members.put(UUID.fromString(r.getString(1)), r.getString(2));
+        }
+        return members;
+    }
+
+    public static void insertTeam(Connection c, TeamRow team) throws SQLException {
+        update(c, "INSERT INTO teams(team_id, name, leader, created_sys_ms, bag_access) VALUES(?, ?, ?, ?, ?)",
+                team.id(), team.name(), team.leader().toString(), team.createdAt(), team.bagAccess() ? 1 : 0);
+    }
+
+    public static void deleteTeam(Connection c, String teamId) throws SQLException {
+        update(c, "DELETE FROM team_members WHERE team_id = ?", teamId);
+        update(c, "DELETE FROM teams WHERE team_id = ?", teamId);
+    }
+
+    public static void setTeamLeader(Connection c, String teamId, UUID leader) throws SQLException {
+        update(c, "UPDATE teams SET leader = ? WHERE team_id = ?", leader.toString(), teamId);
+    }
+
+    public static void setTeamBagAccess(Connection c, String teamId, boolean value) throws SQLException {
+        update(c, "UPDATE teams SET bag_access = ? WHERE team_id = ?", value ? 1 : 0, teamId);
+    }
+
+    /** Fails if the player already belongs to a team (primary key). */
+    public static void addTeamMember(Connection c, UUID player, String teamId, long now) throws SQLException {
+        update(c, "INSERT INTO team_members(uuid, team_id, joined_sys_ms) VALUES(?, ?, ?)", player.toString(), teamId, now);
+    }
+
+    public static void removeTeamMember(Connection c, UUID player) throws SQLException {
+        update(c, "DELETE FROM team_members WHERE uuid = ?", player.toString());
+    }
+
+    public static String playerName(Connection c, UUID id) throws SQLException {
+        PlayerRow row = player(c, id);
+        return row == null ? null : row.name();
+    }
+
+    // ------------------------------------------------------------------ progression
+
+    public record Progress(int points, String skills, int kills, long startedAt, boolean alive) {
+    }
+
+    public record Career(int lives, long bestSurvivalMs, long careerPoints) {
+    }
+
+    public static Progress progress(Connection c, String runId) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement("SELECT points, skills, kills, started_sys_ms, state FROM runs WHERE run_id = ?")) {
+            s.setString(1, runId);
+            try (ResultSet r = s.executeQuery()) {
+                return r.next() ? new Progress(r.getInt(1), r.getString(2), r.getInt(3), r.getLong(4), "ALIVE".equals(r.getString(5))) : null;
+            }
+        }
+    }
+
+    /** Points go to a living life only; the career total keeps them as recognition. */
+    public static void addPoints(Connection c, String runId, UUID player, int points) throws SQLException {
+        if (update(c, "UPDATE runs SET points = points + ? WHERE run_id = ? AND state = 'ALIVE'", points, runId) == 1)
+            update(c, "UPDATE players SET career_points = career_points + ? WHERE uuid = ?", points, player.toString());
+    }
+
+    public static boolean setSkills(Connection c, String runId, String skills) throws SQLException {
+        return update(c, "UPDATE runs SET skills = ? WHERE run_id = ? AND state = 'ALIVE'", skills, runId) == 1;
+    }
+
+    public static Career career(Connection c, UUID player) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement("SELECT lives, best_survival_ms, career_points FROM players WHERE uuid = ?")) {
+            s.setString(1, player.toString());
+            try (ResultSet r = s.executeQuery()) {
+                return r.next() ? new Career(r.getInt(1), r.getLong(2), r.getLong(3)) : new Career(0, 0, 0);
+            }
+        }
+    }
+
+    public static boolean introSeen(Connection c, UUID player) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement("SELECT intro_seen FROM players WHERE uuid = ?")) {
+            s.setString(1, player.toString());
+            try (ResultSet r = s.executeQuery()) {
+                return r.next() && r.getInt(1) != 0;
+            }
+        }
+    }
+
+    public static void setIntroSeen(Connection c, UUID player) throws SQLException {
+        update(c, "UPDATE players SET intro_seen = 1 WHERE uuid = ?", player.toString());
+    }
+
     private static int update(Connection c, String sql, Object... parameters) throws SQLException {
         try (PreparedStatement statement = c.prepareStatement(sql)) {
             for (int i = 0; i < parameters.length; i++) statement.setObject(i + 1, parameters[i]);

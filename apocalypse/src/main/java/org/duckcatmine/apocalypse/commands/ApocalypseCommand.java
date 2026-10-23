@@ -62,6 +62,16 @@ public final class ApocalypseCommand implements TabExecutor {
             }
             case "recipes", "recettes" -> plugin.crafting().open(player, org.duckcatmine.apocalypse.crafting.CraftingService.Station.CATALOG,
                     args.length > 1 ? args[1] : null);
+            case "team", "equipe" -> plugin.teams().command(player, args);
+            case "stats" -> plugin.progress().stats(player);
+            case "skills", "competences" -> plugin.progress().skills(player, args);
+            case "intro" -> {
+                if (args.length > 1 && (args[1].equalsIgnoreCase("skip") || args[1].equalsIgnoreCase("passer"))) {
+                    if (!plugin.intro().skip(player)) Text.info(player, "Aucune introduction en cours.");
+                } else {
+                    plugin.intro().replay(player);
+                }
+            }
             default -> help(player);
         }
         return true;
@@ -70,9 +80,11 @@ public final class ApocalypseCommand implements TabExecutor {
     private void help(CommandSender sender) {
         Text.info(sender, "/apocalypse join ground_zero — entrer (ton inventaire habituel est mis de côté)");
         Text.info(sender, "/apocalypse leave — quitter depuis le refuge (impossible avec une morsure)");
-        Text.info(sender, "/apocalypse status | infection | bag [open] | recipes [objet]");
+        Text.info(sender, "/apocalypse status | infection | bag [open] | recipes [objet] | stats | skills | intro [skip]");
+        Text.info(sender, "/apocalypse team create <nom> | invite <joueur> | accept | decline | leave | kick <joueur> | bags on|off | disband");
+        Text.info(sender, "Injecter un antidote à un autre survivant mordu : accroupi, clic droit sur lui, antidote en main (2 s).");
         if (sender.hasPermission(ADMIN))
-            Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | threat [valeur] | destruction on|off | horde <joueur> | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
+            Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | threat [valeur] | destruction on|off | horde <joueur> | pvp on|off | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
     }
 
     private void status(Player player) {
@@ -118,6 +130,16 @@ public final class ApocalypseCommand implements TabExecutor {
             case "world" -> world(sender, args);
             case "give" -> give(sender, args, actor);
             case "threat" -> threat(sender, args, actor);
+            case "pvp" -> {
+                String mode = args.length < 3 ? "" : args[2].toLowerCase(Locale.ROOT);
+                if (!mode.equals("on") && !mode.equals("off")) {
+                    Text.info(sender, "PvP dans Ground Zero : " + (plugin.scenario().pvp() ? "activé" : "désactivé") + ". /apocalypse admin pvp on|off");
+                    return;
+                }
+                plugin.scenario().setPvp(mode.equals("on"), actor);
+                plugin.getLogger().info("Administration (" + actor + ") : PvP " + mode);
+                Text.good(sender, "PvP " + (mode.equals("on") ? "activé (jamais au refuge ni entre coéquipiers)" : "désactivé") + ", annoncé aux survivants (tracé).");
+            }
             case "horde" -> {
                 Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : null;
                 if (target == null || !plugin.sessions().isSurvivor(target) || plugin.scenario().inRefuge(target.getLocation())) {
@@ -182,6 +204,7 @@ public final class ApocalypseCommand implements TabExecutor {
         Text.info(sender, String.format(Locale.ROOT, "Menace : %.2f | phase : %s (%d s) | hordes : %d | siège : %s, %d bloc(s) entamé(s) | animaux en incubation : %d",
                 threat.level(), threat.phase().label(), threat.secondsLeft(), threat.hordes(),
                 plugin.siege().enabled() ? "actif" : "coupé", plugin.siege().damagedBlocks(), plugin.fauna().incubatingCount()));
+        Text.info(sender, "PvP : " + (scenario.pvp() ? "activé" : "désactivé") + " | équipes : " + plugin.teams().count());
         Text.info(sender, "Inventaires classiques gardés par le scénario : " + held
                 + (held == 0 ? " — désinstallation sans risque." : " — garder le plugin installé (même désactivé) jusqu'à 0."));
     }
@@ -287,16 +310,30 @@ public final class ApocalypseCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
-            options.addAll(List.of("join", "leave", "status", "infection", "bag", "recipes", "help"));
+            options.addAll(List.of("join", "leave", "status", "infection", "bag", "recipes", "team", "stats", "skills", "intro", "help"));
             if (sender.hasPermission(ADMIN)) options.add("admin");
         } else if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             options.add(plugin.settings().scenario().id());
         } else if (args.length == 2 && args[0].equalsIgnoreCase("bag")) {
             options.add("open");
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("team")) {
+            options.addAll(List.of("create", "invite", "accept", "decline", "leave", "kick", "bags", "disband", "info"));
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("team") && args[1].equalsIgnoreCase("invite")) {
+            Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("team") && args[1].equalsIgnoreCase("kick") && sender instanceof Player player) {
+            options.addAll(plugin.teams().names(player.getUniqueId()));
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("team") && args[1].equalsIgnoreCase("bags")) {
+            options.addAll(List.of("on", "off"));
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("skills")) {
+            options.add("up");
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("skills")) {
+            options.addAll(List.of("endurance", "melee", "breath"));
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("intro")) {
+            options.add("skip");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
-            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat", "destruction", "horde"));
+            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat", "destruction", "horde", "pvp"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("horde")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
-            else if (args.length == 3 && args[1].equalsIgnoreCase("destruction")) options.addAll(List.of("on", "off"));
+            else if (args.length == 3 && (args[1].equalsIgnoreCase("destruction") || args[1].equalsIgnoreCase("pvp"))) options.addAll(List.of("on", "off"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("world")) options.addAll(List.of("create", "bind", "recreate"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("give")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
             else if (args.length == 4 && args[1].equalsIgnoreCase("give")) options.addAll(plugin.items().ids());

@@ -64,6 +64,91 @@ class StoreTest {
     }
 
     @Test
+    void additiveColumnsMarkExistingPlayersAsIntroducedOnce() throws Exception {
+        String run = life();
+        db.close();
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection("jdbc:sqlite:" + dir.resolve("apocalypse.db"));
+             java.sql.Statement s = c.createStatement()) {
+            s.execute("ALTER TABLE players DROP COLUMN intro_seen");
+            s.execute("ALTER TABLE runs DROP COLUMN points");
+        }
+        db = Database.open(dir.resolve("apocalypse.db"), LOG);
+        boolean introduced = db.call(c -> Store.introSeen(c, alex));
+        assertTrue(introduced, "a survivor who already played does not get the introduction");
+        UUID newcomer = UUID.randomUUID();
+        db.call(c -> {
+            Store.ensurePlayer(c, newcomer, "Nouveau", 0);
+            return null;
+        });
+        boolean newcomerIntroduced = db.call(c -> Store.introSeen(c, newcomer));
+        assertFalse(newcomerIntroduced);
+        assertEquals(0, db.call(c -> Store.progress(c, run)).points());
+    }
+
+    @Test
+    void pointsAndSkillsBelongToALivingLife() {
+        String run = life();
+        db.call(c -> {
+            Store.addPoints(c, run, alex, 40);
+            Store.addPoints(c, run, alex, 25);
+            return null;
+        });
+        boolean upgraded = db.call(c -> Store.setSkills(c, run, "melee=1"));
+        assertTrue(upgraded);
+        Store.Progress progress = db.call(c -> Store.progress(c, run));
+        assertEquals(65, progress.points());
+        assertEquals("melee=1", progress.skills());
+        die(run, "death-points");
+        db.call(c -> {
+            Store.addPoints(c, run, alex, 100);
+            return null;
+        });
+        boolean upgradedAfterDeath = db.call(c -> Store.setSkills(c, run, "melee=3"));
+        assertFalse(upgradedAfterDeath, "a dead life cannot be upgraded");
+        assertEquals(65, db.call(c -> Store.progress(c, run)).points(), "points never reach a dead life");
+        assertEquals(65, db.call(c -> Store.career(c, alex)).careerPoints());
+        String next = life();
+        assertEquals(0, db.call(c -> Store.progress(c, next)).points(), "a new life starts from zero");
+    }
+
+    @Test
+    void teamsKeepMembersByUuidAndOneTeamPerPlayer() {
+        UUID sam = UUID.randomUUID();
+        Store.TeamRow team = new Store.TeamRow("t1", "Corbeaux", alex, 1_000, true);
+        db.call(c -> {
+            Store.insertTeam(c, team);
+            Store.addTeamMember(c, alex, "t1", 1_000);
+            Store.addTeamMember(c, sam, "t1", 2_000);
+            return null;
+        });
+        assertEquals(List.of(team), db.call(Store::teams));
+        assertEquals(2, db.call(Store::teamMembers).size());
+        assertThrows(PersistenceException.class, () -> db.call(c -> {
+            Store.insertTeam(c, new Store.TeamRow("t2", "corbeaux", sam, 3_000, true));
+            return null;
+        }), "team names are unique whatever the case");
+        assertThrows(PersistenceException.class, () -> db.call(c -> {
+            Store.addTeamMember(c, sam, "t1", 3_000);
+            return null;
+        }), "a player belongs to one team at most");
+        db.call(c -> {
+            Store.setTeamLeader(c, "t1", sam);
+            Store.setTeamBagAccess(c, "t1", false);
+            Store.removeTeamMember(c, alex);
+            return null;
+        });
+        Store.TeamRow updated = db.call(Store::teams).getFirst();
+        assertEquals(sam, updated.leader());
+        assertFalse(updated.bagAccess());
+        db.call(c -> {
+            Store.deleteTeam(c, "t1");
+            return null;
+        });
+        assertTrue(db.call(Store::teams).isEmpty());
+        assertTrue(db.call(Store::teamMembers).isEmpty());
+    }
+
+    @Test
     void sequencesNeverGoBackBelowThePlayerFile() {
         long first = db.call(c -> {
             Store.ensurePlayer(c, alex, "Alex", 0);

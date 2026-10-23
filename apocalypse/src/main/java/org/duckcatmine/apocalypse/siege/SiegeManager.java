@@ -258,10 +258,9 @@ public final class SiegeManager implements Listener {
         return true;
     }
 
-    /** The claim owner plays in the scenario right now. */
+    /** The claim owner, or one of their teammates, plays in the scenario right now. */
     private boolean present(UUID owner, World world) {
-        Player player = owner == null ? null : plugin.getServer().getPlayer(owner);
-        return player != null && !player.isDead() && player.getWorld().equals(world) && plugin.sessions().isSurvivor(player);
+        return plugin.teams().anyPresent(owner, world);
     }
 
     // ------------------------------------------------------------------ display, upkeep

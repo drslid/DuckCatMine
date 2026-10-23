@@ -29,6 +29,7 @@ import org.duckcatmine.apocalypse.death.DeathService;
 import org.duckcatmine.apocalypse.death.SafePositions;
 import org.duckcatmine.apocalypse.fauna.FaunaService;
 import org.duckcatmine.apocalypse.infection.InfectionService;
+import org.duckcatmine.apocalypse.intro.IntroService;
 import org.duckcatmine.apocalypse.items.ItemRegistry;
 import org.duckcatmine.apocalypse.items.VanillaUseGuard;
 import org.duckcatmine.apocalypse.loot.LootService;
@@ -41,6 +42,7 @@ import org.duckcatmine.apocalypse.persistence.BackupListener;
 import org.duckcatmine.apocalypse.persistence.Database;
 import org.duckcatmine.apocalypse.persistence.PersistenceException;
 import org.duckcatmine.apocalypse.persistence.Store;
+import org.duckcatmine.apocalypse.progress.ProgressService;
 import org.duckcatmine.apocalypse.scenario.ProtectionListener;
 import org.duckcatmine.apocalypse.scenario.ProtectionService;
 import org.duckcatmine.apocalypse.scenario.ScenarioService;
@@ -48,6 +50,7 @@ import org.duckcatmine.apocalypse.session.BoundaryListener;
 import org.duckcatmine.apocalypse.session.SessionService;
 import org.duckcatmine.apocalypse.siege.SiegeManager;
 import org.duckcatmine.apocalypse.spawn.DropService;
+import org.duckcatmine.apocalypse.teams.TeamService;
 import org.duckcatmine.apocalypse.threat.ThreatDirector;
 
 public final class DuckCatApocalypse extends JavaPlugin {
@@ -75,6 +78,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private SiegeManager siege;
     private ThreatDirector threat;
     private FaunaService fauna;
+    private TeamService teams;
+    private ProgressService progress;
+    private IntroService intro;
     private ProtectionService protection;
     private SafePositions safePositions;
     private SpawnDirector director;
@@ -132,12 +138,16 @@ public final class DuckCatApocalypse extends JavaPlugin {
             siege = new SiegeManager(this);
             threat = new ThreatDirector(this);
             fauna = new FaunaService(this);
+            teams = new TeamService(this);
+            progress = new ProgressService(this);
+            intro = new IntroService(this);
             scenario.load();
             if (scenario.isEnabled()) clock.resume();
             infections.load();
             bags.load();
             siege.load();
             threat.load();
+            teams.load();
         } catch (PersistenceException e) {
             getLogger().log(Level.SEVERE, "Base du scénario inaccessible", e);
             if (database != null) database.close();
@@ -164,6 +174,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(firearms, this);
         events.registerEvents(siege, this);
         events.registerEvents(fauna, this);
+        events.registerEvents(teams, this);
+        events.registerEvents(progress, this);
+        events.registerEvents(intro, this);
         fauna.resumeLoaded();
         ApocalypseCommand command = new ApocalypseCommand(this);
         PluginCommand registered = getCommand("apocalypse");
@@ -388,6 +401,18 @@ public final class DuckCatApocalypse extends JavaPlugin {
 
     public FaunaService fauna() {
         return fauna;
+    }
+
+    public TeamService teams() {
+        return teams;
+    }
+
+    public ProgressService progress() {
+        return progress;
+    }
+
+    public IntroService intro() {
+        return intro;
     }
 
     public ProtectionService protection() {

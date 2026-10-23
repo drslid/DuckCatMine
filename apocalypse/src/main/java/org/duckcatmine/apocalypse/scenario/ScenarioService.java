@@ -26,9 +26,36 @@ public final class ScenarioService {
     private String problem = "Aucun monde associé : /apocalypse admin world create";
     private Location spawn;
     private int epoch = 1;
+    private boolean pvp;
 
     public ScenarioService(DuckCatApocalypse plugin) {
         this.plugin = plugin;
+    }
+
+    public boolean pvp() {
+        return pvp;
+    }
+
+    /** PvP between survivors (never in the refuge, never between teammates); announced to everyone inside. */
+    public void setPvp(boolean value, String actor) {
+        long now = plugin.clock().now();
+        plugin.database().call(c -> {
+            Store.putMeta(c, "pvp", Boolean.toString(value));
+            Store.audit(c, now, actor, value ? "pvp_on" : "pvp_off", null);
+            return null;
+        });
+        pvp = value;
+        if (world == null) return;
+        world.setGameRule(GameRules.PVP, value);
+        for (org.bukkit.entity.Player player : world.getPlayers()) org.duckcatmine.apocalypse.Text.warn(player, rulesLine());
+    }
+
+    /** Looting and PvP rules, shown when entering and when they change. */
+    public String rulesLine() {
+        return pvp ? "Règles : PvP ACTIVÉ hors du refuge (jamais entre coéquipiers). Les sacs restent réservés à leur propriétaire"
+                + " et à son équipe si elle l'autorise ; les bases avec balise sont protégées."
+                : "Règles : PvP désactivé. Les sacs restent réservés à leur propriétaire et à son équipe si elle l'autorise ;"
+                + " les bases avec balise sont protégées.";
     }
 
     public void load() {
@@ -37,6 +64,7 @@ public final class ScenarioService {
         String storedEpoch = plugin.database().call(c -> Store.meta(c, "world_epoch"));
         epoch = storedEpoch == null ? 1 : Integer.parseInt(storedEpoch);
         boolean wanted = "true".equals(plugin.database().call(c -> Store.meta(c, "enabled")));
+        pvp = "true".equals(plugin.database().call(c -> Store.meta(c, "pvp")));
         world = null;
         enabled = false;
         spawn = null;
@@ -188,7 +216,7 @@ public final class ScenarioService {
 
     private void applyRules(World target) {
         target.setGameRule(GameRules.KEEP_INVENTORY, false);
-        target.setGameRule(GameRules.PVP, false);
+        target.setGameRule(GameRules.PVP, pvp);
         target.setGameRule(GameRules.LOCATOR_BAR, false);
         target.setGameRule(GameRules.PLAYERS_SLEEPING_PERCENTAGE, 101);
         target.setGameRule(GameRules.SPAWN_PHANTOMS, false);

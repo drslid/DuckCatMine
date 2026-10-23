@@ -185,11 +185,19 @@ public final class InfectionService implements Listener {
             Text.info(player, "Tu n'es pas infecté : la dose est conservée. L'antidote ne protège pas à l'avance.");
             return;
         }
-        long now = plugin.clock().now();
-        if (!InfectionRules.curable(now, infection.deadline)) {
+        if (!cure(player)) {
             event.setCancelled(true);
             return;
         }
+        Text.good(player, "Antidote administré à temps : l'infection est stoppée. Tes blessures, elles, restent à soigner.");
+    }
+
+    /** Validated cure of the current life's infection, before its deadline; false when there is nothing (left) to cure. */
+    public boolean cure(Player player) {
+        Active infection = active.get(player.getUniqueId());
+        if (infection == null || !infection.run.equals(plugin.sessions().runOf(player))) return false;
+        long now = plugin.clock().now();
+        if (!InfectionRules.curable(now, infection.deadline)) return false;
         active.remove(player.getUniqueId());
         player.hideBossBar(infection.bar);
         String run = infection.run;
@@ -198,7 +206,7 @@ public final class InfectionService implements Listener {
             return null;
         });
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.6f);
-        Text.good(player, "Antidote administré à temps : l'infection est stoppée. Tes blessures, elles, restent à soigner.");
+        return true;
     }
 
     public void show(Player player) {

@@ -113,6 +113,7 @@ public final class DeathService implements Listener {
         drops.put(id, plugin.drops().pick(player.getWorld()));
         plugin.infections().end(id);
         plugin.protection().clear(id);
+        plugin.progress().endLife(player);
         plugin.safePositions().forget(id);
         if (infection) event.deathMessage(Component.text(name + " a succombé à NEXUS-13.", NamedTextColor.DARK_RED));
     }

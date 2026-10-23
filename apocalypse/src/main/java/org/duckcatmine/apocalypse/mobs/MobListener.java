@@ -81,6 +81,7 @@ public final class MobListener implements Listener {
         event.getDrops().clear();
         event.setDroppedExp(0);
         plugin.loot().reward(event);
+        plugin.progress().onKill(event.getEntity(), plugin.settings().archetype(plugin.mobs().archetypeOf(event.getEntity())));
         plugin.mobs().forget(event.getEntity().getUniqueId());
     }
 
@@ -88,5 +89,6 @@ public final class MobListener implements Listener {
     public void onRemove(EntityRemoveFromWorldEvent event) {
         plugin.mobs().forget(event.getEntity().getUniqueId());
         plugin.loot().forget(event.getEntity().getUniqueId());
+        plugin.progress().forget(event.getEntity().getUniqueId());
     }
 }

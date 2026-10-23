@@ -254,7 +254,7 @@ public final class BagService implements Listener {
     }
 
     private void open(Player player, Bag bag) {
-        if (!bag.owner.equals(player.getUniqueId())) {
+        if (!plugin.teams().canOpenBag(player, bag.owner)) {
             Text.error(player, "Ce sac appartient à " + bag.ownerName + ".");
             return;
         }
@@ -270,7 +270,8 @@ public final class BagService implements Listener {
         }
         BagMenu menu = new BagMenu(bag.id);
         menu.inventory = Bukkit.createInventory(menu, MENU_SIZE,
-                Component.text("Ton sac — " + Durations.clock(bag.expiresAt - now), NamedTextColor.DARK_RED));
+                Component.text((bag.owner.equals(player.getUniqueId()) ? "Ton sac" : "Sac de " + bag.ownerName) + " — "
+                        + Durations.clock(bag.expiresAt - now), NamedTextColor.DARK_RED));
         render(menu, bag);
         player.openInventory(menu.inventory);
     }
@@ -314,7 +315,7 @@ public final class BagService implements Listener {
             return;
         }
         SessionService sessions = plugin.sessions();
-        if (!bag.owner.equals(player.getUniqueId()) || !sessions.isSurvivor(player) || !withinReach(player, bag)) {
+        if (!plugin.teams().canOpenBag(player, bag.owner) || !sessions.isSurvivor(player) || !withinReach(player, bag)) {
             player.closeInventory();
             return;
         }

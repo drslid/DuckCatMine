@@ -712,3 +712,23 @@ fauna:
   max-infected: 12
   max-per-ten-minutes: 6
   species: [wolf, cow, sheep, pig]
+
+# Équipes : taille maximale et durée de validité d'une invitation. Le PvP se règle en jeu (/apocalypse admin pvp on|off),
+# désactivé par défaut ; jamais de dégâts entre coéquipiers ni au refuge.
+teams:
+  max-size: 4
+  invite-seconds: 120
+
+# Points d'une vie (les points par infecté sont dans les archétypes) et compétences : coût de chaque rang, effet par rang.
+# Endurance : vitesse de déplacement (+3 % par rang) ; mêlée : dégâts (+8 % par rang) ; souffle : respiration sous l'eau.
+# Tout est perdu à la mort et ne s'applique qu'à Ground Zero.
+progress:
+  skill-costs: [150, 300, 600]
+  endurance-per-rank: 0.03
+  melee-per-rank: 0.08
+  breath-per-rank: 1
+  contribution-window-seconds: 30
+
+# Introduction (environ 50 s, ignorable avec /apocalypse intro skip) à la première entrée, rejouable depuis le refuge.
+intro:
+  enabled: true

@@ -1,6 +1,8 @@
 package org.duckcatmine.apocalypse.persistence;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -55,7 +57,45 @@ final class Schema {
                 for (String sql : V1) statement.execute(sql);
             }
         }
+        additive(connection);
         Store.putMeta(connection, "schema_version", Integer.toString(VERSION));
         return null;
+    }
+
+    /**
+     * Additions that older plugin versions simply ignore (new tables, columns with defaults), so the schema version stays
+     * the same and rolling back to a previous JAR keeps working.
+     */
+    private static void additive(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE IF NOT EXISTS teams (team_id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,"
+                    + " leader TEXT NOT NULL, created_sys_ms INTEGER NOT NULL, bag_access INTEGER NOT NULL DEFAULT 1)");
+            statement.execute("CREATE TABLE IF NOT EXISTS team_members (uuid TEXT PRIMARY KEY, team_id TEXT NOT NULL REFERENCES teams(team_id),"
+                    + " joined_sys_ms INTEGER NOT NULL)");
+            statement.execute("CREATE INDEX IF NOT EXISTS team_members_team ON team_members(team_id)");
+        }
+        addColumn(connection, "runs", "points", "INTEGER NOT NULL DEFAULT 0");
+        addColumn(connection, "runs", "skills", "TEXT NOT NULL DEFAULT ''");
+        addColumn(connection, "players", "career_points", "INTEGER NOT NULL DEFAULT 0");
+        if (addColumn(connection, "players", "intro_seen", "INTEGER NOT NULL DEFAULT 0")) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("UPDATE players SET intro_seen = 1 WHERE lives > 0");
+            }
+        }
+    }
+
+    /** Adds a column if missing; table and column names are constants of this class. */
+    private static boolean addColumn(Connection connection, String table, String column, String definition) throws SQLException {
+        try (PreparedStatement query = connection.prepareStatement("SELECT 1 FROM pragma_table_info(?) WHERE name = ?")) {
+            query.setString(1, table);
+            query.setString(2, column);
+            try (ResultSet result = query.executeQuery()) {
+                if (result.next()) return false;
+            }
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+        }
+        return true;
     }
 }

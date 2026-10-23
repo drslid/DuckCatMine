@@ -171,9 +171,11 @@ public final class SessionService {
             return;
         }
         ProfileSnapshot survivor = entry.survivor() == null ? null : ProfileSnapshot.decode(entry.survivor());
+        boolean intro = survivor == null && plugin.intro().enabled() && !plugin.intro().seen(id);
         Location target = survivor == null ? null : ProfileCodec.location(survivor);
         if (survivor == null && drop != null && scenario.isScenarioWorld(drop.getWorld())) target = drop;
         else if (target == null || !scenario.isScenarioWorld(target.getWorld()) || epoch(player) != scenario.epoch()) target = scenario.refugeSpawn();
+        if (intro) target = scenario.refugeSpawn();
         if (!teleport(player, target)) {
             rollbackSwap(id, entry.seq(), CLASSIC_KIND);
             Text.error(player, "Téléportation refusée : rien n'a changé.");
@@ -191,16 +193,45 @@ public final class SessionService {
             return null;
         });
         if (survivor == null) {
-            Text.warn(player, "Largage : une nouvelle vie commence quelque part dans Ground Zero. Tu n'as presque rien : fouille, fabrique, survis.");
-            Text.info(player, "Une morsure laisse 60 secondes pour finir un antidote. À ta mort, tout ce que tu portes"
-                    + " reste 5 minutes dans ton sac, là où tu es tombé. Le refuge muré au centre-ville est sûr ; on en sort par là.");
             plugin.drops().giveKit(player, null);
-            plugin.protection().start(player);
+            if (intro) {
+                Location after = drop;
+                plugin.intro().play(player, () -> afterIntro(player, after));
+            } else {
+                announceDrop(player);
+                plugin.protection().start(player);
+            }
         } else {
             Text.good(player, "Retour dans Ground Zero : ta survie reprend où tu l'avais laissée.");
+            Text.warn(player, scenario.rulesLine());
         }
+        plugin.progress().apply(player);
         plugin.infections().show(player);
         plugin.bags().remind(player);
+    }
+
+    private void announceDrop(Player player) {
+        Text.warn(player, "Largage : une nouvelle vie commence quelque part dans Ground Zero. Tu n'as presque rien : fouille, fabrique, survis.");
+        Text.info(player, "Une morsure laisse 60 secondes pour finir un antidote. À ta mort, tout ce que tu portes"
+                + " reste 5 minutes dans ton sac, là où tu es tombé. Le refuge muré au centre-ville est sûr ; on en sort par là.");
+        Text.warn(player, plugin.scenario().rulesLine());
+    }
+
+    /** End of the first introduction: the survivor wakes up at the drop point (if still waiting in the refuge). */
+    private void afterIntro(Player player, Location drop) {
+        if (!player.isOnline() || player.isDead() || !isSurvivor(player)) return;
+        if (drop != null && plugin.scenario().isScenarioWorld(drop.getWorld()) && plugin.scenario().inRefuge(player.getLocation())) teleport(player, drop);
+        announceDrop(player);
+        plugin.protection().start(player);
+    }
+
+    /** Introduction interrupted by a disconnection: it plays again, then the drop. */
+    private void resumeIntro(Player player) {
+        ScenarioService scenario = plugin.scenario();
+        if (!plugin.intro().enabled() || plugin.intro().playing(player) || !scenario.inRefuge(player.getLocation())
+                || plugin.intro().seen(player.getUniqueId())) return;
+        plugin.intro().play(player, () -> plugin.drops().pick(scenario.world()).whenComplete((at, error) ->
+                plugin.getServer().getScheduler().runTask(plugin, () -> afterIntro(player, error == null ? at : null))));
     }
 
     /** Voluntary exits are only possible from the refuge and never with an active bite. */
@@ -268,6 +299,7 @@ public final class SessionService {
         });
         plugin.infections().hide(player);
         plugin.protection().clear(id);
+        plugin.progress().clear(player);
         Text.good(player, forced ? "Ground Zero est fermé : tu as retrouvé ta survie habituelle. Ta vie Apocalypse est sauvegardée."
                 : "Tu as quitté Ground Zero. Ta vie y reste sauvegardée.");
         return true;
@@ -354,8 +386,10 @@ public final class SessionService {
             Text.warn(player, "Ground Zero a été reconstruit depuis ta dernière visite : tu reprends au refuge avec ce que tu portais.");
         }
         if (player.getGameMode() != GameMode.SURVIVAL) player.setGameMode(GameMode.SURVIVAL);
+        plugin.progress().apply(player);
         plugin.infections().show(player);
         plugin.bags().remind(player);
+        resumeIntro(player);
     }
 
     public void evacuateAll() {

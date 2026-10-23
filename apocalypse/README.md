@@ -2,7 +2,19 @@
 
 Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un monde dédié, où une morsure laisse 60 secondes pour finir un antidote et où la mort fait perdre tout ce que l'on porte et toute la progression de la vie, pendant que les constructions restent dans le monde.
 
-**État : alpha, jalon J4 « la ville se défend ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
+**État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
+
+## Ce que contient J5
+
+| Fonction | État | Vérification |
+|---|---|---|
+| Équipes : création, invitation cliquable (2 min), acceptation/refus, départ (le chef passe la main), retrait par le chef, dissolution, liste avec l'état de chacun ; 4 membres au plus ; propriété par UUID ; la mort ne retire pas de l'équipe | Implémenté | Tests de la base (unicité du nom, une équipe par joueur) ; **non testé en jeu** |
+| PvP désactivé par défaut, activable (`/apocalypse admin pvp on`) ; jamais entre coéquipiers ni au refuge, tirs et projectiles compris ; règles annoncées à l'entrée et à chaque changement | Implémenté | Commande testée sur serveur réel ; **combat non testé en jeu** |
+| Bases : dans le rayon d'une balise, les autres survivants ne peuvent ni casser, ni poser, ni ouvrir les conteneurs posés ou les stations (les coffres de fouille de la ville restent ouverts à tous) ; les infectés n'assiègent pas une base dont toute l'équipe est absente | Implémenté | **Non testé en jeu** |
+| Sacs : récupérables par les coéquipiers si le chef l'autorise (`/apocalypse team bags on|off`, autorisé par défaut), jamais par les autres | Implémenté | **Non testé en jeu** |
+| Antidote injecté à un autre survivant mordu : accroupi, clic droit sur lui antidote en main, 2 s sans s'éloigner ; une dose consommée seulement si la guérison est validée ; ne ranime jamais une vie terminée | Implémenté | **Non testé en jeu** |
+| Points d'une vie partagés selon les dégâts réellement infligés dans les 30 s (pas de dégâts sur un infecté déjà mort, ni de coups annulés) ; 3 compétences à 3 rangs : endurance (+3 % de vitesse par rang), mêlée (+8 % de dégâts), souffle (respiration sous l'eau) ; appliquées seulement dans Ground Zero, retirées à la sortie, perdues à la mort ; `/apocalypse stats` (vie et carrière) et `/apocalypse skills` | Implémenté | Tests (rangs bornés, coûts, points refusés à une vie morte) ; **non testé en jeu** |
+| Introduction d'environ 50 s à la première entrée (NEXUS-13, alarme, rupture, radio du refuge, réveil, « Survis jusqu'à la prochaine aube. ») dans le refuge protégé, puis largage ; ignorable (`/apocalypse intro skip`), rejouable depuis le refuge sans morsure, reprise si on se déconnecte pendant ; les survivants qui avaient déjà joué ne la voient pas d'office | Implémenté | Test de migration ; **non testé en jeu** |
 
 ## Ce que contient J4
 
@@ -63,7 +75,7 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 | Panneau : don, chute d'objets, horde, pluie d'objets, soin, nourriture, XP et modification d'inventaire refusés pour un joueur dans Ground Zero | Terminé | Test de fumée du panneau |
 | Configuration invalide : règles de référence appliquées et signalées ; base inaccessible : mode sûr | Implémenté | Configuration invalide testée sur serveur réel ; mode sûr non testé |
 
-Pas encore là : équipes et PvP, compétences, introduction, pack de ressources (J5).
+Pas encore là : pack de ressources (modèles d'objets dédiés), scènes d'introduction avec caméra.
 
 ## Règles pour les joueurs
 
@@ -75,6 +87,8 @@ Pas encore là : équipes et PvP, compétences, introduction, pack de ressources
 - Une porte ou un mur ne protègent pas indéfiniment : un infecté bloqué qui te veut frappe l'obstacle jusqu'à le briser (les fissures montrent l'état). Consolide au clic droit avec des planches, de la ferraille ou de la pierre. Une balise protège ta base pendant ton absence, pas quand tu es dedans.
 - Plus le monde est joué, plus la menace monte : plus d'infectés autour de toi et plus de spéciaux. Des gémissements lointains annoncent une horde ; un coup de feu la fait venir plus tôt. La nuit, ils sont plus nombreux.
 - Méfie-toi des animaux qui traînent, toussent et ralentissent : ils ont été mordus et deviendront hostiles. Leur morsure t'infecte comme celle d'un infecté.
+- À plusieurs : `/apocalypse team create <nom>`, puis `invite`. Pas de dégâts entre coéquipiers ; un coéquipier peut reprendre ton sac si le chef l'autorise, et n'importe quel survivant peut t'injecter un antidote (accroupi, clic droit). Le PvP est désactivé sauf annonce contraire.
+- Chaque infecté éliminé rapporte des points à ceux qui l'ont blessé. Dépense-les en compétences (`/apocalypse skills`) : endurance, mêlée, souffle. Tout est perdu à la mort.
 - Les infectés mordent au hasard : **un coup sur trois environ est une morsure**. **Une morsure laisse 60 secondes pour finir un antidote** (clic droit maintenu 2 s). Commencer trop tard ne sauve pas.
 - Repère les infectés spéciaux : le sprinteur hurle avant de foncer puis s'essouffle ; le hurleur se fige pour crier (frappe-le pour l'interrompre) ; le briseur est lent mais encaisse ; l'abomination prépare une frappe au sol, écarte-toi.
 - À ta mort, ta vie est terminée : objets portés dans un **sac qui reste 5 minutes** là où tu es tombé, XP et progression perdues. Tu es largué ailleurs avec le même nom : il faut retraverser la carte pour récupérer ton sac. Tes constructions et tes coffres restent.
@@ -111,9 +125,11 @@ Les constructions et coffres de l'ancien monde disparaissent avec lui. Chaque su
 | Commande | Permission |
 |---|---|
 | `/apocalypse join [ground_zero]`, `leave`, `status`, `infection`, `bag [open]` | `duckcat.apocalypse.play` (tous) |
+| `/apocalypse recipes [objet]`, `stats`, `skills [up <endurance|melee|breath>]`, `intro [skip]` | `duckcat.apocalypse.play` |
+| `/apocalypse team create <nom>`, `invite <joueur>`, `accept`, `decline`, `leave`, `kick <joueur>`, `bags on|off`, `disband`, `info` | `duckcat.apocalypse.play` |
 | `/apocalypse admin status`, `enable`, `disable`, `reload`, `selftest` | `duckcat.apocalypse.admin` (OP) |
 | `/apocalypse admin map [rayon] [y]` : carte `map.png` dans le dossier du plugin (génère les tronçons manquants) | `duckcat.apocalypse.admin` |
-| `/apocalypse admin threat [1-50]` (menace), `destruction on|off` (casse de blocs par les infectés), `horde <joueur>` (tracés) | `duckcat.apocalypse.admin` |
+| `/apocalypse admin threat [1-50]` (menace), `destruction on|off` (casse de blocs par les infectés), `horde <joueur>`, `pvp on|off` (tracés) | `duckcat.apocalypse.admin` |
 | `/apocalypse admin world create`, `world bind <monde> confirm` | `duckcat.apocalypse.admin` |
 | `/apocalypse admin give <joueur> <objet> [n]` (tracé ; objets : `antidote`, `bandage`, `scrap`, `cloth`, `tape`, `spring`, `gun_parts`, `casings`, `propellant`, `alcohol`, `syringe`, `serum`, `inhibitor`, `note`) | `duckcat.apocalypse.admin` |
 | Traverser la frontière avec son profil habituel, pour observer (tracé) | `duckcat.apocalypse.bypass` (OP) |
@@ -156,6 +172,7 @@ Non réalisé sans pack : visages, teintes de peau, femmes et hommes distincts, 
 - L'horloge du scénario est enregistrée toutes les 5 s : après un arrêt brutal, au plus 5 s sont rendues aux joueurs.
 - Les sauvegardes DuckCatMine archivent l'instantané `backup/apocalypse-snapshot.db` pris pendant leur `save-all`, pas la base vive. Après une restauration, l'instantané devient la base. Si le monde et la base ne correspondent pas, le scénario se suspend.
 - Ne supprime jamais `apocalypse.db` à la main.
+- Les ajouts de J5 (tables `teams` et `team_members`, colonnes de points, compétences et introduction) sont additifs : un JAR précédent ignore ces données, le retour arrière par simple remplacement du JAR reste possible. La menace, le PvP et la destruction de blocs sont dans la table `meta`.
 
 ## Tests
 

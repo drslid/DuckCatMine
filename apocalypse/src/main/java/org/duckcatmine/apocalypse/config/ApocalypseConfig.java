@@ -31,10 +31,27 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
 
     /** Gameplay rules added after the core survival loop. */
     public record Play(Spawn spawn, StartKit kit, Map<String, Recipe> recipes, Map<String, Weapon> weapons, Pistol pistol,
-                       Repair repair, Noise noise, Perception perception, Traps traps, Siege siege, Threat threat, Fauna fauna) {
+                       Repair repair, Noise noise, Perception perception, Traps traps, Siege siege, Threat threat, Fauna fauna,
+                       Social social, Progression progression, boolean intro) {
         public Play {
             recipes = Map.copyOf(recipes);
             weapons = Map.copyOf(weapons);
+        }
+    }
+
+    /** Teams (spec §18). */
+    public record Social(int teamMaxSize, int inviteSeconds) {
+    }
+
+    /** Points and skills of a life (spec §17): cost of each rank, effect per rank. */
+    public record Progression(List<Integer> skillCosts, double endurancePerRank, double meleePerRank, double breathPerRank,
+                              int contributionWindowSeconds) {
+        public Progression {
+            skillCosts = List.copyOf(skillCosts);
+        }
+
+        public int maxRank() {
+            return skillCosts.size();
         }
     }
 
@@ -391,7 +408,21 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.integer("fauna.max-infected", 12, 0, 200),
                 read.integer("fauna.max-per-ten-minutes", 6, 0, 200),
                 species);
-        return new Play(spawn, kit, recipes, weapons, pistol, repair, noise, perception, traps, siege, threat, fauna);
+        Social social = new Social(read.integer("teams.max-size", 4, 2, 16), read.integer("teams.invite-seconds", 120, 10, 3600));
+        List<Integer> costs = new ArrayList<>();
+        List<?> rawCosts = read.root.getList("progress.skill-costs");
+        for (Object value : rawCosts == null ? List.of(150, 300, 600) : rawCosts) {
+            if (value instanceof Integer cost && cost >= 1 && cost <= 1_000_000 && (costs.isEmpty() || cost >= costs.getLast())) costs.add(cost);
+            else read.errors.add("progress.skill-costs : coûts entiers croissants entre 1 et 1 000 000 attendus (" + value + ").");
+        }
+        if (costs.isEmpty() || costs.size() > 5) read.errors.add("progress.skill-costs : 1 à 5 rangs.");
+        Progression progression = new Progression(costs,
+                read.decimal("progress.endurance-per-rank", 0.03, 0, 0.1),
+                read.decimal("progress.melee-per-rank", 0.08, 0, 0.25),
+                read.decimal("progress.breath-per-rank", 1, 0, 3),
+                read.integer("progress.contribution-window-seconds", 30, 5, 300));
+        return new Play(spawn, kit, recipes, weapons, pistol, repair, noise, perception, traps, siege, threat, fauna, social, progression,
+                read.bool("intro.enabled", true));
     }
 
     private static final class Reader {

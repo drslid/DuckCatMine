@@ -111,9 +111,9 @@ public final class SessionService {
         }
         UUID id = player.getUniqueId();
         if (!pendingJoins.add(id)) return;
-        Location target = scenario.refugeSpawn();
+        var refuge = plugin.settings().refuge();
         Text.info(player, "Préparation de Ground Zero…");
-        target.getWorld().getChunkAtAsync(target).whenComplete((chunk, error) -> {
+        scenario.world().getChunkAtAsync(refuge.centerX() >> 4, refuge.centerZ() >> 4).whenComplete((chunk, error) -> {
             if (!plugin.isEnabled()) return;
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 pendingJoins.remove(id);

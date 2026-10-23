@@ -34,7 +34,11 @@ public final class BoundaryListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onJoin(PlayerJoinEvent event) {
-        plugin.sessions().reconcile(event.getPlayer());
+        Player player = event.getPlayer();
+        plugin.sessions().reconcile(player);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) plugin.sessions().enforce(player);
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

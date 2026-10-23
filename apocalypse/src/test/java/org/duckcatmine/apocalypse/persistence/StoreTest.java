@@ -216,6 +216,23 @@ class StoreTest {
     }
 
     @Test
+    void snapshotIsConsistentAndPromotedWhenTheLiveBaseIsMissing() throws Exception {
+        String run = life();
+        Path live = dir.resolve("apocalypse.db");
+        Path snapshot = Database.snapshotPath(live);
+        db.snapshotTo(snapshot);
+        db.call(c -> {
+            Store.putMeta(c, "after_snapshot", "1");
+            return null;
+        });
+        db.close();
+        for (String suffix : new String[]{"", "-wal", "-shm"}) java.nio.file.Files.deleteIfExists(dir.resolve("apocalypse.db" + suffix));
+        db = Database.open(live, LOG);
+        assertEquals(run, db.call(c -> Store.player(c, alex)).currentRun());
+        assertNull(db.call(c -> Store.meta(c, "after_snapshot")), "the restored base matches the archived instant");
+    }
+
+    @Test
     void pendingOperationsComeBackInOrder() {
         db.call(c -> {
             Store.ensurePlayer(c, alex, "Alex", 0);

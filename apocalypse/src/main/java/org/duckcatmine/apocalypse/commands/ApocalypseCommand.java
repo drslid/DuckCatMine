@@ -122,11 +122,15 @@ public final class ApocalypseCommand implements TabExecutor {
                 + " | ouvert : " + (scenario.isEnabled() ? "oui" : "non")
                 + " | base : " + (plugin.database().healthy() ? "OK" : "EN ERREUR"));
         if (scenario.problem() != null) Text.warn(sender, scenario.problem());
+        if (plugin.configProblem() != null) Text.warn(sender, plugin.configProblem());
         long players = scenario.world() == null ? 0 : scenario.world().getPlayers().stream().filter(plugin.sessions()::isSurvivor).count();
         Map<String, Integer> mobs = plugin.mobs().countByArchetype();
         Text.info(sender, "Survivants présents : " + players + " | infectés : " + mobs + " | infections actives : "
                 + plugin.infections().count() + " | sacs actifs : " + plugin.bags().count()
                 + " | horloge : " + plugin.clock().now() / 1000 + " s" + (plugin.clock().running() ? "" : " (figée)"));
+        int held = plugin.database().call(c -> Store.countProfiles(c, "CLASSIC"));
+        Text.info(sender, "Inventaires classiques gardés par le scénario : " + held
+                + (held == 0 ? " — désinstallation sans risque." : " — garder le plugin installé (même désactivé) jusqu'à 0."));
     }
 
     private void world(CommandSender sender, String[] args) {

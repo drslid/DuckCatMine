@@ -306,12 +306,22 @@ function panelReply(raw) {
     range: [400, 'Quantité hors limites pour cet objet.'],
     invalid: [400, 'Objet ou emplacement invalide.'],
     syntax: [400, 'Action invalide.'],
+    scenario: [409, SCENARIO_REFUSAL],
   };
   if (value.error) {
     const [status, message] = errors[value.error] || [502, 'Le jeu a refusé cette action.'];
     throw new HttpError(status, message);
   }
   return value;
+}
+
+const SCENARIO_REFUSAL = 'Ce joueur est dans Ground Zero : action bloquée pour respecter les règles du scénario.';
+
+// A missing bridge or an offline player is left to the command itself.
+async function refuseScenarioPlayer(player) {
+  let scenario = null;
+  try { scenario = panelReply(await rcon(`dcpanel status ${player}`)).scenario; } catch {}
+  if (scenario) throw new HttpError(409, SCENARIO_REFUSAL);
 }
 
 function panelSlot(value) {
@@ -997,6 +1007,7 @@ async function serve(req, res) {
         || !Number.isInteger(count) || count < 1 || count > 64) {
       throw new HttpError(400, 'Pseudo, identifiant d’objet ou quantité invalide (1 à 64).');
     }
+    await refuseScenarioPlayer(player);
     const command = `give ${player} ${item.includes(':') ? item : `minecraft:${item}`} ${count}`;
     const result = await rcon(command);
     audit('give_item', session.username, `${player} ${item} ${count}`);
@@ -1015,6 +1026,7 @@ async function serve(req, res) {
         || !Number.isInteger(count) || count < 1 || count > 64 || !['give', 'drop'].includes(mode)) {
       throw new HttpError(400, 'Choisis un joueur, un objet du catalogue et une quantité de 1 à 64.');
     }
+    await refuseScenarioPlayer(player);
     const command = mode === 'give' ? `give ${player} ${id} ${count}`
       : `execute at ${player} run summon item ^ ^1 ^2 {Item:{id:"${id}",count:${count}}}`;
     const result = await rcon(command);
@@ -1158,6 +1170,7 @@ async function serve(req, res) {
     const count = Number(input.count);
     if (!customItems().some((item) => item.id === id) || !/^[A-Za-z0-9_]{3,16}$/.test(player)
         || !Number.isInteger(count) || count < 1 || count > 64) throw new HttpError(400, 'Objet, joueur ou quantité invalide.');
+    await refuseScenarioPlayer(player);
     const result = await rcon(`mcraft give ${id} ${count} ${player}`);
     if (/unknown command|not found|not online|error|failed/i.test(result)) throw new HttpError(409, result);
     audit('custom_item_given', session.username, `${id} ${count} ${player}`);
@@ -1172,6 +1185,7 @@ async function serve(req, res) {
     if (!/^[A-Za-z0-9_]{3,16}$/.test(player) || !['loco', 'loco_anim', 'carr', 'carg', 'carb'].includes(model)) {
       throw new HttpError(400, 'Joueur ou modèle de train invalide.');
     }
+    await refuseScenarioPlayer(player);
     const result = await rcon(`train chest give ${player} --finite --locked --train ${model}`);
     if (/unknown command|failed to find|not found|no player/i.test(result)) throw new HttpError(409, result);
     audit('train_chest', session.username, `${player} ${model}`);
@@ -1231,6 +1245,7 @@ async function serve(req, res) {
     if (['loot', 'horde'].includes(kind) && (!/^[A-Za-z0-9_]{3,16}$/.test(player) || !names.includes(player))) {
       throw new HttpError(400, 'Choisis un joueur connecté.');
     }
+    if (['loot', 'horde'].includes(kind)) await refuseScenarioPlayer(player);
     if (kind !== 'stop' && Date.now() < (eventCooldowns.get(kind) || 0)) {
       throw new HttpError(429, 'Attends quelques secondes avant de relancer cet événement.');
     }

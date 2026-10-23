@@ -1,6 +1,9 @@
 package org.duckcatmine.apocalypse.persistence;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -50,6 +53,7 @@ public final class Database implements AutoCloseable {
     }
 
     public static Database open(Path file, Logger logger, long timeoutMs) {
+        promoteSnapshot(file, snapshotPath(file), logger);
         Database database = new Database(logger, timeoutMs);
         try {
             database.executor.submit(() -> {
@@ -86,6 +90,47 @@ public final class Database implements AutoCloseable {
 
     public boolean healthy() {
         return healthy;
+    }
+
+    public static Path snapshotPath(Path file) {
+        return file.resolveSibling("backup").resolve("apocalypse-snapshot.db");
+    }
+
+    /** After a restore the live file is absent (backups exclude it): the snapshot taken with the world becomes the base. */
+    static void promoteSnapshot(Path file, Path snapshot, Logger logger) {
+        if (Files.exists(file) || !Files.isRegularFile(snapshot)) return;
+        try {
+            Files.createDirectories(file.toAbsolutePath().getParent());
+            Files.copy(snapshot, file);
+            logger.warning("Base du scénario absente : reprise depuis l'instantané de sauvegarde " + snapshot.getFileName() + ".");
+        } catch (IOException e) {
+            throw new PersistenceException("Reprise de l'instantané impossible", e);
+        }
+    }
+
+    /** Transactionally consistent copy, written next to the target then renamed atomically. */
+    public void snapshotTo(Path target) {
+        Future<Void> copy = executor.submit(() -> {
+            Files.createDirectories(target.toAbsolutePath().getParent());
+            Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
+            Files.deleteIfExists(temporary);
+            connection.setAutoCommit(true);
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("VACUUM INTO '" + temporary.toAbsolutePath().toString().replace("'", "''") + "'");
+            } finally {
+                connection.setAutoCommit(false);
+            }
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return null;
+        });
+        try {
+            copy.get(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PersistenceException("Instantané interrompu", e);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new PersistenceException("Instantané de la base impossible", e.getCause() == null ? e : e.getCause());
+        }
     }
 
     /** Blocks the caller until the transaction is committed or definitely not committed. */

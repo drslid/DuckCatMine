@@ -156,6 +156,15 @@ public final class Store {
         update(c, "DELETE FROM profiles WHERE uuid = ? AND kind = ?", player.toString(), kind);
     }
 
+    public static int countProfiles(Connection c, String kind) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement("SELECT COUNT(*) FROM profiles WHERE kind = ?")) {
+            s.setString(1, kind);
+            try (ResultSet r = s.executeQuery()) {
+                return r.next() ? r.getInt(1) : 0;
+            }
+        }
+    }
+
     /** Drops the copy written by this operation (rollback). */
     public static void deleteProfileWrittenBy(Connection c, UUID player, String kind, long opSeq) throws SQLException {
         update(c, "DELETE FROM profiles WHERE uuid = ? AND kind = ? AND op_seq = ?", player.toString(), kind, opSeq);

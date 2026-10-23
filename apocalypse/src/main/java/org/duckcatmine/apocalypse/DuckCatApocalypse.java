@@ -1,11 +1,18 @@
 package org.duckcatmine.apocalypse;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -23,6 +30,7 @@ import org.duckcatmine.apocalypse.loot.LootService;
 import org.duckcatmine.apocalypse.mobs.MobListener;
 import org.duckcatmine.apocalypse.mobs.MobService;
 import org.duckcatmine.apocalypse.mobs.SpawnDirector;
+import org.duckcatmine.apocalypse.persistence.BackupListener;
 import org.duckcatmine.apocalypse.persistence.Database;
 import org.duckcatmine.apocalypse.persistence.PersistenceException;
 import org.duckcatmine.apocalypse.persistence.Store;
@@ -53,23 +61,30 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private SpawnDirector director;
     private BukkitTask ticker;
     private long ticks;
+    private String configProblem;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        keys = new Keys(this);
         try {
             settings = ApocalypseConfig.parse(getConfig());
         } catch (ConfigException e) {
             e.errors().forEach(error -> getLogger().severe("Configuration invalide : " + error));
-            getServer().getPluginManager().disablePlugin(this);
-            return;
+            try {
+                settings = ApocalypseConfig.parse(getConfig().getDefaults());
+                configProblem = "config.yml invalide : règles de référence appliquées (voir les erreurs au démarrage).";
+                getLogger().severe(configProblem);
+            } catch (ConfigException | RuntimeException fatal) {
+                enterSafeMode("configuration illisible");
+                return;
+            }
         }
-        keys = new Keys(this);
         items = new ItemRegistry(keys, settings);
         List<String> itemErrors = items.validate(settings);
         if (!itemErrors.isEmpty()) {
             itemErrors.forEach(error -> getLogger().severe("Configuration invalide : " + error));
-            getServer().getPluginManager().disablePlugin(this);
+            enterSafeMode("objets de butin inconnus");
             return;
         }
         try {
@@ -93,11 +108,15 @@ public final class DuckCatApocalypse extends JavaPlugin {
             infections.load();
             bags.load();
         } catch (PersistenceException e) {
-            getLogger().log(Level.SEVERE, "Base du scénario inaccessible : le plugin reste inactif, aucun inventaire n'est touché.", e);
-            getServer().getPluginManager().disablePlugin(this);
+            getLogger().log(Level.SEVERE, "Base du scénario inaccessible", e);
+            if (database != null) database.close();
+            database = null;
+            enterSafeMode("base de données inaccessible");
             return;
         }
         PluginManager events = getServer().getPluginManager();
+        Path databaseFile = getDataFolder().toPath().resolve("apocalypse.db");
+        events.registerEvents(new BackupListener(database, Database.snapshotPath(databaseFile), getLogger()), this);
         events.registerEvents(new BoundaryListener(this), this);
         events.registerEvents(new ProtectionListener(this), this);
         events.registerEvents(new MobListener(this), this);
@@ -116,6 +135,31 @@ public final class DuckCatApocalypse extends JavaPlugin {
         ticker = getServer().getScheduler().runTaskTimer(this, this::tick, TICK_PERIOD, TICK_PERIOD);
         getLogger().info("Ground Zero " + (scenario.isEnabled() ? "ouvert" : "fermé")
                 + (scenario.problem() == null ? "" : " — " + scenario.problem()));
+    }
+
+    /**
+     * Without its database the scenario cannot swap profiles. Survivors are kept out rather than let
+     * them carry Ground Zero items into the classic world; everyone else plays normally.
+     */
+    private void enterSafeMode(String reason) {
+        getLogger().severe("Mode sûr (" + reason + ") : les joueurs porteurs d'un profil Ground Zero ne peuvent pas se connecter.");
+        Component message = Component.text("Ground Zero est en maintenance : ta survie est conservée. Reviens plus tard.");
+        Listener guard = new Listener() {
+            @EventHandler(priority = EventPriority.LOWEST)
+            public void onJoin(PlayerJoinEvent event) {
+                Player player = event.getPlayer();
+                if ("APOCALYPSE".equals(player.getPersistentDataContainer().get(keys.profile, PersistentDataType.STRING)))
+                    player.kick(message);
+            }
+        };
+        getServer().getPluginManager().registerEvents(guard, this);
+        for (Player player : getServer().getOnlinePlayers()) {
+            if ("APOCALYPSE".equals(player.getPersistentDataContainer().get(keys.profile, PersistentDataType.STRING))) player.kick(message);
+        }
+    }
+
+    public String configProblem() {
+        return configProblem;
     }
 
     private void tick() {
@@ -151,6 +195,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             ApocalypseConfig parsed = ApocalypseConfig.parse(candidate);
             List<String> errors = new ArrayList<>(items.validate(parsed));
             if (!errors.isEmpty()) return errors;
+            configProblem = null;
             settings = parsed;
             items.reload(parsed);
             reloadConfig();

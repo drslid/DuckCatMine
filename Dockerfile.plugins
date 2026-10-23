@@ -2,9 +2,11 @@ FROM maven:3.9.11-eclipse-temurin-25 AS build
 WORKDIR /src
 COPY towers ./towers
 COPY welcome ./welcome
-RUN mvn -q -B -f towers/pom.xml package && mvn -q -B -f welcome/pom.xml package
+COPY apocalypse ./apocalypse
+RUN mvn -q -B -f towers/pom.xml package && mvn -q -B -f welcome/pom.xml package && mvn -q -B -f apocalypse/pom.xml package
 
 FROM alpine:3.22
 COPY --from=build /src/towers/target/duckcat-towers-*.jar /out/DuckCatTowers.jar
 COPY --from=build /src/welcome/target/duckcat-welcome-*.jar /out/DuckCatWelcome.jar
-ENTRYPOINT ["sh", "-c", "cp /out/*.jar /plugins/"]
+COPY --from=build /src/apocalypse/target/duckcat-apocalypse-*.jar /optional/DuckCatApocalypse.jar
+ENTRYPOINT ["sh", "-c", "cp /out/*.jar /plugins/ && if [ \"$DUCKCAT_APOCALYPSE\" = 1 ]; then cp /optional/DuckCatApocalypse.jar /plugins/; fi"]

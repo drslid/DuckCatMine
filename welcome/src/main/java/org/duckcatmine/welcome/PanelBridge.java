@@ -1,8 +1,10 @@
 package org.duckcatmine.welcome;
 
 import java.util.Locale;
+import java.util.Set;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -15,10 +17,18 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 /** A deliberately small, console-only protocol for live player management. */
 final class PanelBridge implements CommandExecutor {
     private static final String PREFIX = "DCPLAYER:";
+    // World marker written by scenario plugins such as DuckCatApocalypse.
+    private static final NamespacedKey SCENARIO = new NamespacedKey("duckcatmine", "scenario");
+    private static final Set<String> MUTATIONS = Set.of("set", "clear", "amount", "swap", "heal", "feed", "xp");
+
+    static String scenario(Player player) {
+        return player.getWorld().getPersistentDataContainer().get(SCENARIO, PersistentDataType.STRING);
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -29,6 +39,7 @@ final class PanelBridge implements CommandExecutor {
         if (args.length < 2 || !args[1].matches("[A-Za-z0-9_]{3,16}")) return error(sender, "syntax");
         Player player = Bukkit.getPlayerExact(args[1]);
         if (player == null) return error(sender, "offline");
+        if (MUTATIONS.contains(args[0].toLowerCase(Locale.ROOT)) && scenario(player) != null) return error(sender, "scenario");
         try {
             switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "status" -> { if (args.length != 2) return error(sender, "syntax"); sender.sendMessage(PREFIX + status(player)); }
@@ -87,7 +98,8 @@ final class PanelBridge implements CommandExecutor {
                 + ",\"xpProgress\":" + player.getExp() + ",\"gamemode\":" + q(player.getGameMode().name().toLowerCase(Locale.ROOT))
                 + ",\"world\":" + q(loc.getWorld().getName()) + ",\"x\":" + Math.round(loc.getX())
                 + ",\"y\":" + Math.round(loc.getY()) + ",\"z\":" + Math.round(loc.getZ())
-                + ",\"selected\":" + player.getInventory().getHeldItemSlot() + ",\"op\":" + player.isOp() + "}";
+                + ",\"selected\":" + player.getInventory().getHeldItemSlot() + ",\"op\":" + player.isOp()
+                + ",\"scenario\":" + (scenario(player) == null ? "null" : q(scenario(player))) + "}";
     }
 
     private String inventory(Player player, String section, int page) {

@@ -28,6 +28,8 @@ infection:
   # Le mouvement n'interrompt pas l'administration ; ces réglages gardent une chance de fuite.
   antidote-allow-sprint: true
   antidote-speed-multiplier: 1.0
+  # Multiplie la chance de morsure de chaque archétype (1 = valeurs des archétypes, 0 = plus aucune morsure).
+  bite-multiplier: 1.0
 
 death:
   bag-lifetime-seconds: 300
@@ -40,6 +42,8 @@ loot:
   contribution-window-seconds: 30
   # Probabilité d'un bonus en plus de l'objet garanti, pour chaque élimination admissible.
   bonus-roll-chance: 0.12
+  # Multiplie la présence des antidotes, sérums et inhibiteurs dans les lieux fouillés (pharmacies, hôpital, laboratoire...).
+  medical-boost: 3
 
 search:
   # Un coffre ou tonneau de fouille vidé se réapprovisionne après ce temps de scénario actif, et seulement
@@ -58,6 +62,10 @@ spawning:
   night-bonus: 2
   # Part des apparitions dans les bâtiments abandonnés sombres (rez-de-chaussée), jamais dans un lieu éclairé.
   indoor-chance: 0.25
+  # Densité : multiplie le plafond local de chaque secteur (1 = valeurs des secteurs, 2 = deux fois plus d'infectés).
+  density: 1.5
+  # Nouveaux infectés au plus par survivant et par passage, tant que le plafond local n'est pas atteint.
+  per-tick: 2
 
 # Plafond local autour de chaque survivant et mélange des archétypes (poids relatifs) par secteur.
 sectors:
@@ -624,6 +632,39 @@ recipes:
     result: {item: apocalypse:beacon}
     ingredients: {"apocalypse:scrap": 2, "apocalypse:tape": 1, "minecraft:torch": 1}
     usage: Revendique ta base (rayon 12) ; elle n'est pas assiégée en ton absence.
+  pipe_bomb:
+    station: workshop
+    result: {item: apocalypse:pipe_bomb}
+    ingredients: {"apocalypse:scrap": 2, "apocalypse:propellant": 2, "apocalypse:tape": 1, "minecraft:string": 1}
+    noise: medium
+    usage: "À lancer : explose 3,5 s plus tard. Dégâts en zone, te blesse aussi, attire tout le quartier."
+  molotov:
+    station: workbench
+    result: {item: apocalypse:molotov}
+    ingredients: {"minecraft:glass_bottle": 1, "apocalypse:alcohol": 1, "apocalypse:cloth": 1}
+    usage: "À lancer : la bouteille se brise et enflamme une zone quelques secondes."
+  fire_axe:
+    station: workshop
+    result: {item: apocalypse:fire_axe}
+    ingredients: {"#planks": 1, "apocalypse:scrap": 4, "apocalypse:tape": 1}
+    noise: medium
+    usage: Lourde et lente, mais un coup bien placé suffit souvent.
+  bow:
+    station: workbench
+    result: {item: apocalypse:bow}
+    ingredients: {"#planks": 2, "minecraft:string": 2, "apocalypse:tape": 1}
+    usage: Arme silencieuse ; les flèches se ramassent.
+  arrows:
+    station: workbench
+    result: {item: apocalypse:arrow, amount: 6}
+    ingredients: {"minecraft:stick": 3, "apocalypse:scrap": 1, "apocalypse:cloth": 1}
+    usage: Flèches pour l'arc de fortune.
+  jerrycan:
+    station: workshop
+    result: {item: apocalypse:jerrycan}
+    ingredients: {"apocalypse:scrap": 4, "apocalypse:tape": 1}
+    noise: low
+    usage: Accroupi + clic droit sur une voiture pour siphonner, clic droit pour faire le plein.
 
 # Armes de mêlée : dégâts par coup (cœurs = dégâts / 2), cadence, usure (coups), portée (lance), recul.
 weapons:
@@ -631,6 +672,7 @@ weapons:
   blade: {damage: 4.5, attacks-per-second: 2.0, durability: 40}
   spear: {damage: 5.5, attacks-per-second: 1.0, durability: 70, reach: 4.0}
   heavy_club: {damage: 7.5, attacks-per-second: 0.9, durability: 150, knockback: 0.6}
+  fire_axe: {damage: 9.0, attacks-per-second: 0.8, durability: 180, knockback: 0.3}
 
 # Pistolet de fortune : clic droit pour tirer, touche d'échange de main (F) pour recharger.
 pistol:
@@ -709,9 +751,12 @@ fauna:
   infection-chance: 0.5
   incubation-min-seconds: 30
   incubation-max-seconds: 60
-  max-infected: 12
-  max-per-ten-minutes: 6
+  max-infected: 20
+  max-per-ten-minutes: 10
   species: [wolf, cow, sheep, pig]
+  # Part des nouveaux infectés qui sont des animaux déjà contaminés (chiens errants en ville, bétail et loups à
+  # la campagne), en plus des animaux contaminés par morsure.
+  spawn-share: 0.15
 
 # Équipes : taille maximale et durée de validité d'une invitation. Le PvP se règle en jeu (/apocalypse admin pvp on|off),
 # désactivé par défaut ; jamais de dégâts entre coéquipiers ni au refuge.
@@ -732,3 +777,31 @@ progress:
 # Introduction (environ 50 s, ignorable avec /apocalypse intro skip) à la première entrée, rejouable depuis le refuge.
 intro:
   enabled: true
+
+# Quitter Ground Zero : immédiat au refuge ; ailleurs, après ce délai sans être blessé, sans attaquer ni s'éloigner
+# (0 = immédiat partout). Jamais avec une morsure en cours. La vie et la position sont gardées pour le retour.
+session:
+  leave-seconds: 10
+
+# Voitures abandonnées : clic droit sur une portière pour monter (conducteur, puis passagers), Maj pour descendre.
+# Avancer/reculer et tourner avec les touches de déplacement, saut = frein à main, sprint = klaxon. Vitesses en blocs
+# par tick (0,75 = 54 km/h), plus lentes hors des routes. Le moteur fait du bruit (attire les infectés), consomme de
+# l'essence (litres par bloc) et la voiture s'abîme en percutant murs et infectés. Jerrican : siphonner une autre
+# voiture (accroupi + clic droit) puis faire le plein (clic droit). Ferraille en main : réparation.
+vehicles:
+  enabled: true
+  max-speed-road: 0.75
+  max-speed-offroad: 0.42
+  fuel-per-block: 0.017
+  tank-litres: 45
+  jerrycan-litres: 20
+  engine-noise: 24
+  horn-noise: 64
+  impact-damage: 30
+
+# Armes de jet. Bombe artisanale : explose après la mèche, dégâts décroissants jusqu'au rayon (moitié moins derrière un
+# mur), te blesse aussi ; PvP et coéquipiers suivent les règles habituelles ; aucun bloc détruit. Cocktail Molotov :
+# zone en feu pendant quelques secondes (les infectés y brûlent), sans feu posé dans le monde.
+explosives:
+  pipe-bomb: {fuse-seconds: 3.5, radius: 5.0, damage: 26}
+  molotov: {radius: 2.5, seconds: 8, damage-per-second: 2.0}

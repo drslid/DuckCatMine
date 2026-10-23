@@ -74,6 +74,11 @@ final class Frame implements Canvas {
             public void container(int x, int y, int z, BlockData data, PlaceType place) {
                 parent.container(x + du, y, z + dv, data, place);
             }
+
+            @Override
+            public void vehicle(int x, int y, int z, boolean alongX, long seed) {
+                parent.vehicle(x + du, y, z + dv, alongX, seed);
+            }
         };
         return new Frame(shifted, 0, 0, subWidth, subDepth, BlockFace.NORTH);
     }
@@ -109,6 +114,13 @@ final class Frame implements Canvas {
     @Override
     public void container(int u, int y, int v, BlockData data, PlaceType place) {
         out.container(worldX(u, v), y, worldZ(u, v), turn(data), place);
+    }
+
+    @Override
+    public void vehicle(int u, int y, int v, boolean alongU, long seed) {
+        int x1 = worldX(u, v), z1 = worldZ(u, v);
+        int x2 = worldX(u + (alongU ? 3 : 1), v + (alongU ? 1 : 3)), z2 = worldZ(u + (alongU ? 3 : 1), v + (alongU ? 1 : 3));
+        out.vehicle(Math.min(x1, x2), y, Math.min(z1, z2), Math.abs(x2 - x1) == 3, seed);
     }
 
     private BlockData turn(BlockData data) {

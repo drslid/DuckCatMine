@@ -39,9 +39,13 @@ public final class SessionService {
     private record Exit(long seq, byte[] classic) {
     }
 
+    private record Leaving(Location from, long deadline) {
+    }
+
     private final DuckCatApocalypse plugin;
     private final Set<UUID> transitioning = new HashSet<>();
     private final Set<UUID> pendingJoins = new HashSet<>();
+    private final java.util.Map<UUID, Leaving> leaving = new java.util.HashMap<>();
 
     public SessionService(DuckCatApocalypse plugin) {
         this.plugin = plugin;
@@ -67,7 +71,7 @@ public final class SessionService {
         return value == null ? 1 : value;
     }
 
-    private void stampEpoch(Player player) {
+    public void stampEpoch(Player player) {
         player.getPersistentDataContainer().set(plugin.keys().worldEpoch, PersistentDataType.INTEGER, plugin.scenario().epoch());
     }
 
@@ -204,7 +208,9 @@ public final class SessionService {
         } else {
             Text.good(player, "Retour dans Ground Zero : ta survie reprend où tu l'avais laissée.");
             Text.warn(player, scenario.rulesLine());
+            plugin.protection().start(player);
         }
+        plugin.events().add("join", player.getName() + (survivor == null ? " commence une nouvelle vie" : " revient dans Ground Zero"));
         plugin.progress().apply(player);
         plugin.infections().show(player);
         plugin.bags().remind(player);
@@ -234,9 +240,84 @@ public final class SessionService {
                 plugin.getServer().getScheduler().runTask(plugin, () -> afterIntro(player, error == null ? at : null))));
     }
 
+    /**
+     * Leaving on request: at once in the refuge, elsewhere after a few seconds standing still without fighting. Never
+     * with a running bite. The life and the position are kept for the return.
+     */
+    public void requestLeave(Player player) {
+        UUID id = player.getUniqueId();
+        if (profile(player) != Profile.APOCALYPSE) {
+            Text.info(player, "Tu n'es pas dans Ground Zero.");
+            return;
+        }
+        if (player.isDead() || !plugin.scenario().isScenarioWorld(player.getWorld())) return;
+        if (plugin.infections().isInfected(id)) {
+            Text.error(player, "Impossible de partir avec une morsure : l'antidote d'abord.");
+            return;
+        }
+        int seconds = plugin.settings().play().leaveSeconds();
+        if (seconds <= 0 || plugin.scenario().inRefuge(player.getLocation())) {
+            leave(player, false, true, true, null);
+            return;
+        }
+        if (leaving.containsKey(id)) {
+            Text.info(player, "Départ déjà en cours : reste immobile.");
+            return;
+        }
+        leaving.put(id, new Leaving(player.getLocation().clone(), System.currentTimeMillis() + seconds * 1000L));
+        Text.warn(player, "Départ dans " + seconds + " s : reste immobile et ne te bats pas. Ta vie et ta position sont gardées pour ton retour.");
+    }
+
+    /** Moving, fighting or getting hurt cancels a departure in progress. */
+    public void cancelLeave(Player player, String reason) {
+        if (leaving.remove(player.getUniqueId()) != null) Text.warn(player, "Départ annulé : " + reason + ".");
+    }
+
+    /** Every 5 ticks: countdowns of departures. */
+    public void tickLeaves() {
+        if (leaving.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        for (java.util.Map.Entry<UUID, Leaving> entry : java.util.Map.copyOf(leaving).entrySet()) {
+            Player player = plugin.getServer().getPlayer(entry.getKey());
+            Leaving pending = entry.getValue();
+            if (player == null || player.isDead() || !isSurvivor(player)) {
+                leaving.remove(entry.getKey());
+                continue;
+            }
+            if (!player.getWorld().equals(pending.from().getWorld()) || player.getLocation().distanceSquared(pending.from()) > 4) {
+                cancelLeave(player, "tu as bougé");
+                continue;
+            }
+            if (plugin.infections().isInfected(player.getUniqueId())) {
+                cancelLeave(player, "tu as été mordu");
+                continue;
+            }
+            long left = pending.deadline() - now;
+            if (left > 0) {
+                player.sendActionBar(net.kyori.adventure.text.Component.text("Départ dans " + Math.ceilDiv(left, 1000L) + " s…",
+                        net.kyori.adventure.text.format.NamedTextColor.YELLOW));
+                continue;
+            }
+            leaving.remove(entry.getKey());
+            leave(player, false, true, true, null);
+        }
+    }
+
+    /** An administrator sends a survivor back to classic survival; the Ground Zero life is kept. */
+    public boolean evacuate(Player player) {
+        if (profile(player) != Profile.APOCALYPSE || player.isDead()) return false;
+        return leave(player, true, true, true,
+                "Un administrateur t'a ramené dans ta survie habituelle. Ta vie Ground Zero est sauvegardée pour ton retour.");
+    }
+
     /** Voluntary exits are only possible from the refuge and never with an active bite. */
     public boolean leave(Player player, boolean forced, boolean move) {
+        return leave(player, forced, move, false, null);
+    }
+
+    private boolean leave(Player player, boolean forced, boolean move, boolean anywhere, String farewell) {
         UUID id = player.getUniqueId();
+        leaving.remove(id);
         if (profile(player) != Profile.APOCALYPSE) {
             if (!forced) Text.info(player, "Tu n'es pas dans Ground Zero.");
             return false;
@@ -248,8 +329,8 @@ public final class SessionService {
                 Text.error(player, "Impossible de partir avec une morsure : l'antidote d'abord.");
                 return false;
             }
-            if (!plugin.scenario().inRefuge(player.getLocation())) {
-                Text.error(player, "Rejoins le refuge pour quitter Ground Zero.");
+            if (!anywhere && !plugin.scenario().inRefuge(player.getLocation())) {
+                Text.error(player, "Rejoins le refuge pour quitter Ground Zero, ou utilise /apocalypse leave.");
                 return false;
             }
         }
@@ -300,9 +381,50 @@ public final class SessionService {
         plugin.infections().hide(player);
         plugin.protection().clear(id);
         plugin.progress().clear(player);
-        Text.good(player, forced ? "Ground Zero est fermé : tu as retrouvé ta survie habituelle. Ta vie Apocalypse est sauvegardée."
+        plugin.events().add("leave", player.getName() + " a quitté Ground Zero");
+        Text.good(player, farewell != null ? farewell
+                : forced ? "Ground Zero est fermé : tu as retrouvé ta survie habituelle. Ta vie Apocalypse est sauvegardée."
                 : "Tu as quitté Ground Zero. Ta vie y reste sauvegardée.");
         return true;
+    }
+
+    /**
+     * New game: every life still running ends (cause RESET) and nobody keeps Ground Zero items. Stored survivor
+     * profiles are dropped; players who logged out inside Ground Zero get a pending death applied at their next
+     * connection, without a bag. Classic inventories held for survivors stay untouched. Refused while a survivor is online.
+     */
+    public String resetAllLives(String actor) {
+        for (Player online : plugin.getServer().getOnlinePlayers()) {
+            if (profile(online) == Profile.APOCALYPSE)
+                return online.getName() + " est dans Ground Zero : attends que tous les survivants soient déconnectés ou sortis.";
+        }
+        long now = plugin.clock().now();
+        String world = plugin.scenario().world() == null ? "ground_zero" : plugin.scenario().world().getName();
+        int ended = plugin.database().call(c -> {
+            int count = 0;
+            for (Store.RunRow run : Store.aliveRuns(c)) {
+                UUID player = run.player();
+                String deathId = UUID.randomUUID().toString();
+                Store.insertDeath(c, new Store.DeathRow(deathId, player, run.id(), "RESET", world, 0, 0, 0, now, null));
+                Store.endRun(c, run.id(), now, deathId);
+                Store.resolveInfection(c, run.id(), "ENDED", now);
+                if (Store.profile(c, player, SURVIVOR_KIND) != null) {
+                    Store.deleteProfile(c, player, SURVIVOR_KIND);
+                } else {
+                    long seq = Store.nextSeq(c, player);
+                    Store.insertOp(c, player, seq, OpType.OFFLINE_DEATH, deathId, now);
+                }
+                count++;
+            }
+            Store.audit(c, now, actor, "lives_reset", count + " vie(s) terminée(s)");
+            return count;
+        });
+        plugin.bags().expireAll();
+        plugin.infections().clearAll();
+        plugin.threat().setLevel(1);
+        plugin.events().add("admin", "Nouvelle partie : " + ended + " vie(s) terminée(s) par " + actor);
+        plugin.getLogger().info("Nouvelle partie (" + actor + ") : " + ended + " vie(s) terminée(s).");
+        return null;
     }
 
     private void rollbackSwap(UUID id, long seq, String writtenKind) {
@@ -415,5 +537,6 @@ public final class SessionService {
     public void forget(Player player) {
         pendingJoins.remove(player.getUniqueId());
         transitioning.remove(player.getUniqueId());
+        leaving.remove(player.getUniqueId());
     }
 }

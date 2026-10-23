@@ -48,7 +48,8 @@ public final class FaunaService implements Listener {
     public static final String WOLF = "infected_wolf";
     public static final String LIVESTOCK = "infected_livestock";
     private static final long WINDOW_MS = 600_000;
-    private static final double SPREAD_RADIUS = 10;
+    private static final double SPREAD_RADIUS = 12;
+    private static final double PREY_RADIUS = 16;
 
     private final DuckCatApocalypse plugin;
     private final Random random = new Random();
@@ -66,6 +67,45 @@ public final class FaunaService implements Listener {
 
     public int incubatingCount() {
         return incubating.size();
+    }
+
+    /** Created by the spawn director (stray infected dogs, escaped livestock): may despawn like the infected. */
+    public boolean spawnedByDirector(Entity entity) {
+        return entity != null && entity.getPersistentDataContainer().has(plugin.keys().spawned);
+    }
+
+    /** An already contaminated animal at a spawn spot; null when fauna is off or its budget is used. */
+    public LivingEntity spawnInfected(Location at, boolean wolf) {
+        ApocalypseConfig.Fauna rules = rules();
+        if (!rules.enabled()) return null;
+        Map<String, Integer> alive = plugin.mobs().countByArchetype();
+        if (alive.getOrDefault(WOLF, 0) + alive.getOrDefault(LIVESTOCK, 0) + incubating.size() >= rules.maxInfected()) return null;
+        Class<? extends Animals> type = wolf ? Wolf.class : livestock(rules);
+        if (type == null) return null;
+        Animals animal = at.getWorld().spawn(at, type, spawned -> {
+            spawned.getPersistentDataContainer().set(plugin.keys().spawned, PersistentDataType.BYTE, (byte) 1);
+            spawned.setAdult();
+        });
+        transform(animal);
+        animal.setPersistent(false);
+        animal.setRemoveWhenFarAway(true);
+        return animal;
+    }
+
+    private Class<? extends Animals> livestock(ApocalypseConfig.Fauna rules) {
+        java.util.List<Class<? extends Animals>> types = new java.util.ArrayList<>();
+        for (String name : rules.species()) {
+            switch (name) {
+                case "cow" -> types.add(org.bukkit.entity.Cow.class);
+                case "sheep" -> types.add(org.bukkit.entity.Sheep.class);
+                case "pig" -> types.add(org.bukkit.entity.Pig.class);
+                case "goat" -> types.add(org.bukkit.entity.Goat.class);
+                case "chicken" -> types.add(org.bukkit.entity.Chicken.class);
+                default -> {
+                }
+            }
+        }
+        return types.isEmpty() ? null : types.get(random.nextInt(types.size()));
     }
 
     public static String species(Entity entity) {
@@ -130,6 +170,8 @@ public final class FaunaService implements Listener {
             if (now >= entry.getValue()) {
                 incubating.remove(entry.getKey());
                 transform(animal);
+                plugin.events().add("fauna", (animal instanceof Wolf ? "Un loup" : "Un animal d'élevage") + " contaminé est devenu enragé ("
+                        + animal.getLocation().getBlockX() + ", " + animal.getLocation().getBlockZ() + ")");
             } else {
                 signs(animal, entry.getValue() - now);
             }
@@ -258,7 +300,7 @@ public final class FaunaService implements Listener {
                 bestDistance = distance;
             }
         }
-        if (best != null || random.nextInt(8) != 0) return best;
+        if (best != null || random.nextInt(3) != 0) return best;
         bestDistance = SPREAD_RADIUS * SPREAD_RADIUS;
         for (Entity entity : mob.getNearbyEntities(SPREAD_RADIUS, 4, SPREAD_RADIUS)) {
             if (!(entity instanceof Animals animal) || !healthy(animal)) continue;
@@ -324,10 +366,10 @@ public final class FaunaService implements Listener {
         return entity != null && (plugin.mobs().isScenarioMob(entity) || entity.getPersistentDataContainer().has(plugin.keys().incubation));
     }
 
-    /** Zombies sometimes go for livestock when no survivor is around: the way contamination spreads. */
+    /** Zombies go for livestock when no survivor is around: the way contamination spreads. */
     public LivingEntity prey(Mob infected) {
-        if (!rules().enabled() || random.nextInt(10) != 0) return null;
-        for (Entity entity : infected.getNearbyEntities(SPREAD_RADIUS, 3, SPREAD_RADIUS)) {
+        if (!rules().enabled() || random.nextInt(4) != 0) return null;
+        for (Entity entity : infected.getNearbyEntities(PREY_RADIUS, 4, PREY_RADIUS)) {
             if (entity instanceof Animals animal && healthy(animal) && infected.hasLineOfSight(animal)) return animal;
         }
         return null;

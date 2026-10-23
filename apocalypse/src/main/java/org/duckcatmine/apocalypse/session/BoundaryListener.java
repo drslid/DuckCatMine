@@ -58,6 +58,16 @@ public final class BoundaryListener implements Listener {
         guard(event, event.getPlayer(), event.getFrom().getWorld(), event.getTo().getWorld());
     }
 
+    /** A departure in progress stops when the survivor is hurt or attacks. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onHurt(org.bukkit.event.entity.EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player player && event.getFinalDamage() > 0) plugin.sessions().cancelLeave(player, "tu as été blessé");
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent hit) {
+            Player attacker = org.duckcatmine.apocalypse.scenario.ProtectionListener.attacker(hit.getDamager());
+            if (attacker != null && !attacker.equals(event.getEntity())) plugin.sessions().cancelLeave(attacker, "tu as attaqué");
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPortal(PlayerPortalEvent event) {
         if (event.getTo() == null) return;

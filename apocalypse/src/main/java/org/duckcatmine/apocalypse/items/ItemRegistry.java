@@ -71,6 +71,11 @@ public final class ItemRegistry {
     public static final String BARRICADE_REINFORCED = "barricade_reinforced";
     public static final String SPIKE_TRAP = "spike_trap";
     public static final String BEACON = "beacon";
+    public static final String PIPE_BOMB = "pipe_bomb";
+    public static final String MOLOTOV = "molotov";
+    public static final String BOW = "bow";
+    public static final String ARROW = "arrow";
+    public static final String JERRYCAN = "jerrycan";
     /** Items that become a tracked block when placed (station, defence or claim). */
     public static final Set<String> PLACEABLE = Set.of(WORKSHOP, MEDICAL_STATION, BARRICADE, BARRICADE_REINFORCED, SPIKE_TRAP, BEACON);
 
@@ -135,6 +140,19 @@ public final class ItemRegistry {
                 List.of("Blesse les infectés qui marchent dessus.", "Charges limitées ; jamais dans le refuge.")));
         definitions.put(BEACON, new Definition("Balise de base", NamedTextColor.AQUA, Material.LODESTONE, null, 1,
                 List.of("Revendique ta base (rayon 12) pour toi et ton équipe.", "Pas de siège quand vous êtes tous absents.")));
+        definitions.put(PIPE_BOMB, new Definition("Bombe artisanale", NamedTextColor.RED, Material.SNOWBALL, "minecraft:tnt", 4,
+                List.of("À lancer (clic droit) : explose 3,5 s plus tard.", "Blesse tout ce qui est proche, toi compris.",
+                        "L'explosion s'entend dans tout le quartier.")));
+        definitions.put(MOLOTOV, new Definition("Cocktail Molotov", NamedTextColor.GOLD, Material.SNOWBALL, "minecraft:splash_potion", 4,
+                List.of("À lancer (clic droit) : enflamme une zone", "pendant quelques secondes.")));
+        definitions.put("fire_axe", new Definition("Hache d'incendie", NamedTextColor.YELLOW, "minecraft:iron_axe", 1,
+                List.of("Lourde et lente : frappe très fort.")));
+        definitions.put(BOW, new Definition("Arc de fortune", NamedTextColor.WHITE, Material.BOW, null, 1,
+                List.of("Silencieux : ne réveille pas le quartier.", "Tire les flèches de ton inventaire ; elles se ramassent.")));
+        definitions.put(ARROW, new Definition("Flèche artisanale", NamedTextColor.WHITE, Material.ARROW, null, 32,
+                List.of("Pour l'arc de fortune.")));
+        definitions.put(JERRYCAN, new Definition("Jerrican", NamedTextColor.RED, "minecraft:bucket", 1,
+                List.of("Accroupi + clic droit sur une voiture : siphonner.", "Clic droit sur une voiture : faire le plein.")));
     }
 
     public static boolean isMelee(String id) {
@@ -147,6 +165,12 @@ public final class ItemRegistry {
 
     public Set<String> ids() {
         return definitions.keySet();
+    }
+
+    /** Display name of a scenario item, or null. */
+    public String label(String id) {
+        Definition definition = definitions.get(id);
+        return definition == null ? null : definition.name();
     }
 
     public ItemStack create(String id, int amount) {
@@ -199,6 +223,11 @@ public final class ItemRegistry {
         }
         if (SPIKE_TRAP.equals(id))
             stack.editPersistentDataContainer(data -> data.set(keys.charges, PersistentDataType.INTEGER, config.play().traps().charges()));
+        if (BOW.equals(id)) {
+            stack.setData(DataComponentTypes.MAX_DAMAGE, 150);
+            stack.setData(DataComponentTypes.DAMAGE, 0);
+        }
+        if (JERRYCAN.equals(id)) setFuel(stack, 0);
         stack.editPersistentDataContainer(data -> data.set(keys.item, PersistentDataType.STRING, id));
         stack.setAmount(Math.max(1, Math.min(amount, definition.maxStack())));
         return stack;
@@ -224,6 +253,22 @@ public final class ItemRegistry {
 
     public boolean is(ItemStack stack, String id) {
         return id.equals(idOf(stack));
+    }
+
+    /** Litres in a jerrycan (0 for anything else). */
+    public double fuel(ItemStack stack) {
+        if (!is(stack, JERRYCAN)) return 0;
+        Double litres = stack.getPersistentDataContainer().get(keys.fuel, PersistentDataType.DOUBLE);
+        return litres == null ? 0 : litres;
+    }
+
+    /** Sets the litres of a jerrycan and shows them in its name and look. */
+    public void setFuel(ItemStack stack, double litres) {
+        double value = Math.max(0, litres);
+        stack.editPersistentDataContainer(data -> data.set(keys.fuel, PersistentDataType.DOUBLE, value));
+        stack.setData(DataComponentTypes.ITEM_NAME, Component.text(value < 0.5 ? "Jerrican (vide)"
+                : "Jerrican (" + Math.round(value) + " L d'essence)", NamedTextColor.RED));
+        stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(value < 0.5 ? "minecraft:bucket" : "minecraft:lava_bucket"));
     }
 
     public String idOf(ItemStack stack) {

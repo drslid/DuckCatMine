@@ -59,15 +59,50 @@ public final class SpawnDirector {
             Sector sector = sectorAt(player.getLocation());
             ApocalypseConfig.SectorRule rule = settings.sector(sector.id());
             if (rule == null || rule.mix().isEmpty()) continue;
-            int cap = plugin.threat().localCap(rule.localCap() + (night ? spawning.nightBonus() : 0));
-            if (plugin.mobs().countNear(player.getLocation(), LOCAL_RADIUS) >= cap) continue;
-            Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance(), random.nextDouble() < spawning.indoorChance());
-            if (spot == null) continue;
-            String archetype = pickArchetype(rule.mix());
-            if (archetype == null) continue;
-            plugin.mobs().spawn(archetype, pickAppearance(settings.archetype(archetype), sector), spot);
-            total++;
+            int cap = plugin.threat().localCap(localCap(rule, spawning, sector) + (night ? spawning.nightBonus() : 0));
+            int near = plugin.mobs().countNear(player.getLocation(), LOCAL_RADIUS);
+            for (int k = 0; k < spawning.perTick() && near < cap && total < spawning.globalCap(); k++) {
+                Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance(), random.nextDouble() < spawning.indoorChance());
+                if (spot == null) break;
+                Sector at = sectorAt(spot);
+                if (animalSpawn(at) && plugin.fauna().spawnInfected(spot, wolfFor(at)) != null) {
+                    total++;
+                    near++;
+                    continue;
+                }
+                String archetype = pickArchetype(rule.mix());
+                if (archetype == null) break;
+                if (plugin.mobs().spawn(archetype, pickAppearance(settings.archetype(archetype), sector), spot) == null) break;
+                total++;
+                near++;
+            }
         }
+    }
+
+    /** Sector cap scaled by the density setting (at least one where a sector has any); the starting district is never scaled up. */
+    static int localCap(ApocalypseConfig.SectorRule rule, ApocalypseConfig.Spawning spawning, Sector sector) {
+        if (rule.localCap() == 0) return 0;
+        int scaled = Math.max(1, (int) Math.round(rule.localCap() * spawning.density()));
+        return sector == Sector.STARTER ? Math.min(rule.localCap(), scaled) : scaled;
+    }
+
+    /**
+     * Infected animals among new spawns: stray dogs in town, livestock and wolves in the countryside and outskirts. Never
+     * in the gentle starting sector around the refuge nor inside buildings.
+     */
+    private boolean animalSpawn(Sector sector) {
+        ApocalypseConfig.Fauna fauna = plugin.settings().play().fauna();
+        if (!fauna.enabled() || sector == Sector.REFUGE || sector == Sector.STARTER) return false;
+        double share = sector == Sector.COUNTRYSIDE || sector == Sector.OUTSKIRTS ? fauna.spawnShare() * 2 : fauna.spawnShare();
+        return random.nextDouble() < Math.min(0.9, share);
+    }
+
+    private boolean wolfFor(Sector sector) {
+        return switch (sector) {
+            case COUNTRYSIDE -> random.nextDouble() < 0.35;
+            case OUTSKIRTS -> random.nextDouble() < 0.6;
+            default -> true;
+        };
     }
 
     /** Small capped reinforcement (howler call): walkers only, inside the global budget, never next to the survivor. */
@@ -205,7 +240,8 @@ public final class SpawnDirector {
         double squared = (double) distance * distance;
         for (UUID id : plugin.mobs().trackedIds()) {
             Entity entity = plugin.getServer().getEntity(id);
-            if (!(entity instanceof Zombie mob) || !mob.getWorld().equals(world) || mob.getTarget() != null) continue;
+            if (!(entity instanceof Mob mob) || !(mob instanceof Zombie || plugin.fauna().spawnedByDirector(mob))
+                    || !mob.getWorld().equals(world) || mob.getTarget() != null) continue;
             boolean near = false;
             for (Player player : world.getPlayers()) {
                 if (player.getLocation().distanceSquared(mob.getLocation()) <= squared) {

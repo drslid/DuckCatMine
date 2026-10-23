@@ -20,7 +20,13 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.duckcatmine.apocalypse.DuckCatApocalypse;
 import org.duckcatmine.apocalypse.config.ApocalypseConfig;
+import org.duckcatmine.apocalypse.config.SettingsService;
+import org.duckcatmine.apocalypse.death.BagService;
+import org.duckcatmine.apocalypse.items.ItemRegistry;
 import org.duckcatmine.apocalypse.persistence.Store;
+import org.duckcatmine.apocalypse.scenario.BlueMapHook;
+import org.duckcatmine.apocalypse.scenario.GroundZeroGenerator;
+import org.duckcatmine.apocalypse.scenario.city.CityLayout;
 import org.duckcatmine.apocalypse.scenario.city.Sector;
 
 /**
@@ -29,7 +35,7 @@ import org.duckcatmine.apocalypse.scenario.city.Sector;
  * atomically (temporary file then rename).
  */
 public final class StatusWriter {
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
     private static final long PROFILES_EVERY_MS = 60_000;
 
     private final DuckCatApocalypse plugin;
@@ -37,6 +43,8 @@ public final class StatusWriter {
     private final AtomicBoolean writing = new AtomicBoolean();
     private int classicProfiles = -1;
     private long profilesCountedAt;
+    private JsonArray leaderboard = new JsonArray();
+    private long leaderboardAt;
     private com.google.gson.JsonElement mapJson;
     private long mapModified;
 
@@ -167,6 +175,10 @@ public final class StatusWriter {
                 survivor.addProperty("team", team == null ? null : team.name());
                 survivor.addProperty("points", plugin.progress().points(player));
                 survivor.addProperty("lifeSeconds", plugin.progress().lifeMillis(player) / 1000);
+                JsonObject skills = new JsonObject();
+                plugin.progress().ranks(player).forEach(skills::addProperty);
+                survivor.add("skills", skills);
+                survivor.addProperty("inVehicle", plugin.vehicles().isRiding(player));
                 survivors.add(survivor);
             }
         }
@@ -211,6 +223,119 @@ public final class StatusWriter {
             mapModified = -1;
         }
         if (mapJson != null) root.add("map", mapJson);
+        extras(root, world, now);
         return root;
+    }
+
+    /** Everything the panel needs to steer a game: settings, journal, board, bags, items, places, cars. */
+    private void extras(JsonObject root, World world, long now) {
+        JsonObject settings = new JsonObject();
+        plugin.tuning().values().forEach((key, value) -> {
+            if (value instanceof Boolean bool) settings.addProperty(key, bool);
+            else if (value instanceof Number number) settings.addProperty(key, number);
+        });
+        root.add("settings", settings);
+        JsonArray catalog = new JsonArray();
+        for (SettingsService.Setting setting : SettingsService.CATALOG) {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("key", setting.key());
+            entry.addProperty("label", setting.label());
+            entry.addProperty("group", setting.group());
+            entry.addProperty("kind", setting.kind().name().toLowerCase(java.util.Locale.ROOT));
+            entry.addProperty("min", setting.min());
+            entry.addProperty("max", setting.max());
+            catalog.add(entry);
+        }
+        root.add("settingsCatalog", catalog);
+        JsonObject presets = new JsonObject();
+        SettingsService.PRESETS.forEach((name, values) -> {
+            JsonObject preset = new JsonObject();
+            preset.addProperty("label", SettingsService.PRESET_LABELS.getOrDefault(name, name));
+            JsonObject entries = new JsonObject();
+            values.forEach((key, value) -> entries.addProperty(key, (Number) value));
+            preset.add("values", entries);
+            presets.add(name, preset);
+        });
+        root.add("presets", presets);
+        root.addProperty("activePreset", plugin.tuning().activePreset());
+
+        JsonArray events = new JsonArray();
+        for (EventLog.Event event : plugin.events().entries()) {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("at", event.at());
+            entry.addProperty("kind", event.kind());
+            entry.addProperty("text", event.text());
+            events.add(entry);
+        }
+        root.add("events", events);
+
+        if (now - leaderboardAt > PROFILES_EVERY_MS) {
+            leaderboardAt = now;
+            try {
+                JsonArray board = new JsonArray();
+                long clock = plugin.clock().now();
+                for (Store.Ranking row : plugin.database().call(c -> Store.leaderboard(c, 10))) {
+                    JsonObject entry = new JsonObject();
+                    entry.addProperty("name", row.name());
+                    entry.addProperty("alive", row.alive());
+                    entry.addProperty("points", row.points());
+                    entry.addProperty("kills", row.kills());
+                    entry.addProperty("lifeSeconds", row.alive() ? Math.max(0, clock - row.startedAt()) / 1000 : 0);
+                    entry.addProperty("careerPoints", row.careerPoints());
+                    entry.addProperty("bestSurvivalSeconds", row.bestSurvivalMs() / 1000);
+                    board.add(entry);
+                }
+                leaderboard = board;
+            } catch (RuntimeException e) {
+                plugin.getLogger().fine("Classement non calculé : " + e.getMessage());
+            }
+        }
+        root.add("leaderboard", leaderboard);
+
+        JsonArray bags = new JsonArray();
+        for (BagService.Info bag : plugin.bags().list()) {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("owner", bag.owner());
+            entry.addProperty("x", bag.x());
+            entry.addProperty("z", bag.z());
+            entry.addProperty("secondsLeft", bag.secondsLeft());
+            entry.addProperty("items", bag.items());
+            bags.add(entry);
+        }
+        root.add("bags", bags);
+
+        JsonArray items = new JsonArray();
+        for (String id : plugin.items().ids()) {
+            if (ItemRegistry.NOTE.equals(id)) continue;
+            JsonObject entry = new JsonObject();
+            entry.addProperty("id", id);
+            entry.addProperty("name", plugin.items().label(id));
+            items.add(entry);
+        }
+        root.add("items", items);
+
+        JsonArray landmarks = new JsonArray();
+        if (world != null && world.getGenerator() instanceof GroundZeroGenerator) {
+            for (CityLayout.Landmark landmark : CityLayout.of(world.getSeed()).landmarks()) {
+                JsonObject entry = new JsonObject();
+                entry.addProperty("kind", landmark.kind());
+                entry.addProperty("label", landmark.label());
+                entry.addProperty("x", landmark.x());
+                entry.addProperty("z", landmark.z());
+                landmarks.add(entry);
+            }
+        }
+        root.add("landmarks", landmarks);
+
+        JsonObject vehicles = new JsonObject();
+        vehicles.addProperty("loaded", plugin.vehicles().loaded());
+        vehicles.addProperty("driven", plugin.vehicles().driven());
+        vehicles.addProperty("enabled", plugin.settings().play().vehicles().enabled());
+        root.add("vehicles", vehicles);
+
+        JsonObject blueMap = new JsonObject();
+        blueMap.addProperty("available", world != null && BlueMapHook.installed());
+        blueMap.addProperty("map", world == null ? null : world.getName());
+        root.add("blueMap", blueMap);
     }
 }

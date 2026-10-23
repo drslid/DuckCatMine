@@ -150,6 +150,14 @@ public final class ProgressService implements Listener {
         return life == null ? 0 : Math.max(0, plugin.clock().now() - life.startedAt);
     }
 
+    /** Skill ranks of the current life by skill id (for the panel). */
+    public Map<String, Integer> ranks(Player player) {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        Life life = plugin.sessions().isSurvivor(player) ? life(player) : null;
+        if (life != null) life.ranks.forEach((skill, rank) -> result.put(skill.id, rank));
+        return result;
+    }
+
     // ------------------------------------------------------------------ points
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

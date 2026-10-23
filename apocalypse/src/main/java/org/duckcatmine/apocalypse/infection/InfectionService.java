@@ -81,7 +81,7 @@ public final class InfectionService implements Listener {
         double absorbed = event.isApplicable(EntityDamageEvent.DamageModifier.ABSORPTION)
                 ? -event.getDamage(EntityDamageEvent.DamageModifier.ABSORPTION) : 0;
         if (!InfectionRules.reachedPlayer(event.getFinalDamage(), absorbed)) return;
-        if (!InfectionRules.bites(archetype.biteChance(), random.nextDouble())) return;
+        if (!InfectionRules.bites(Math.min(1, archetype.biteChance() * plugin.settings().infection().biteMultiplier()), random.nextDouble())) return;
         bite(player);
     }
 
@@ -113,9 +113,12 @@ public final class InfectionService implements Listener {
         });
         display(player, infection, deadline - now);
         player.showBossBar(infection.bar);
+        plugin.events().add("bite", player.getName() + " a été mordu");
         player.sendActionBar(Component.text("Morsure : trouve un antidote avant la fin du compte à rebours.", NamedTextColor.RED));
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT_SWEET_BERRY_BUSH, 0.7f, 0.8f);
         Text.warn(player, "Tu as été mordu : termine un antidote NEXUS avant la fin du compte à rebours, sinon cette vie s'achève.");
+        Text.info(player, "Antidotes : pharmacies, hôpital, laboratoire, ou poste médical (sérum + inhibiteur + seringue)."
+                + " /apocalypse guide indique la pharmacie la plus proche.");
     }
 
     public void tick() {
@@ -206,6 +209,7 @@ public final class InfectionService implements Listener {
             return null;
         });
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.6f);
+        plugin.events().add("cure", player.getName() + " a pris l'antidote à temps");
         return true;
     }
 
@@ -231,5 +235,18 @@ public final class InfectionService implements Listener {
         Active infection = active.remove(id);
         Player player = plugin.getServer().getPlayer(id);
         if (infection != null && player != null) player.hideBossBar(infection.bar);
+    }
+
+    /** New game: the lives ended in the database, the timers stop here. */
+    public void clearAll() {
+        for (UUID id : java.util.List.copyOf(active.keySet())) end(id);
+    }
+
+    /** Remaining seconds of every running bite, by player. */
+    public Map<UUID, Long> remainingAll() {
+        Map<UUID, Long> result = new HashMap<>();
+        long now = plugin.clock().now();
+        active.forEach((id, infection) -> result.put(id, Math.max(0, infection.deadline - now) / 1000));
+        return result;
     }
 }

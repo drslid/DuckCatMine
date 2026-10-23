@@ -1,10 +1,12 @@
 package org.duckcatmine.apocalypse.scenario.city;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 
-/** Street surfaces and furniture: road markings, lamps, abandoned cars, barricades and rubble. */
-final class Streets {
+/** Street surfaces and furniture: road markings, lamps, trees, parked cars, barricades and rubble. */
+public final class Streets {
     private static final Material[] CAR_COLORS = {Material.WHITE_CONCRETE, Material.BLACK_CONCRETE, Material.RED_CONCRETE,
             Material.BLUE_CONCRETE, Material.LIGHT_GRAY_CONCRETE, Material.GREEN_CONCRETE, Material.YELLOW_CONCRETE,
             Material.CYAN_CONCRETE, Material.GRAY_CONCRETE, Material.BROWN_CONCRETE};
@@ -45,7 +47,7 @@ final class Streets {
         return B.of(Material.SMOOTH_STONE);
     }
 
-    static void furnish(ChunkCanvas canvas, CityLayout layout, int x0, int z0) {
+    static void furnish(Canvas canvas, CityLayout layout, int x0, int z0) {
         int y = Terrain.CITY_Y + 1;
         long seed = layout.seed();
         for (int dx = 0; dx < 16; dx++) {
@@ -65,6 +67,9 @@ final class Streets {
                 if (onRoad && (h & 1023) < 4) canvas.set(x, y, z, B.slab(Material.COBBLESTONE_SLAB, false));
             }
         }
+        for (List<TreeBlock> tree : streetTrees(layout, x0, z0)) {
+            for (TreeBlock block : tree) canvas.set(block.x(), block.y(), block.z(), block.data());
+        }
         int half = CityLayout.CELL / 2;
         for (int line = Math.floorDiv(z0 - 4 - half, CityLayout.CELL); line <= Math.floorDiv(z0 + 19 - half, CityLayout.CELL); line++) {
             int zc = line * CityLayout.CELL + half;
@@ -79,7 +84,7 @@ final class Streets {
     }
 
     /** One road stretch from a crossing at (sx, sz) to the next one along x or z. */
-    private static void segment(ChunkCanvas canvas, CityLayout layout, int sx, int sz, boolean alongX, int y) {
+    private static void segment(Canvas canvas, CityLayout layout, int sx, int sz, boolean alongX, int y) {
         int mx = alongX ? sx + CityLayout.CELL / 2 : sx, mz = alongX ? sz : sz + CityLayout.CELL / 2;
         if (!CityLayout.urban(mx, mz) || Math.max(Math.abs(mx), Math.abs(mz)) > CityLayout.CITY_EDGE - 4) return;
         long h = CityLayout.mix(layout.seed() ^ (alongX ? 0xCA5L : 0xCA6L), sx, sz);
@@ -108,21 +113,108 @@ final class Streets {
     }
 
     static void car(Canvas canvas, int x, int z, boolean alongX, long h, int y) {
-        boolean burnt = Math.floorMod(h >>> 30, 7L) == 0;
-        BlockData body = B.of(burnt ? Material.BLACKSTONE : CAR_COLORS[(int) Math.floorMod(h >>> 20, (long) CAR_COLORS.length)]);
-        BlockData glass = burnt ? B.AIR : B.of(Math.floorMod(h >>> 33, 3L) == 0 ? Material.TINTED_GLASS : Material.GLASS);
-        BlockData wheel = B.of(Material.COAL_BLOCK);
-        for (int a = 0; a < 4; a++) {
-            for (int b = 0; b < 2; b++) {
-                int xx = alongX ? x + a : x + b, zz = alongX ? z + b : z + a;
-                canvas.set(xx, y, zz, (a == 0 || a == 3) && !burnt ? wheel : body);
-                canvas.set(xx, y + 1, zz, a == 1 || a == 2 ? glass : body);
-                if (a == 1 || a == 2) canvas.set(xx, y + 2, zz, body);
-            }
-        }
+        canvas.vehicle(x, y, z, alongX, h);
     }
 
-    private static void barricade(ChunkCanvas canvas, int sx, int sz, boolean alongX, long h, int y) {
+    /** Paint of a parked car, from the seed the generator gives it (block cars of older chunks used the same rule). */
+    public static Material carPaint(long seed) {
+        return CAR_COLORS[(int) Math.floorMod(seed >>> 20, (long) CAR_COLORS.length)];
+    }
+
+    public static boolean carBurnt(long seed) {
+        return Math.floorMod(seed >>> 30, 7L) == 0;
+    }
+
+    /** Blocks the generator used for cars before they became entities, so a loaded old chunk can swap them. */
+    public static boolean legacyCarBlock(Material material) {
+        if (material == Material.COAL_BLOCK || material == Material.BLACKSTONE || material == Material.GLASS || material == Material.TINTED_GLASS)
+            return true;
+        for (Material paint : CAR_COLORS) if (paint == material) return true;
+        return false;
+    }
+
+    /** One block of a street tree, in world coordinates. */
+    public record TreeBlock(int x, int y, int z, BlockData data) {
+    }
+
+    /**
+     * Street trees on the curb side of sidewalks, between lamps and away from crossings, as lists of blocks. Every tree
+     * whose canopy reaches the area [x0 - 2, x0 + 17] x [z0 - 2, z0 + 17] is returned.
+     */
+    public static List<List<TreeBlock>> streetTrees(CityLayout layout, int x0, int z0) {
+        List<List<TreeBlock>> trees = new ArrayList<>();
+        int half = CityLayout.CELL / 2;
+        for (int line = Math.floorDiv(z0 - 8 - half, CityLayout.CELL); line <= Math.floorDiv(z0 + 23 - half, CityLayout.CELL); line++) {
+            int zc = line * CityLayout.CELL + half;
+            for (int side = -1; side <= 1; side += 2) {
+                int tz = zc + side * (CityLayout.ROAD_HALF + 1);
+                if (tz < z0 - 4 || tz > z0 + 19) continue;
+                for (int tx = x0 - 4; tx <= x0 + 19; tx++) {
+                    if (Math.floorMod(tx, 12) == 5) tree(trees, layout, tx, tz, 1, 0, 0, -side);
+                }
+            }
+        }
+        for (int line = Math.floorDiv(x0 - 8 - half, CityLayout.CELL); line <= Math.floorDiv(x0 + 23 - half, CityLayout.CELL); line++) {
+            int xc = line * CityLayout.CELL + half;
+            for (int side = -1; side <= 1; side += 2) {
+                int tx = xc + side * (CityLayout.ROAD_HALF + 1);
+                if (tx < x0 - 4 || tx > x0 + 19) continue;
+                for (int tz = z0 - 4; tz <= z0 + 19; tz++) {
+                    if (Math.floorMod(tz, 12) == 5) tree(trees, layout, tx, tz, 0, 1, -side, 0);
+                }
+            }
+        }
+        return trees;
+    }
+
+    /** {@code (ax, az)} runs along the street, {@code (rx, rz)} points from the trunk towards the road. */
+    private static void tree(List<List<TreeBlock>> trees, CityLayout layout, int tx, int tz, int ax, int az, int rx, int rz) {
+        int along = ax != 0 ? tx : tz;
+        if (CityLayout.roadDistance(along) <= CityLayout.ROAD_HALF + 6 || !CityLayout.urban(tx, tz)) return;
+        if (Math.max(Math.abs(tx), Math.abs(tz)) > CityLayout.CITY_EDGE - 2 || Math.max(Math.abs(tx), Math.abs(tz)) <= 40) return;
+        long h = CityLayout.mix(layout.seed() ^ 0x7EE5L, tx, tz);
+        int keep = switch (layout.sectorAt(tx, tz)) {
+            case DOWNTOWN, MEDICAL -> 55;
+            case INDUSTRIAL -> 25;
+            default -> 80;
+        };
+        if (Math.floorMod(h, 100L) >= keep) return;
+        int species = (int) Math.floorMod(h >>> 8, 20L);
+        Material log = species < 10 ? Material.OAK_LOG : species < 15 ? Material.BIRCH_LOG : species < 18 ? Material.DARK_OAK_LOG : Material.SPRUCE_LOG;
+        Material leaves = species < 10 ? Material.OAK_LEAVES : species < 15 ? Material.BIRCH_LEAVES : species < 18 ? Material.DARK_OAK_LEAVES : Material.SPRUCE_LEAVES;
+        boolean dead = Math.floorMod(h >>> 16, 100L) < 15;
+        int height = 4 + (int) Math.floorMod(h >>> 24, 2L);
+        int y0 = Terrain.CITY_Y + 1;
+        List<TreeBlock> blocks = new ArrayList<>();
+        blocks.add(new TreeBlock(tx, Terrain.CITY_Y, tz, B.of(Material.ROOTED_DIRT)));
+        BlockData trunk = B.log(log, org.bukkit.Axis.Y);
+        for (int y = y0; y < y0 + height; y++) blocks.add(new TreeBlock(tx, y, tz, trunk));
+        if (dead) {
+            BlockData branch = B.log(log, ax != 0 ? org.bukkit.Axis.X : org.bukkit.Axis.Z);
+            blocks.add(new TreeBlock(tx + ax, y0 + height - 2, tz + az, branch));
+            blocks.add(new TreeBlock(tx + rx, y0 + height - 1, tz + rz, B.log(log, rx != 0 ? org.bukkit.Axis.X : org.bukkit.Axis.Z)));
+            trees.add(blocks);
+            return;
+        }
+        BlockData leaf = B.leaves(leaves);
+        for (int layer = 0; layer < 2; layer++) {
+            int y = y0 + height - 2 + layer;
+            for (int a = -2; a <= 2; a++) {
+                for (int b = -1; b <= 2; b++) {
+                    if (a == 0 && b == 0) continue;
+                    if (Math.abs(a) == 2 && (b == -1 || b == 2)) continue;
+                    if (Math.floorMod(CityLayout.mix(h, a * 7 + layer, b), 7L) == 0) continue;
+                    blocks.add(new TreeBlock(tx + a * ax + b * rx, y, tz + a * az + b * rz, leaf));
+                }
+            }
+        }
+        int top = y0 + height;
+        int[][] crown = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, 1}};
+        for (int[] c : crown) blocks.add(new TreeBlock(tx + c[0] * ax + c[1] * rx, top, tz + c[0] * az + c[1] * rz, leaf));
+        trees.add(blocks);
+    }
+
+    private static void barricade(Canvas canvas, int sx, int sz, boolean alongX, long h, int y) {
         int offset = 14 + (int) Math.floorMod(h >>> 45, 18L);
         int gap = (int) Math.floorMod(h >>> 50, 5L) - 2;
         BlockData wall = B.of(Material.COBBLESTONE_WALL);

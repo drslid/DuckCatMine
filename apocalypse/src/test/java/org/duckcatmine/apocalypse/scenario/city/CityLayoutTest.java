@@ -70,6 +70,23 @@ class CityLayoutTest {
     }
 
     @Test
+    void landmarksForTheGuideAndThePanel() {
+        CityLayout layout = CityLayout.fresh(SEED);
+        List<CityLayout.Landmark> marks = layout.landmarks();
+        assertEquals(5, marks.stream().filter(m -> m.kind().equals("pharmacy")).count());
+        assertEquals(1, marks.stream().filter(m -> m.kind().equals("hospital")).count());
+        assertEquals(1, marks.stream().filter(m -> m.kind().equals("lab")).count());
+        assertEquals(4, marks.stream().filter(m -> m.kind().equals("checkpoint")).count());
+        CityLayout.Landmark pharmacy = layout.nearest("pharmacy", 2 * CityLayout.CELL, CityLayout.CELL);
+        assertEquals(2, CityLayout.cellOf(pharmacy.x()));
+        assertEquals(1, CityLayout.cellOf(pharmacy.z()));
+        assertEquals("Pharmacie", pharmacy.label());
+        CityLayout.Landmark hospital = layout.nearest("hospital", 0, 0);
+        assertEquals(3, CityLayout.cellOf(hospital.x()));
+        assertEquals(-3, CityLayout.cellOf(hospital.z()));
+    }
+
+    @Test
     void cityIsFlatAndTheCountrysideIsNot() {
         Terrain terrain = CityLayout.fresh(SEED).terrain();
         for (int k = -CityLayout.CITY_EDGE; k <= CityLayout.CITY_EDGE; k += 37) {

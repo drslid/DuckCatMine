@@ -180,11 +180,11 @@ public final class MobService {
         }
     }
 
-    /** Removes the spawned infected; contaminated animals are world creatures and stay (they resume on the next start). */
+    /** Removes the spawned infected; contaminated animals of the world stay (they resume on the next start). */
     public void removeAll() {
         for (UUID id : tracked.keySet()) {
             Entity entity = Bukkit.getEntity(id);
-            if (entity instanceof Zombie) entity.remove();
+            if (entity instanceof Zombie || plugin.fauna().spawnedByDirector(entity)) entity.remove();
         }
         tracked.clear();
     }

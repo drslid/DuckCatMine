@@ -91,6 +91,7 @@ public final class ScenarioService {
         applyRules(world);
         problem = null;
         enabled = wanted;
+        BlueMapHook.ensure(plugin, world, false);
     }
 
     /** Creates the dedicated world once; refuses if any world or folder already uses the name. */
@@ -108,6 +109,7 @@ public final class ScenarioService {
         created.setSpawnLocation(refuge.centerX(), GroundZeroGenerator.SURFACE + 1, refuge.centerZ(), 0f);
         created.save();
         bind(created, id);
+        BlueMapHook.ensure(plugin, created, false);
         return null;
     }
 
@@ -143,6 +145,8 @@ public final class ScenarioService {
         enabled = false;
         spawn = null;
         problem = null;
+        BlueMapHook.ensure(plugin, created, true);
+        plugin.events().add("admin", "Ground Zero reconstruit (génération " + next + ")");
         return null;
     }
 

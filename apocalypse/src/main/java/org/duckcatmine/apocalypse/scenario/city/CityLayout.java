@@ -149,6 +149,70 @@ public final class CityLayout {
         return spots;
     }
 
+    /** A place worth knowing: kind id, French label and centre. */
+    public record Landmark(String kind, String label, int x, int z) {
+    }
+
+    private volatile List<Landmark> landmarks;
+
+    /** Pharmacies, hospital, police stations, supermarkets, gas stations, checkpoints and the NEXUS lab. */
+    public List<Landmark> landmarks() {
+        List<Landmark> known = landmarks;
+        if (known != null) return known;
+        List<Landmark> list = new ArrayList<>();
+        for (int i = -CITY_CELLS; i <= CITY_CELLS; i++) {
+            for (int j = -CITY_CELLS; j <= CITY_CELLS; j++) {
+                Kind special = special(i, j);
+                if (special == null || special == Kind.PLAZA || special == Kind.PARK) continue;
+                for (Placement placement : cell(i, j).placements()) {
+                    if (placement.kind() != special) continue;
+                    list.add(new Landmark(special.name().toLowerCase(java.util.Locale.ROOT), label(special),
+                            (placement.minX() + placement.maxX()) / 2, (placement.minZ() + placement.maxZ()) / 2));
+                }
+            }
+        }
+        int edge = CITY_EDGE + 80, far = 1100;
+        list.add(new Landmark("checkpoint", label(Kind.CHECKPOINT), CELL / 2, -edge));
+        list.add(new Landmark("checkpoint", label(Kind.CHECKPOINT), CELL / 2, edge));
+        list.add(new Landmark("checkpoint", label(Kind.CHECKPOINT), edge, CELL / 2));
+        list.add(new Landmark("checkpoint", label(Kind.CHECKPOINT), -edge, CELL / 2));
+        list.add(new Landmark("gas_station", label(Kind.GAS_STATION), CELL / 2 + 21, -far + 15));
+        list.add(new Landmark("gas_station", label(Kind.GAS_STATION), far + 15, CELL / 2 + 21));
+        list.add(new Landmark("gas_station", label(Kind.GAS_STATION), CELL / 2 + 21, far + 15));
+        list.add(new Landmark("gas_station", label(Kind.GAS_STATION), -far + 15, CELL / 2 + 21));
+        list.add(new Landmark("lab", label(Kind.LAB), LAB_X, LAB_Z));
+        landmarks = List.copyOf(list);
+        return landmarks;
+    }
+
+    private static String label(Kind kind) {
+        return switch (kind) {
+            case PHARMACY -> "Pharmacie";
+            case HOSPITAL -> "Hôpital";
+            case POLICE -> "Commissariat";
+            case SUPERMARKET -> "Supermarché";
+            case GAS_STATION -> "Station-service";
+            case CHECKPOINT -> "Barrage militaire";
+            case LAB -> "Laboratoire NEXUS";
+            default -> kind.name();
+        };
+    }
+
+    /** Closest landmark of a kind, or null. */
+    public Landmark nearest(String kind, int x, int z) {
+        Landmark best = null;
+        long bestDistance = Long.MAX_VALUE;
+        for (Landmark landmark : landmarks()) {
+            if (!landmark.kind().equals(kind)) continue;
+            long dx = landmark.x() - x, dz = landmark.z() - z, distance = dx * dx + dz * dz;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = landmark;
+            }
+        }
+        return best;
+    }
+
     /** Outside every building footprint (streets, yards, parks, squares, fields, ruins): somewhere to stand outdoors. */
     public boolean openGround(int x, int z) {
         for (Placement placement : placementsAt(x, z)) {
@@ -469,6 +533,68 @@ public final class CityLayout {
 
     // ------------------------------------------------------------------ chunk generation
 
+    /** A parked car of the plan: 4 x 2 footprint from (minX, minZ), standing at {@code y}. */
+    public record VehicleSpot(int minX, int y, int minZ, boolean alongX, long seed) {
+        public double centerX() {
+            return minX + (alongX ? 2.0 : 1.0);
+        }
+
+        public double centerZ() {
+            return minZ + (alongX ? 1.0 : 2.0);
+        }
+    }
+
+    /** Cars whose centre lies in the chunk, replayed from the plan exactly where older chunks drew them in blocks. */
+    public List<VehicleSpot> vehicles(int chunkX, int chunkZ) {
+        int x0 = chunkX << 4, z0 = chunkZ << 4;
+        List<VehicleSpot> spots = new ArrayList<>();
+        Canvas canvas = new Canvas() {
+            @Override
+            public void set(int x, int y, int z, BlockData data) {
+            }
+
+            @Override
+            public void fill(int x1, int y1, int z1, int x2, int y2, int z2, BlockData data) {
+            }
+
+            @Override
+            public void container(int x, int y, int z, BlockData data, PlaceType place) {
+            }
+
+            @Override
+            public void vehicle(int x, int y, int z, boolean alongX, long seed) {
+                VehicleSpot spot = new VehicleSpot(x, y, z, alongX, seed);
+                if (((int) Math.floor(spot.centerX()) >> 4) == chunkX && ((int) Math.floor(spot.centerZ()) >> 4) == chunkZ
+                        && !spots.contains(spot)) spots.add(spot);
+            }
+        };
+        int ci1 = cellOf(x0), ci2 = cellOf(x0 + 15), cj1 = cellOf(z0), cj2 = cellOf(z0 + 15);
+        for (int i = ci1; i <= ci2; i++) {
+            for (int j = cj1; j <= cj2; j++) {
+                if (Math.max(Math.abs(i), Math.abs(j)) > CITY_CELLS) continue;
+                for (Placement placement : cell(i, j).placements()) {
+                    if (touches(x0, z0, placement.minX() - 1, placement.minZ() - 1, placement.maxX() + 1, placement.maxZ() + 1))
+                        Structures.render(placement, canvas, this);
+                }
+            }
+        }
+        if (Math.max(Math.abs(x0), Math.abs(z0)) <= CITY_EDGE + CELL) Streets.furnish(canvas, this, x0, z0);
+        int ra1 = Math.floorDiv(x0 - LAB_SIZE, REGION), ra2 = Math.floorDiv(x0 + 15 + LAB_SIZE, REGION);
+        int rb1 = Math.floorDiv(z0 - LAB_SIZE, REGION), rb2 = Math.floorDiv(z0 + 15 + LAB_SIZE, REGION);
+        for (int a = ra1; a <= ra2; a++) {
+            for (int b = rb1; b <= rb2; b++) {
+                for (Placement placement : region(a, b)) {
+                    if (touches(x0, z0, placement.minX() - 8, placement.minZ() - 8, placement.maxX() + 8, placement.maxZ() + 8))
+                        Structures.render(placement, canvas, this);
+                }
+            }
+        }
+        return spots;
+    }
+
+    private static boolean touches(int x0, int z0, int x1, int z1, int x2, int z2) {
+        return Math.max(x1, x2) >= x0 && Math.min(x1, x2) <= x0 + 15 && Math.max(z1, z2) >= z0 && Math.min(z1, z2) <= z0 + 15;
+    }
     public void generate(ChunkGenerator.ChunkData data, int chunkX, int chunkZ) {
         ChunkCanvas canvas = new ChunkCanvas(data, chunkX, chunkZ);
         int x0 = chunkX << 4, z0 = chunkZ << 4, min = data.getMinHeight();

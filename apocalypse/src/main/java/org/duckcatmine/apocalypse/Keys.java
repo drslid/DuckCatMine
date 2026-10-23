@@ -34,6 +34,18 @@ public final class Keys {
     public final NamespacedKey decoy;
     /** Scenario clock deadline of an animal's contamination. */
     public final NamespacedKey incubation;
+    /** Infected animal created by the spawn director (despawns like the infected). */
+    public final NamespacedKey spawned;
+    /** Car id on every entity of a vehicle; part role; saved state on the body. */
+    public final NamespacedKey vehicle;
+    public final NamespacedKey vehiclePart;
+    public final NamespacedKey vehicleState;
+    /** Generation revision applied to a loaded chunk (cars as entities, street trees). */
+    public final NamespacedKey chunkRevision;
+    /** Litres in a jerrycan. */
+    public final NamespacedKey fuel;
+    /** Kind of a thrown explosive in flight. */
+    public final NamespacedKey thrown;
 
     public Keys(Plugin plugin) {
         worldId = new NamespacedKey(plugin, "world_id");
@@ -58,5 +70,12 @@ public final class Keys {
         weaponKnockback = new NamespacedKey(plugin, "weapon_knockback");
         decoy = new NamespacedKey(plugin, "decoy");
         incubation = new NamespacedKey(plugin, "incubation");
+        spawned = new NamespacedKey(plugin, "director_spawned");
+        vehicle = new NamespacedKey(plugin, "vehicle");
+        vehiclePart = new NamespacedKey(plugin, "vehicle_part");
+        vehicleState = new NamespacedKey(plugin, "vehicle_state");
+        chunkRevision = new NamespacedKey(plugin, "chunk_revision");
+        fuel = new NamespacedKey(plugin, "fuel");
+        thrown = new NamespacedKey(plugin, "thrown");
     }
 }

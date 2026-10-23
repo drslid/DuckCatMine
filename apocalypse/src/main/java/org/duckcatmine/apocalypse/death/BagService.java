@@ -208,6 +208,26 @@ public final class BagService implements Listener {
         for (Bag bag : bags.values()) hide(bag);
     }
 
+    /** New game: every bag goes now, its content is lost like at a normal expiry. */
+    public void expireAll() {
+        for (Bag bag : List.copyOf(bags.values())) expire(bag);
+    }
+
+    /** A bag still waiting somewhere, for the web panel. */
+    public record Info(String owner, int x, int z, long secondsLeft, int items) {
+    }
+
+    public List<Info> list() {
+        long now = plugin.clock().now();
+        List<Info> result = new java.util.ArrayList<>();
+        for (Bag bag : bags.values()) {
+            int items = 0;
+            for (int slot = 0; slot < bag.items.length; slot++) if (bag.items[slot] != null && bag.model.state(slot) == SlotState.PRESENT) items++;
+            result.add(new Info(bag.ownerName, (int) Math.floor(bag.x), (int) Math.floor(bag.z), Math.max(0, bag.expiresAt - now) / 1000, items));
+        }
+        return result;
+    }
+
     private void expire(Bag bag) {
         List<Integer> purged = bag.model.expire();
         hide(bag);

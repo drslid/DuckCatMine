@@ -23,20 +23,42 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     public static final Set<String> KNOWN_ARCHETYPES = Set.of(WALKER, "pursuer", "runner", "howler", "breaker", "abomination",
             INFECTED_WOLF, INFECTED_LIVESTOCK);
     public static final Set<String> STATIONS = Set.of("workbench", "workshop", "medical");
-    public static final Set<String> WEAPONS = Set.of("club", "blade", "spear", "heavy_club");
+    public static final Set<String> WEAPONS = Set.of("club", "blade", "spear", "heavy_club", "fire_axe");
     /** Never handed out at the start of a life, whatever the configuration says. */
     public static final Set<String> RARE_ITEMS = Set.of("apocalypse:antidote", "apocalypse:serum", "apocalypse:inhibitor",
             "apocalypse:syringe", "apocalypse:gun_parts", "apocalypse:pistol", "apocalypse:ammo", "apocalypse:casings",
-            "apocalypse:propellant", "apocalypse:spring");
+            "apocalypse:propellant", "apocalypse:spring", "apocalypse:pipe_bomb");
 
-    /** Gameplay rules added after the core survival loop. */
+    /** Gameplay rules added after the core survival loop. {@code leaveSeconds}: countdown to leave outside the refuge. */
     public record Play(Spawn spawn, StartKit kit, Map<String, Recipe> recipes, Map<String, Weapon> weapons, Pistol pistol,
                        Repair repair, Noise noise, Perception perception, Traps traps, Siege siege, Threat threat, Fauna fauna,
-                       Social social, Progression progression, boolean intro) {
+                       Social social, Progression progression, boolean intro, int leaveSeconds, Vehicles vehicles,
+                       Explosives explosives) {
         public Play {
             recipes = Map.copyOf(recipes);
             weapons = Map.copyOf(weapons);
         }
+    }
+
+    /** Abandoned cars: speeds in blocks per tick (0.75 = 54 km/h), fuel in litres, noises in blocks. */
+    public record Vehicles(boolean enabled, double maxSpeedRoad, double maxSpeedOffroad, double fuelPerBlock, double tankLitres,
+                           double jerrycanLitres, double engineNoise, double hornNoise, double impactDamage) {
+    }
+
+    /** Thrown weapons: pipe bomb (fuse, blast radius, damage at the centre) and Molotov cocktail (burning area). */
+    public record Explosives(double fuseSeconds, double bombRadius, double bombDamage, double fireRadius, double fireSeconds,
+                             double fireDamagePerSecond) {
+    }
+
+    /** Antidote and its components, made more or less common in searched places by {@code loot.medical-boost}. */
+    public static final Set<String> MEDICAL_ITEMS = Set.of("apocalypse:antidote", "apocalypse:serum", "apocalypse:inhibitor");
+
+    static LootTable boostMedical(LootTable table, double boost) {
+        if (boost == 1) return table;
+        List<LootTable.Entry> entries = new ArrayList<>();
+        for (LootTable.Entry entry : table.entries())
+            entries.add(MEDICAL_ITEMS.contains(entry.item()) ? new LootTable.Entry(entry.item(), entry.weight() * boost, entry.amount()) : entry);
+        return new LootTable(entries);
     }
 
     /** Teams (spec §18). */
@@ -73,9 +95,9 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
         }
     }
 
-    /** Contamination of animals (spec §15). */
+    /** Contamination of animals (spec §15); {@code spawnShare}: part of new infected that are animals outside the centre. */
     public record Fauna(boolean enabled, double infectionChance, int incubationMinSeconds, int incubationMaxSeconds, int maxInfected,
-                        int maxPerTenMinutes, List<String> species) {
+                        int maxPerTenMinutes, List<String> species, double spawnShare) {
         public Fauna {
             species = List.copyOf(species);
         }
@@ -127,20 +149,22 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     }
 
     public record Infection(long durationMs, boolean repeatedBitesResetTimer, float antidoteUseSeconds,
-                            boolean antidoteAllowSprint, float antidoteSpeedMultiplier) {
+                            boolean antidoteAllowSprint, float antidoteSpeedMultiplier, double biteMultiplier) {
     }
 
     public record Death(long bagLifetimeMs, double bagAccessRadius) {
     }
 
-    public record Loot(long contributionWindowMs, double bonusRollChance) {
+    /** {@code medicalBoost} multiplies antidotes, serums and inhibitors in searched places. */
+    public record Loot(long contributionWindowMs, double bonusRollChance, double medicalBoost) {
     }
 
     public record Search(long refillMs) {
     }
 
+    /** {@code density} multiplies every sector's local cap; {@code perTick} bounds new infected per survivor and pass. */
     public record Spawning(boolean enabled, int intervalSeconds, int globalCap, int minDistance, int maxDistance,
-                           int despawnDistance, int nightBonus, double indoorChance) {
+                           int despawnDistance, int nightBonus, double indoorChance, double density, int perTick) {
     }
 
     public record SectorRule(String id, int localCap, Map<String, Double> mix) {
@@ -201,14 +225,16 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.bool("infection.repeated-bites-reset-timer", false),
                 (float) read.decimal("infection.antidote-use-seconds", 2.0, 0.5, 10),
                 read.bool("infection.antidote-allow-sprint", true),
-                (float) read.decimal("infection.antidote-speed-multiplier", 1.0, 0.1, 1.0));
+                (float) read.decimal("infection.antidote-speed-multiplier", 1.0, 0.1, 1.0),
+                read.decimal("infection.bite-multiplier", 1.0, 0, 3));
         Death death = new Death(
                 read.integer("death.bag-lifetime-seconds", 300, 30, 3600) * 1000L,
                 read.decimal("death.bag-access-radius", 4.5, 2, 8));
         long protectionMs = read.integer("respawn.protection-seconds", 30, 0, 120) * 1000L;
         Loot loot = new Loot(
                 read.integer("loot.contribution-window-seconds", 30, 5, 300) * 1000L,
-                read.decimal("loot.bonus-roll-chance", 0.12, 0, 1));
+                read.decimal("loot.bonus-roll-chance", 0.12, 0, 1),
+                read.decimal("loot.medical-boost", 3, 0.25, 10));
         Search search = new Search(read.integer("search.refill-minutes", 30, 1, 1440) * 60_000L);
         Spawning spawning = new Spawning(
                 read.bool("spawning.enabled", true),
@@ -218,7 +244,9 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.integer("spawning.max-distance", 40, 12, 96),
                 read.integer("spawning.despawn-distance", 72, 32, 192),
                 read.integer("spawning.night-bonus", 2, 0, 16),
-                read.decimal("spawning.indoor-chance", 0.25, 0, 1));
+                read.decimal("spawning.indoor-chance", 0.25, 0, 1),
+                read.decimal("spawning.density", 1.5, 0.25, 5),
+                read.integer("spawning.per-tick", 2, 1, 5));
         long checkpointMs = read.integer("clock.checkpoint-seconds", 5, 1, 60) * 1000L;
 
         Map<String, Archetype> archetypes = new LinkedHashMap<>();
@@ -279,7 +307,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
             int min = read.integer(base + "rolls-min", 1, 0, 27);
             int max = read.integer(base + "rolls-max", 3, 1, 27);
             if (min > max) read.errors.add(base + "rolls-min doit être inférieur ou égal à rolls-max.");
-            places.put(id, new Place(id, min, max, read.table(base + "loot", true)));
+            places.put(id, new Place(id, min, max, boostMedical(read.table(base + "loot", true), loot.medicalBoost())));
         }
 
         if (spawning.minDistance() >= spawning.maxDistance())
@@ -405,9 +433,10 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.bool("fauna.enabled", true),
                 read.decimal("fauna.infection-chance", 0.5, 0, 1),
                 incubationMin, incubationMax,
-                read.integer("fauna.max-infected", 12, 0, 200),
-                read.integer("fauna.max-per-ten-minutes", 6, 0, 200),
-                species);
+                read.integer("fauna.max-infected", 20, 0, 200),
+                read.integer("fauna.max-per-ten-minutes", 10, 0, 200),
+                species,
+                read.decimal("fauna.spawn-share", 0.15, 0, 0.6));
         Social social = new Social(read.integer("teams.max-size", 4, 2, 16), read.integer("teams.invite-seconds", 120, 10, 3600));
         List<Integer> costs = new ArrayList<>();
         List<?> rawCosts = read.root.getList("progress.skill-costs");
@@ -422,7 +451,22 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.decimal("progress.breath-per-rank", 1, 0, 3),
                 read.integer("progress.contribution-window-seconds", 30, 5, 300));
         return new Play(spawn, kit, recipes, weapons, pistol, repair, noise, perception, traps, siege, threat, fauna, social, progression,
-                read.bool("intro.enabled", true));
+                read.bool("intro.enabled", true), read.integer("session.leave-seconds", 10, 0, 120),
+                new Vehicles(read.bool("vehicles.enabled", true),
+                        read.decimal("vehicles.max-speed-road", 0.75, 0.2, 1.2),
+                        read.decimal("vehicles.max-speed-offroad", 0.42, 0.1, 1.2),
+                        read.decimal("vehicles.fuel-per-block", 0.017, 0, 1),
+                        read.decimal("vehicles.tank-litres", 45, 5, 200),
+                        read.decimal("vehicles.jerrycan-litres", 20, 1, 100),
+                        read.decimal("vehicles.engine-noise", 24, 0, 160),
+                        read.decimal("vehicles.horn-noise", 64, 0, 160),
+                        read.decimal("vehicles.impact-damage", 30, 0, 100)),
+                new Explosives(read.decimal("explosives.pipe-bomb.fuse-seconds", 3.5, 1, 10),
+                        read.decimal("explosives.pipe-bomb.radius", 5, 1, 12),
+                        read.decimal("explosives.pipe-bomb.damage", 26, 1, 100),
+                        read.decimal("explosives.molotov.radius", 2.5, 1, 6),
+                        read.decimal("explosives.molotov.seconds", 8, 1, 30),
+                        read.decimal("explosives.molotov.damage-per-second", 2, 0, 20)));
     }
 
     private static final class Reader {

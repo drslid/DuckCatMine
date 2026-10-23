@@ -236,6 +236,29 @@ final class SelfTest {
                 plugin.mobs().forget(cow.getUniqueId());
             }
         });
+        check(lines, "voiture", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 200, 0)));
+        check(lines, "bombe artisanale", () -> {
+            Location center = street(plugin, world).getBlock().getLocation().add(8.5, 205, 0.5);
+            Block glass = center.clone().add(1, -1, 0).getBlock();
+            if (!glass.getType().isAir()) throw new IllegalStateException("emplacement de test occupé");
+            glass.setType(Material.GLASS, false);
+            org.bukkit.entity.Pig pig = world.spawn(center.clone().add(2, 0, 0), org.bukkit.entity.Pig.class, p -> {
+                p.setAI(false);
+                p.setSilent(true);
+            });
+            try {
+                double before = pig.getHealth();
+                plugin.throwables().explode(center, plugin.settings().play().explosives().bombRadius(),
+                        plugin.settings().play().explosives().bombDamage(), null);
+                double after = pig.isDead() ? 0 : pig.getHealth();
+                if (after >= before) throw new IllegalStateException("cochon indemne à 2 blocs");
+                if (glass.getType() != Material.GLASS) throw new IllegalStateException("bloc détruit par l'explosion");
+                return String.format(java.util.Locale.ROOT, "cochon à 2 blocs : %.0f -> %.0f PV, aucun bloc détruit", before, after);
+            } finally {
+                pig.remove();
+                glass.setType(Material.AIR, false);
+            }
+        });
         if (!(world.getGenerator() instanceof GroundZeroGenerator)) {
             lines.add("--  ville : ignorée, monde non généré par Ground Zero");
             return lines;

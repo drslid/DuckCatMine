@@ -115,6 +115,7 @@ public final class DeathService implements Listener {
         plugin.protection().clear(id);
         plugin.progress().endLife(player);
         plugin.safePositions().forget(id);
+        plugin.events().add("death", infection ? name + " a succombé à NEXUS-13" : name + " est mort (" + cause.toLowerCase(java.util.Locale.ROOT) + ")");
         if (infection) event.deathMessage(Component.text(name + " a succombé à NEXUS-13.", NamedTextColor.DARK_RED));
     }
 
@@ -199,6 +200,7 @@ public final class DeathService implements Listener {
             return;
         }
         ProfileCodec.resetForNewLife(player);
+        plugin.sessions().stampEpoch(player);
         if (plugin.scenario().isEnabled() && !dropped.remove(id)) {
             plugin.drops().pick(plugin.scenario().world()).thenAccept(at -> {
                 if (player.isOnline() && !player.isDead() && plugin.sessions().isSurvivor(player)) plugin.sessions().teleport(player, at);
@@ -227,7 +229,8 @@ public final class DeathService implements Listener {
             });
             return;
         }
-        if (op.type() == OpType.OFFLINE_DEATH && death.bagId() == null) {
+        boolean reset = "RESET".equals(death.cause());
+        if (op.type() == OpType.OFFLINE_DEATH && death.bagId() == null && !reset) {
             List<ItemStack> items = carried(player);
             long now = plugin.clock().now();
             long expires = death.at() + plugin.settings().death().bagLifetimeMs();
@@ -249,7 +252,8 @@ public final class DeathService implements Listener {
             }
         }
         ProfileCodec.clearCarried(player);
-        Text.error(player, op.type() == OpType.OFFLINE_DEATH ? "Tu as succombé à NEXUS-13 pendant ton absence."
+        Text.error(player, reset ? "Nouvelle partie : tout le monde repart de zéro, sans rien de la partie précédente."
+                : op.type() == OpType.OFFLINE_DEATH ? "Tu as succombé à NEXUS-13 pendant ton absence."
                 : "Ta mort a été finalisée après un incident du serveur.");
         startNewLife(player, op.seq());
     }

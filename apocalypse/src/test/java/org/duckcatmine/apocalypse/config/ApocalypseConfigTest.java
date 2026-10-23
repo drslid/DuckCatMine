@@ -62,6 +62,48 @@ class ApocalypseConfigTest {
     }
 
     @Test
+    void newTunablesHaveSafeDefaults() throws Exception {
+        ApocalypseConfig config = ApocalypseConfig.parse(bundled());
+        assertEquals(1.0, config.infection().biteMultiplier(), 1e-9);
+        assertEquals(1.5, config.spawning().density(), 1e-9);
+        assertEquals(2, config.spawning().perTick());
+        assertEquals(10, config.play().leaveSeconds());
+        assertEquals(0.15, config.play().fauna().spawnShare(), 1e-9);
+        assertTrue(config.play().vehicles().enabled());
+        assertTrue(config.play().vehicles().maxSpeedRoad() > config.play().vehicles().maxSpeedOffroad());
+        assertEquals(3.5, config.play().explosives().fuseSeconds(), 1e-9);
+        for (String recipe : java.util.List.of("pipe_bomb", "molotov", "fire_axe", "bow", "arrows", "jerrycan"))
+            assertTrue(config.play().recipes().containsKey(recipe), recipe + " can be crafted");
+        assertTrue(config.play().weapons().get("fire_axe").damage() > config.play().weapons().get("heavy_club").damage());
+    }
+
+    @Test
+    void medicalBoostMultipliesOnlyAntidoteParts() throws Exception {
+        YamlConfiguration plain = bundled();
+        plain.set("loot.medical-boost", 1.0);
+        YamlConfiguration boosted = bundled();
+        boosted.set("loot.medical-boost", 3.0);
+        var before = ApocalypseConfig.parse(plain).place("pharmacy").loot().entries();
+        var after = ApocalypseConfig.parse(boosted).place("pharmacy").loot().entries();
+        for (int k = 0; k < before.size(); k++) {
+            double factor = ApocalypseConfig.MEDICAL_ITEMS.contains(before.get(k).item()) ? 3 : 1;
+            assertEquals(before.get(k).weight() * factor, after.get(k).weight(), 1e-9, before.get(k).item());
+        }
+    }
+
+    @Test
+    void outOfRangeTunablesAreRefused() throws Exception {
+        YamlConfiguration broken = bundled();
+        broken.set("spawning.density", 9);
+        broken.set("infection.bite-multiplier", -1);
+        broken.set("session.leave-seconds", 500);
+        String errors = String.join("\n", assertThrows(ConfigException.class, () -> ApocalypseConfig.parse(broken)).errors());
+        assertTrue(errors.contains("spawning.density"), errors);
+        assertTrue(errors.contains("infection.bite-multiplier"), errors);
+        assertTrue(errors.contains("session.leave-seconds"), errors);
+    }
+
+    @Test
     void invalidValuesAreAllReported() throws Exception {
         ConfigException error = assertThrows(ConfigException.class, () -> ApocalypseConfig.parse(yaml("""
                 infection:

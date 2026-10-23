@@ -53,7 +53,8 @@ public final class ApocalypseCommand implements TabExecutor {
                 if (args.length > 1 && !args[1].equalsIgnoreCase(plugin.settings().scenario().id())) Text.error(player, "Scénario inconnu : " + args[1] + ".");
                 else plugin.sessions().join(player);
             }
-            case "leave" -> plugin.sessions().leave(player, false, true);
+            case "leave" -> plugin.sessions().requestLeave(player);
+            case "guide" -> guide(player);
             case "status" -> status(player);
             case "infection" -> infection(player);
             case "bag" -> {
@@ -79,12 +80,47 @@ public final class ApocalypseCommand implements TabExecutor {
 
     private void help(CommandSender sender) {
         Text.info(sender, "/apocalypse join ground_zero — entrer (ton inventaire habituel est mis de côté)");
-        Text.info(sender, "/apocalypse leave — quitter depuis le refuge (impossible avec une morsure)");
+        Text.info(sender, "/apocalypse leave — quitter : immédiat au refuge, sinon après quelques secondes immobile (jamais avec une morsure)");
+        Text.info(sender, "/apocalypse guide — règles, antidotes et pharmacie la plus proche, voitures");
         Text.info(sender, "/apocalypse status | infection | bag [open] | recipes [objet] | stats | skills | intro [skip]");
         Text.info(sender, "/apocalypse team create <nom> | invite <joueur> | accept | decline | leave | kick <joueur> | bags on|off | disband");
         Text.info(sender, "Injecter un antidote à un autre survivant mordu : accroupi, clic droit sur lui, antidote en main (2 s).");
-        if (sender.hasPermission(ADMIN))
+        if (sender.hasPermission(ADMIN)) {
             Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | threat [valeur] | destruction on|off | horde <joueur> | pvp on|off | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
+            Text.info(sender, "/apocalypse admin settings | set <réglage> <valeur> | preset relaxed|normal|nightmare | evacuate <joueur> | lives reset confirm");
+        }
+    }
+
+    /** Rules in short, where antidotes are, with the direction of the nearest pharmacy and the hospital. */
+    private void guide(Player player) {
+        Text.info(player, "— Guide de survie de Ground Zero —");
+        Text.warn(player, "Morsure : " + plugin.settings().infection().durationMs() / 1000 + " s pour finir un antidote (barre rouge en haut)."
+                + " À la mort, tout ce que tu portes reste " + plugin.settings().death().bagLifetimeMs() / 60000 + " min dans ton sac.");
+        Text.info(player, "Antidotes : pharmacies, hôpital, laboratoire NEXUS. Ou au poste médical : sérum + inhibiteur + seringue (hôpital, laboratoire).");
+        var world = plugin.scenario().world();
+        if (plugin.sessions().isSurvivor(player) && world != null && world.getGenerator() instanceof org.duckcatmine.apocalypse.scenario.GroundZeroGenerator) {
+            var layout = org.duckcatmine.apocalypse.scenario.city.CityLayout.of(world.getSeed());
+            int x = player.getLocation().getBlockX(), z = player.getLocation().getBlockZ();
+            for (String kind : List.of("pharmacy", "hospital", "lab")) {
+                var place = layout.nearest(kind, x, z);
+                if (place != null) Text.info(player, place.label() + (kind.equals("pharmacy") ? " la plus proche" : "") + " : "
+                        + direction(place.x() - x, place.z() - z) + " (x " + place.x() + ", z " + place.z() + ").");
+            }
+        }
+        Text.info(player, "Voitures : clic droit sur une portière pour monter, touches de déplacement pour conduire, saut = frein à main,"
+                + " sprint = klaxon, Maj = descendre. Le moteur attire les infectés. Essence : jerrican (siphonner accroupi, puis faire le plein).");
+        Text.info(player, "Armes : /apocalypse recipes (massues, hache, arc silencieux, pistolet, bombe artisanale, cocktail Molotov).");
+        Text.info(player, "Partir : /apocalypse leave — au refuge tout de suite, ailleurs après " + plugin.settings().play().leaveSeconds()
+                + " s immobile sans combattre. Ta vie t'attend pour ton retour.");
+    }
+
+    private static String direction(int dx, int dz) {
+        long distance = Math.round(Math.hypot(dx, dz));
+        if (distance < 12) return "tout près";
+        String[] names = {"au sud", "au sud-ouest", "à l'ouest", "au nord-ouest", "au nord", "au nord-est", "à l'est", "au sud-est"};
+        double angle = Math.toDegrees(Math.atan2(-dx, dz));
+        int index = (int) Math.floorMod(Math.round(angle / 45.0), 8L);
+        return distance + " blocs " + names[index];
     }
 
     private void status(Player player) {
@@ -148,9 +184,76 @@ public final class ApocalypseCommand implements TabExecutor {
                 }
                 int size = plugin.director().horde(target, plugin.settings().play().threat().hordeMax());
                 audit(actor, "admin_horde", target.getName() + " x" + size);
+                plugin.events().add("horde", "Horde de " + size + " infectés envoyée vers " + target.getName() + " par " + actor);
                 Text.good(sender, size + " infecté(s) envoyé(s) vers " + target.getName() + " (tracé).");
             }
             case "destruction" -> destruction(sender, args, actor);
+            case "upgrade" -> {
+                int radius;
+                try {
+                    radius = args.length > 2 ? Integer.parseInt(args[2]) : 96;
+                } catch (NumberFormatException e) {
+                    radius = -1;
+                }
+                var world = plugin.scenario().world();
+                if (world == null || radius < 16 || radius > 512) {
+                    Text.error(sender, "/apocalypse admin upgrade [rayon 16-512] — voitures et arbres de rue tout de suite autour de toi (ou du refuge).");
+                    return;
+                }
+                int x = plugin.settings().refuge().centerX(), z = plugin.settings().refuge().centerZ();
+                if (sender instanceof Player player && plugin.scenario().isScenarioWorld(player.getWorld())) {
+                    x = player.getLocation().getBlockX();
+                    z = player.getLocation().getBlockZ();
+                }
+                int[] done = plugin.vehicles().upgradeArea(world, x, z, radius);
+                audit(actor, "admin_upgrade", x + " " + z + " r" + radius);
+                Text.good(sender, done[0] + " tronçon(s) mis à niveau ; " + done[1] + " voiture(s) chargée(s).");
+            }
+            case "settings" -> {
+                var values = plugin.tuning().values();
+                for (var setting : org.duckcatmine.apocalypse.config.SettingsService.CATALOG)
+                    Text.info(sender, setting.key() + " = " + values.get(setting.key()) + " — " + setting.label());
+                String preset = plugin.tuning().activePreset();
+                Text.info(sender, "Préréglage : " + (preset == null ? "personnalisé" : preset) + ". /apocalypse admin set <réglage> <valeur>");
+            }
+            case "set" -> {
+                if (args.length < 4) {
+                    Text.info(sender, "/apocalypse admin set <réglage> <valeur> — liste : /apocalypse admin settings");
+                    return;
+                }
+                List<String> errors = plugin.tuning().set(args[2].toLowerCase(Locale.ROOT), args[3], actor);
+                if (errors.isEmpty()) Text.good(sender, "Réglage " + args[2] + " = " + plugin.tuning().values().get(args[2].toLowerCase(Locale.ROOT)) + " appliqué (tracé).");
+                else errors.forEach(error -> Text.error(sender, error));
+            }
+            case "preset" -> {
+                List<String> errors = args.length < 3 ? List.of("/apocalypse admin preset relaxed|normal|nightmare")
+                        : plugin.tuning().preset(args[2].toLowerCase(Locale.ROOT), actor);
+                if (errors.isEmpty()) Text.good(sender, "Préréglage " + args[2] + " appliqué (tracé).");
+                else errors.forEach(error -> Text.error(sender, error));
+            }
+            case "evacuate" -> {
+                Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : null;
+                if (target == null || plugin.sessions().profile(target) != org.duckcatmine.apocalypse.session.SessionService.Profile.APOCALYPSE) {
+                    Text.error(sender, "/apocalypse admin evacuate <joueur> — le joueur doit être connecté et dans Ground Zero.");
+                    return;
+                }
+                if (plugin.sessions().evacuate(target)) {
+                    audit(actor, "admin_evacuate", target.getName());
+                    plugin.events().add("admin", target.getName() + " ramené hors de Ground Zero par " + actor);
+                    Text.good(sender, target.getName() + " a retrouvé sa survie habituelle ; sa vie Ground Zero est gardée (tracé).");
+                } else {
+                    Text.error(sender, "Sortie impossible (voir les journaux du serveur).");
+                }
+            }
+            case "lives" -> {
+                if (args.length != 4 || !args[2].equalsIgnoreCase("reset") || !args[3].equals("confirm")) {
+                    Text.info(sender, "/apocalypse admin lives reset confirm — termine toutes les vies en cours (nouvelle partie), sans sac.");
+                    return;
+                }
+                String error = plugin.sessions().resetAllLives(actor);
+                if (error != null) Text.error(sender, error);
+                else Text.good(sender, "Toutes les vies sont terminées : chacun repartira de zéro à sa prochaine entrée (tracé).");
+            }
             case "map" -> {
                 int radius;
                 Integer slice = null;
@@ -310,7 +413,7 @@ public final class ApocalypseCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
-            options.addAll(List.of("join", "leave", "status", "infection", "bag", "recipes", "team", "stats", "skills", "intro", "help"));
+            options.addAll(List.of("join", "leave", "guide", "status", "infection", "bag", "recipes", "team", "stats", "skills", "intro", "help"));
             if (sender.hasPermission(ADMIN)) options.add("admin");
         } else if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             options.add(plugin.settings().scenario().id());
@@ -331,7 +434,14 @@ public final class ApocalypseCommand implements TabExecutor {
         } else if (args.length == 2 && args[0].equalsIgnoreCase("intro")) {
             options.add("skip");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
-            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat", "destruction", "horde", "pvp"));
+            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat",
+                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives"));
+            else if (args.length == 3 && args[1].equalsIgnoreCase("set"))
+                org.duckcatmine.apocalypse.config.SettingsService.CATALOG.forEach(setting -> options.add(setting.key()));
+            else if (args.length == 3 && args[1].equalsIgnoreCase("preset")) options.addAll(org.duckcatmine.apocalypse.config.SettingsService.PRESETS.keySet());
+            else if (args.length == 3 && args[1].equalsIgnoreCase("evacuate")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
+            else if (args.length == 3 && args[1].equalsIgnoreCase("lives")) options.add("reset");
+            else if (args.length == 4 && args[1].equalsIgnoreCase("lives")) options.add("confirm");
             else if (args.length == 3 && args[1].equalsIgnoreCase("horde")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
             else if (args.length == 3 && (args[1].equalsIgnoreCase("destruction") || args[1].equalsIgnoreCase("pvp"))) options.addAll(List.of("on", "off"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("world")) options.addAll(List.of("create", "bind", "recreate"));

@@ -392,6 +392,32 @@ public final class Store {
         update(c, "UPDATE players SET intro_seen = 1 WHERE uuid = ?", player.toString());
     }
 
+    public static List<RunRow> aliveRuns(Connection c) throws SQLException {
+        List<RunRow> runs = new ArrayList<>();
+        try (PreparedStatement s = c.prepareStatement("SELECT run_id, uuid, started_sys_ms, kills FROM runs WHERE state = 'ALIVE'");
+             ResultSet r = s.executeQuery()) {
+            while (r.next()) runs.add(new RunRow(r.getString(1), UUID.fromString(r.getString(2)), "ALIVE", r.getLong(3), null, null, r.getInt(4)));
+        }
+        return runs;
+    }
+
+    /** One line of the board: the living lives first, by points, then the best careers. */
+    public record Ranking(String name, int points, int kills, long startedAt, boolean alive, long careerPoints, long bestSurvivalMs) {
+    }
+
+    public static List<Ranking> leaderboard(Connection c, int limit) throws SQLException {
+        List<Ranking> rows = new ArrayList<>();
+        try (PreparedStatement s = c.prepareStatement("SELECT p.name, COALESCE(r.points, 0), COALESCE(r.kills, 0), COALESCE(r.started_sys_ms, 0),"
+                + " r.state = 'ALIVE', p.career_points, p.best_survival_ms FROM players p LEFT JOIN runs r ON r.run_id = p.current_run"
+                + " ORDER BY (r.state = 'ALIVE') DESC, COALESCE(r.points, 0) DESC, p.career_points DESC LIMIT ?")) {
+            s.setInt(1, limit);
+            try (ResultSet r = s.executeQuery()) {
+                while (r.next()) rows.add(new Ranking(r.getString(1), r.getInt(2), r.getInt(3), r.getLong(4), r.getBoolean(5), r.getLong(6), r.getLong(7)));
+            }
+        }
+        return rows;
+    }
+
     private static int update(Connection c, String sql, Object... parameters) throws SQLException {
         try (PreparedStatement statement = c.prepareStatement(sql)) {
             for (int i = 0; i < parameters.length; i++) statement.setObject(i + 1, parameters[i]);

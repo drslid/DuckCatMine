@@ -116,7 +116,7 @@ public final class MapRenderer {
                     data = snapshot.getBlockData(dx, y, dz);
                 }
                 heights[dx * 17 + dz + 1] = y;
-                Color color = data.getMapColor();
+                Color color = data.getMaterial() == Material.BARRIER ? Color.fromRGB(0x3A3F47) : data.getMapColor();
                 int north = dz > 0 ? heights[dx * 17 + dz] : y;
                 double shade = y > north ? 1.0 : y < north ? 0.72 : 0.86;
                 if (data.getMaterial() == Material.WATER) shade = 0.86;

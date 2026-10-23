@@ -422,10 +422,14 @@ public final class TeamService implements Listener {
         if (!(event.getEntity() instanceof Player victim) || !plugin.scenario().isScenarioWorld(victim.getWorld())) return;
         Player attacker = attacker(event);
         if (attacker == null || attacker.equals(victim)) return;
-        if (!plugin.scenario().pvp() || sameTeam(attacker.getUniqueId(), victim.getUniqueId())
-                || plugin.scenario().inRefuge(victim.getLocation()) || plugin.scenario().inRefuge(attacker.getLocation())) {
-            event.setCancelled(true);
-        }
+        if (!canHarm(attacker, victim)) event.setCancelled(true);
+    }
+
+    /** Whether one survivor may hurt another under the current rules (cars, bombs and fire ask before acting). */
+    public boolean canHarm(Player attacker, Player victim) {
+        if (attacker.equals(victim)) return true;
+        return plugin.scenario().pvp() && !sameTeam(attacker.getUniqueId(), victim.getUniqueId())
+                && !plugin.scenario().inRefuge(victim.getLocation()) && !plugin.scenario().inRefuge(attacker.getLocation());
     }
 
     /** A claim protects its blocks, placed containers and stations from survivors outside the owner's team. */

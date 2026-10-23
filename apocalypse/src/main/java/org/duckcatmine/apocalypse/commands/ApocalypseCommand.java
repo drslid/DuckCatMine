@@ -14,15 +14,18 @@ import org.duckcatmine.apocalypse.DuckCatApocalypse;
 import org.duckcatmine.apocalypse.Text;
 import org.duckcatmine.apocalypse.core.Durations;
 import org.duckcatmine.apocalypse.persistence.Store;
+import org.duckcatmine.apocalypse.scenario.MapRenderer;
 
 public final class ApocalypseCommand implements TabExecutor {
     private static final String PLAY = "duckcat.apocalypse.play";
     private static final String ADMIN = "duckcat.apocalypse.admin";
 
     private final DuckCatApocalypse plugin;
+    private final MapRenderer renderer;
 
     public ApocalypseCommand(DuckCatApocalypse plugin) {
         this.plugin = plugin;
+        this.renderer = new MapRenderer(plugin);
     }
 
     @Override
@@ -67,7 +70,7 @@ public final class ApocalypseCommand implements TabExecutor {
         Text.info(sender, "/apocalypse leave — quitter depuis le refuge (impossible avec une morsure)");
         Text.info(sender, "/apocalypse status | infection | bag [open]");
         if (sender.hasPermission(ADMIN))
-            Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
+            Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
     }
 
     private void status(Player player) {
@@ -112,6 +115,25 @@ public final class ApocalypseCommand implements TabExecutor {
             }
             case "world" -> world(sender, args);
             case "give" -> give(sender, args, actor);
+            case "map" -> {
+                int radius;
+                Integer slice = null;
+                try {
+                    radius = args.length > 2 ? Integer.parseInt(args[2]) : 320;
+                    if (args.length > 3) slice = Integer.parseInt(args[3]);
+                } catch (NumberFormatException e) {
+                    radius = -1;
+                }
+                if (radius < 32 || radius > 1536) {
+                    Text.error(sender, "Rayon entre 32 et 1536 blocs.");
+                    return;
+                }
+                String error = renderer.start(radius, slice, line -> {
+                    plugin.getLogger().info(line);
+                    if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)) Text.info(sender, line);
+                });
+                if (error != null) Text.error(sender, error);
+            }
             case "selftest" -> {
                 boolean failed = false;
                 for (String line : SelfTest.run(plugin)) {
@@ -205,7 +227,7 @@ public final class ApocalypseCommand implements TabExecutor {
         } else if (args.length == 2 && args[0].equalsIgnoreCase("bag")) {
             options.add("open");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
-            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give"));
+            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("world")) options.addAll(List.of("create", "bind"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("give")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
             else if (args.length == 4 && args[1].equalsIgnoreCase("give")) options.addAll(plugin.items().ids());

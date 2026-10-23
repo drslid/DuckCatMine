@@ -1,21 +1,24 @@
 # DuckCatApocalypse — réglages du scénario Ground Zero.
-# Durées en secondes. Une valeur invalide empêche le démarrage du plugin ;
-# /apocalypse admin reload conserve alors la dernière configuration valide.
-# Les nouvelles durées s'appliquent aux nouveaux événements : une infection
-# ou un sac en cours garde l'échéance calculée à sa création.
-config-version: 1
+# Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
+# au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
+# configuration valide. Les nouvelles durées valent pour les nouveaux événements : une infection ou un sac
+# en cours garde l'échéance calculée à sa création.
+# Version 2 : ville générée, fouille, infectés variés. Un ancien fichier v1 est mis de côté (config.v1.yml).
+config-version: 2
 
 scenario:
   id: ground_zero
   # Monde dédié créé par /apocalypse admin world create (jamais un monde existant).
   world: ground_zero
-  border-size: 768
+  # Côté de la bordure. La ville (1 200 blocs) occupe le centre ; campagne, fermes, barrages et
+  # laboratoire NEXUS l'entourent.
+  border-size: 3072
   difficulty: NORMAL
 
 refuge:
   center-x: 0
   center-z: 0
-  # Demi-côté du refuge carré, murs compris.
+  # Demi-côté du refuge carré, murs compris (la place centrale fait 37 blocs de côté).
   radius: 12
 
 infection:
@@ -35,34 +38,409 @@ respawn:
 
 loot:
   contribution-window-seconds: 30
-  # Probabilité d'un bonus en plus de l'objet garanti.
-  bonus-roll-chance: 0.10
+  # Probabilité d'un bonus en plus de l'objet garanti, pour chaque élimination admissible.
+  bonus-roll-chance: 0.12
+
+search:
+  # Un coffre ou tonneau de fouille vidé se réapprovisionne après ce temps de scénario actif, et seulement
+  # quand plus personne n'est dans les parages (le tronçon a été déchargé). Un conteneur qui contient encore
+  # des objets n'est jamais rempli par-dessus. On ne peut rien y déposer.
+  refill-minutes: 30
 
 spawning:
   enabled: true
   interval-seconds: 3
-  per-player-local-cap: 3
-  global-cap: 40
+  global-cap: 60
   min-distance: 20
-  max-distance: 32
-  despawn-distance: 64
+  max-distance: 40
+  despawn-distance: 72
+  # Infectés en plus autour de chaque survivant pendant la nuit.
+  night-bonus: 2
+  # Part des apparitions dans les bâtiments abandonnés sombres (rez-de-chaussée), jamais dans un lieu éclairé.
+  indoor-chance: 0.25
 
+# Plafond local autour de chaque survivant et mélange des archétypes (poids relatifs) par secteur.
+sectors:
+  starter:
+    local-cap: 3
+    mix: {walker: 80, pursuer: 20}
+  residential:
+    local-cap: 4
+    mix: {walker: 55, pursuer: 25, runner: 12, howler: 5, breaker: 3}
+  downtown:
+    local-cap: 6
+    mix: {walker: 40, pursuer: 25, runner: 18, howler: 10, breaker: 7}
+  industrial:
+    local-cap: 5
+    mix: {walker: 35, pursuer: 20, runner: 15, howler: 5, breaker: 25}
+  medical:
+    local-cap: 6
+    mix: {walker: 35, pursuer: 28, runner: 15, howler: 15, breaker: 5, abomination: 2}
+  outskirts:
+    local-cap: 3
+    mix: {walker: 60, pursuer: 25, runner: 10, howler: 5}
+  countryside:
+    local-cap: 2
+    mix: {walker: 60, pursuer: 25, runner: 10, breaker: 5}
+  lab:
+    local-cap: 7
+    mix: {walker: 20, pursuer: 25, runner: 25, howler: 10, breaker: 14, abomination: 6}
+
+# Archétypes : comportement et capacités. L'apparence ne change jamais les statistiques.
+# speed est une valeur d'attribut Minecraft (zombie vanilla : 0.23), pas des blocs par seconde.
+# bite-chance : probabilité qu'un coup reçu soit une morsure (environ 1 sur 3 en moyenne).
 archetypes:
   walker:
+    name: Errant
     health: 20
     damage: 3.0
-    # Valeur d'attribut Minecraft, pas des blocs par seconde (un zombie vanilla : 0.23).
-    speed: 0.20
+    speed: 0.17
+    speed-variation: 0.015
     follow-range: 24
-    bite-chance: 1.0
+    bite-chance: 0.30
+    appearances: [citizen, citizen_tall, citizen_short, child, elder, nurse, worker, security, villager, farmer, drifter]
     guaranteed-loot:
       - {item: apocalypse:scrap, weight: 50}
       - {item: apocalypse:cloth, weight: 50}
     bonus-loot:
-      - {item: minecraft:bread, weight: 65}
-      - {item: apocalypse:cloth, weight: 25, amount: 2}
-      - {item: apocalypse:scrap, weight: 8, amount: 3}
+      - {item: minecraft:bread, weight: 40}
+      - {item: apocalypse:bandage, weight: 25}
+      - {item: apocalypse:tape, weight: 15}
+      - {item: apocalypse:alcohol, weight: 10}
+      - {item: apocalypse:casings, weight: 8, amount: 2}
       - {item: apocalypse:antidote, weight: 2}
+  pursuer:
+    name: Poursuivant
+    health: 20
+    damage: 3.5
+    speed: 0.24
+    speed-variation: 0.01
+    follow-range: 32
+    bite-chance: 0.33
+    appearances: [citizen, citizen_tall, security, paramedic, worker, villager, drifter]
+    abilities:
+      # Durée pendant laquelle il fouille la dernière position connue après avoir perdu sa cible.
+      memory-seconds: 12
+    guaranteed-loot:
+      - {item: apocalypse:cloth, weight: 50}
+      - {item: apocalypse:scrap, weight: 35}
+      - {item: apocalypse:tape, weight: 15}
+    bonus-loot:
+      - {item: minecraft:cooked_beef, weight: 40}
+      - {item: apocalypse:bandage, weight: 25}
+      - {item: apocalypse:spring, weight: 15}
+      - {item: apocalypse:casings, weight: 15, amount: 3}
+      - {item: apocalypse:antidote, weight: 3}
+  runner:
+    name: Sprinteur
+    health: 16
+    damage: 3.0
+    speed: 0.21
+    speed-variation: 0.01
+    follow-range: 32
+    bite-chance: 0.36
+    appearances: [runner, citizen_short, child]
+    abilities:
+      # Rafale annoncée par un cri bref, puis récupération essoufflée.
+      sprint-speed: 0.34
+      sprint-seconds: 2.5
+      sprint-range: 14
+      recovery-seconds: 3
+      recovery-speed: 0.12
+      cooldown-seconds: 8
+    guaranteed-loot:
+      - {item: apocalypse:cloth, weight: 60}
+      - {item: apocalypse:scrap, weight: 40}
+    bonus-loot:
+      - {item: minecraft:apple, weight: 40}
+      - {item: apocalypse:bandage, weight: 30}
+      - {item: apocalypse:spring, weight: 20}
+      - {item: apocalypse:syringe, weight: 8}
+      - {item: apocalypse:antidote, weight: 2}
+  howler:
+    name: Hurleur
+    health: 18
+    damage: 2.5
+    speed: 0.19
+    follow-range: 32
+    bite-chance: 0.25
+    appearances: [howler]
+    abilities:
+      # Cri préparé (interrompu par un coup) qui attire les infectés proches vers le hurleur.
+      charge-seconds: 2
+      radius: 32
+      cooldown-seconds: 40
+      # Renforts d'errants, toujours dans la limite globale ; jamais de hurleur.
+      reinforcements: 2
+    guaranteed-loot:
+      - {item: apocalypse:cloth, weight: 50}
+      - {item: apocalypse:alcohol, weight: 25}
+      - {item: apocalypse:syringe, weight: 25}
+    bonus-loot:
+      - {item: apocalypse:bandage, weight: 45}
+      - {item: apocalypse:inhibitor, weight: 30}
+      - {item: apocalypse:serum, weight: 15}
+      - {item: apocalypse:antidote, weight: 10}
+  breaker:
+    name: Briseur
+    health: 60
+    damage: 6.0
+    speed: 0.15
+    follow-range: 24
+    bite-chance: 0.30
+    armor: 6
+    knockback-resistance: 0.8
+    appearances: [heavy_worker, heavy_security]
+    guaranteed-loot:
+      - {item: apocalypse:scrap, weight: 60, amount: 2}
+      - {item: apocalypse:tape, weight: 40}
+    bonus-loot:
+      - {item: apocalypse:spring, weight: 35}
+      - {item: apocalypse:gun_parts, weight: 30}
+      - {item: apocalypse:propellant, weight: 25}
+      - {item: apocalypse:antidote, weight: 10}
+  abomination:
+    name: Abomination
+    health: 200
+    damage: 9.0
+    speed: 0.2
+    follow-range: 32
+    bite-chance: 0.5
+    armor: 4
+    knockback-resistance: 1.0
+    scale: 1.6
+    max-alive: 1
+    appearances: [abomination]
+    abilities:
+      # Frappe au sol annoncée : élan visible, dégâts de zone (pas une morsure), longue récupération.
+      slam-wind-up-seconds: 1.5
+      slam-radius: 4
+      slam-damage: 10
+      slam-recovery-seconds: 3
+      slam-cooldown-seconds: 10
+    guaranteed-loot:
+      - {item: apocalypse:serum, weight: 50}
+      - {item: apocalypse:inhibitor, weight: 50}
+    bonus-loot:
+      - {item: apocalypse:antidote, weight: 50}
+      - {item: apocalypse:gun_parts, weight: 30, amount: 2}
+      - {item: apocalypse:syringe, weight: 20, amount: 2}
+
+# Fouille : tables par type de lieu (rolls = nombre de piles tirées au remplissage).
+places:
+  house:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: minecraft:bread, weight: 14, amount: 2}
+      - {item: minecraft:apple, weight: 8, amount: 2}
+      - {item: minecraft:baked_potato, weight: 8, amount: 2}
+      - {item: minecraft:cooked_porkchop, weight: 4}
+      - {item: apocalypse:cloth, weight: 14, amount: 2}
+      - {item: apocalypse:scrap, weight: 8, amount: 2}
+      - {item: apocalypse:tape, weight: 5}
+      - {item: apocalypse:bandage, weight: 6}
+      - {item: apocalypse:alcohol, weight: 3}
+      - {item: apocalypse:note, weight: 4}
+      - {item: minecraft:torch, weight: 6, amount: 4}
+      - {item: minecraft:stick, weight: 6, amount: 4}
+      - {item: minecraft:oak_planks, weight: 6, amount: 4}
+      - {item: minecraft:string, weight: 4, amount: 2}
+      - {item: minecraft:leather_chestplate, weight: 1}
+      - {item: minecraft:leather_boots, weight: 1}
+      - {item: minecraft:stone_axe, weight: 2}
+      - {item: apocalypse:antidote, weight: 0.6}
+  shop:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: minecraft:bread, weight: 12, amount: 2}
+      - {item: minecraft:cookie, weight: 6, amount: 4}
+      - {item: minecraft:melon_slice, weight: 6, amount: 3}
+      - {item: minecraft:carrot, weight: 6, amount: 3}
+      - {item: minecraft:dried_kelp, weight: 6, amount: 5}
+      - {item: minecraft:honey_bottle, weight: 3}
+      - {item: apocalypse:cloth, weight: 8, amount: 2}
+      - {item: apocalypse:tape, weight: 6}
+      - {item: apocalypse:scrap, weight: 6, amount: 2}
+      - {item: apocalypse:bandage, weight: 3}
+      - {item: apocalypse:alcohol, weight: 3}
+      - {item: apocalypse:note, weight: 2}
+      - {item: minecraft:torch, weight: 6, amount: 4}
+      - {item: minecraft:string, weight: 4, amount: 3}
+      - {item: minecraft:paper, weight: 3, amount: 3}
+  supermarket:
+    rolls-min: 2
+    rolls-max: 4
+    loot:
+      - {item: minecraft:bread, weight: 14, amount: 3}
+      - {item: minecraft:cooked_beef, weight: 6, amount: 2}
+      - {item: minecraft:baked_potato, weight: 8, amount: 3}
+      - {item: minecraft:apple, weight: 8, amount: 3}
+      - {item: minecraft:carrot, weight: 6, amount: 4}
+      - {item: minecraft:pumpkin_pie, weight: 4}
+      - {item: minecraft:cookie, weight: 6, amount: 6}
+      - {item: minecraft:dried_kelp, weight: 6, amount: 6}
+      - {item: minecraft:mushroom_stew, weight: 3}
+      - {item: minecraft:honey_bottle, weight: 3}
+      - {item: apocalypse:cloth, weight: 8, amount: 2}
+      - {item: apocalypse:tape, weight: 5}
+      - {item: apocalypse:alcohol, weight: 4}
+      - {item: apocalypse:bandage, weight: 3}
+      - {item: minecraft:torch, weight: 5, amount: 6}
+      - {item: minecraft:glass_bottle, weight: 4, amount: 2}
+  pharmacy:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: apocalypse:bandage, weight: 30, amount: 2}
+      - {item: apocalypse:alcohol, weight: 22}
+      - {item: apocalypse:syringe, weight: 14}
+      - {item: apocalypse:cloth, weight: 12, amount: 2}
+      - {item: apocalypse:inhibitor, weight: 4}
+      - {item: apocalypse:serum, weight: 2}
+      - {item: apocalypse:antidote, weight: 3}
+      - {item: apocalypse:note, weight: 4}
+      - {item: minecraft:paper, weight: 6, amount: 2}
+      - {item: minecraft:glass_bottle, weight: 3, amount: 2}
+  hospital:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: apocalypse:bandage, weight: 25, amount: 2}
+      - {item: apocalypse:alcohol, weight: 18}
+      - {item: apocalypse:syringe, weight: 18}
+      - {item: apocalypse:cloth, weight: 10, amount: 3}
+      - {item: apocalypse:serum, weight: 6}
+      - {item: apocalypse:inhibitor, weight: 7}
+      - {item: apocalypse:antidote, weight: 4}
+      - {item: apocalypse:note, weight: 6}
+      - {item: minecraft:glass_bottle, weight: 4, amount: 2}
+  police:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: apocalypse:casings, weight: 16, amount: 4}
+      - {item: apocalypse:propellant, weight: 12}
+      - {item: apocalypse:gun_parts, weight: 8}
+      - {item: apocalypse:spring, weight: 8}
+      - {item: apocalypse:tape, weight: 10}
+      - {item: apocalypse:scrap, weight: 10, amount: 3}
+      - {item: apocalypse:bandage, weight: 6}
+      - {item: apocalypse:note, weight: 4}
+      - {item: minecraft:leather_helmet, weight: 4}
+      - {item: minecraft:chainmail_chestplate, weight: 3}
+      - {item: minecraft:iron_helmet, weight: 2}
+      - {item: minecraft:shield, weight: 3}
+      - {item: minecraft:iron_sword, weight: 2}
+      - {item: minecraft:torch, weight: 5, amount: 4}
+      - {item: minecraft:bow, weight: 2}
+      - {item: minecraft:arrow, weight: 4, amount: 8}
+  garage:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: apocalypse:scrap, weight: 26, amount: 3}
+      - {item: apocalypse:tape, weight: 16}
+      - {item: apocalypse:spring, weight: 14}
+      - {item: apocalypse:gun_parts, weight: 3}
+      - {item: minecraft:iron_ingot, weight: 6, amount: 2}
+      - {item: minecraft:string, weight: 4, amount: 2}
+      - {item: minecraft:redstone, weight: 6, amount: 4}
+      - {item: minecraft:coal, weight: 8, amount: 4}
+      - {item: minecraft:torch, weight: 6, amount: 4}
+      - {item: minecraft:shears, weight: 2}
+      - {item: minecraft:flint_and_steel, weight: 1}
+      - {item: minecraft:stone_pickaxe, weight: 4}
+      - {item: minecraft:iron_pickaxe, weight: 1}
+      - {item: minecraft:bucket, weight: 2}
+  warehouse:
+    rolls-min: 1
+    rolls-max: 4
+    loot:
+      - {item: apocalypse:scrap, weight: 20, amount: 4}
+      - {item: minecraft:oak_planks, weight: 14, amount: 8}
+      - {item: minecraft:stick, weight: 10, amount: 8}
+      - {item: minecraft:coal, weight: 10, amount: 6}
+      - {item: apocalypse:tape, weight: 10}
+      - {item: apocalypse:spring, weight: 8}
+      - {item: minecraft:iron_ingot, weight: 6, amount: 2}
+      - {item: minecraft:string, weight: 6, amount: 4}
+      - {item: apocalypse:cloth, weight: 8, amount: 3}
+      - {item: minecraft:torch, weight: 8, amount: 8}
+      - {item: minecraft:redstone, weight: 4, amount: 4}
+      - {item: minecraft:glass, weight: 4, amount: 4}
+      - {item: minecraft:ladder, weight: 4, amount: 4}
+  gas_station:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: minecraft:bread, weight: 8, amount: 2}
+      - {item: minecraft:cookie, weight: 6, amount: 4}
+      - {item: minecraft:dried_kelp, weight: 6, amount: 4}
+      - {item: minecraft:honey_bottle, weight: 4}
+      - {item: apocalypse:scrap, weight: 10, amount: 2}
+      - {item: apocalypse:tape, weight: 10}
+      - {item: apocalypse:propellant, weight: 4}
+      - {item: apocalypse:alcohol, weight: 6}
+      - {item: apocalypse:bandage, weight: 4}
+      - {item: minecraft:coal, weight: 8, amount: 4}
+      - {item: minecraft:torch, weight: 8, amount: 4}
+      - {item: minecraft:flint_and_steel, weight: 2}
+  farm:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: minecraft:wheat, weight: 10, amount: 6}
+      - {item: minecraft:bread, weight: 10, amount: 2}
+      - {item: minecraft:carrot, weight: 8, amount: 4}
+      - {item: minecraft:potato, weight: 8, amount: 4}
+      - {item: minecraft:beetroot, weight: 6, amount: 4}
+      - {item: minecraft:wheat_seeds, weight: 8, amount: 6}
+      - {item: minecraft:apple, weight: 8, amount: 3}
+      - {item: minecraft:egg, weight: 4, amount: 3}
+      - {item: minecraft:leather, weight: 6, amount: 2}
+      - {item: minecraft:string, weight: 4, amount: 2}
+      - {item: apocalypse:cloth, weight: 6, amount: 2}
+      - {item: apocalypse:scrap, weight: 4}
+      - {item: apocalypse:note, weight: 2}
+      - {item: minecraft:stone_hoe, weight: 3}
+      - {item: minecraft:iron_axe, weight: 1}
+      - {item: minecraft:shears, weight: 2}
+      - {item: minecraft:bucket, weight: 2}
+  lab:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: apocalypse:serum, weight: 18}
+      - {item: apocalypse:inhibitor, weight: 18}
+      - {item: apocalypse:syringe, weight: 16}
+      - {item: apocalypse:alcohol, weight: 10}
+      - {item: apocalypse:bandage, weight: 6}
+      - {item: apocalypse:antidote, weight: 8}
+      - {item: apocalypse:note, weight: 12}
+      - {item: apocalypse:gun_parts, weight: 3}
+      - {item: minecraft:glass_bottle, weight: 6, amount: 2}
+  military:
+    rolls-min: 1
+    rolls-max: 3
+    loot:
+      - {item: apocalypse:casings, weight: 18, amount: 6}
+      - {item: apocalypse:propellant, weight: 14, amount: 2}
+      - {item: apocalypse:gun_parts, weight: 12}
+      - {item: apocalypse:spring, weight: 8}
+      - {item: apocalypse:tape, weight: 10}
+      - {item: apocalypse:bandage, weight: 10, amount: 2}
+      - {item: apocalypse:antidote, weight: 2}
+      - {item: minecraft:iron_helmet, weight: 3}
+      - {item: minecraft:chainmail_chestplate, weight: 4}
+      - {item: minecraft:iron_chestplate, weight: 1}
+      - {item: minecraft:shield, weight: 4}
+      - {item: minecraft:cooked_beef, weight: 8, amount: 3}
+      - {item: minecraft:bread, weight: 8, amount: 3}
+      - {item: minecraft:torch, weight: 4, amount: 4}
+      - {item: minecraft:crossbow, weight: 1}
+      - {item: minecraft:arrow, weight: 4, amount: 8}
 
 clock:
   checkpoint-seconds: 5

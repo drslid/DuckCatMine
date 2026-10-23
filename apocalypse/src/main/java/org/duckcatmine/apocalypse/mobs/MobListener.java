@@ -7,9 +7,15 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityCombustByBlockEvent;
+import org.bukkit.event.entity.EntityCombustByEntityEvent;
+import org.bukkit.event.entity.EntityCombustEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.EntityTransformEvent;
+import org.bukkit.potion.PotionEffectType;
 import org.duckcatmine.apocalypse.DuckCatApocalypse;
 
 public final class MobListener implements Listener {
@@ -36,6 +42,13 @@ public final class MobListener implements Listener {
         if (plugin.mobs().isScenarioMob(event.getEntity())) event.setCancelled(true);
     }
 
+    /** Paper 26.3 ignores Zombie#setShouldBurnInDay; sunlight ignites through a plain EntityCombustEvent. */
+    @EventHandler(ignoreCancelled = true)
+    public void onCombust(EntityCombustEvent event) {
+        if (event instanceof EntityCombustByBlockEvent || event instanceof EntityCombustByEntityEvent) return;
+        if (plugin.mobs().isScenarioMob(event.getEntity())) event.setCancelled(true);
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onTarget(EntityTargetLivingEntityEvent event) {
         if (!plugin.mobs().isScenarioMob(event.getEntity()) || !(event.getTarget() instanceof Player player)) return;
@@ -43,6 +56,18 @@ public final class MobListener implements Listener {
                 || plugin.protection().isProtected(player)) {
             event.setCancelled(true);
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDamaged(EntityDamageEvent event) {
+        if (event.getFinalDamage() > 0 && plugin.mobs().isScenarioMob(event.getEntity())) plugin.mobs().damaged(event.getEntity());
+    }
+
+    /** A husk is only a look: its hunger attack effect would be a hidden gameplay difference. */
+    @EventHandler(ignoreCancelled = true)
+    public void onEffect(EntityPotionEffectEvent event) {
+        if (event.getCause() == EntityPotionEffectEvent.Cause.ATTACK && event.getModifiedType() == PotionEffectType.HUNGER
+                && plugin.scenario().isScenarioWorld(event.getEntity().getWorld())) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

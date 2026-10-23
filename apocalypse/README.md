@@ -2,13 +2,30 @@
 
 Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un monde dédié, où une morsure laisse 60 secondes pour finir un antidote et où la mort fait perdre tout ce que l'on porte et toute la progression de la vie, pendant que les constructions restent dans le monde.
 
-**État : alpha, jalon J1 « survie centrale ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir le tableau ci-dessous.
+**État : alpha, jalon J2 « ville et infectés ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
+
+## Ce que contient J2
+
+| Fonction | État | Vérification |
+|---|---|---|
+| Ground Zero généré : ville de 1 200 blocs (25 × 25 îlots) autour du refuge, rues marquées, voitures, barricades, lampadaires ; puis campagne vallonnée, forêts, lacs, fermes, cabanes, 4 barrages militaires, 4 stations-service et le complexe NEXUS ; bordure de 3 072 blocs | Terminé | Paper 26.3 réel : génération de 2 200 × 2 200 blocs, rendus vus du dessus et en coupe ; tests du plan (déterminisme, aucun bâtiment sur la rue ni superposé) |
+| Secteurs : quartier du refuge, résidentiel, centre-ville, zone industrielle, abords de l'hôpital, périphérie, campagne, complexe NEXUS | Terminé | Tests unitaires du plan |
+| Bâtiments meublés et fouillables : maisons (1-2 étages), immeubles (3-5 étages, échelles), commerces, supermarchés, pharmacies, garages, entrepôts, hôpital (3 étages, héliport), postes de police (armurerie), ruines, parcs, fermes, laboratoire | Terminé | Autotest : 129 conteneurs générés retrouvés et identifiés sur 8 îlots |
+| Fouille : butin par type de lieu (12 tables), tiré à la première ouverture et partagé, jamais retiré à la réouverture ; réapprovisionnement après 30 min de scénario actif, seulement vide et quand plus personne n'est dans les parages ; on ne peut rien y déposer ; conteneurs fixés ; un coffre posé par un joueur ne devient jamais un conteneur de fouille | Implémenté | Autotest (tirage unique, remise à zéro) ; **non testé en jeu** |
+| Six archétypes : errant, poursuivant (fouille la dernière position connue), sprinteur (rafale annoncée puis essoufflement), hurleur (cri préparé, interrompu par un coup, attire les voisins, 2 renforts plafonnés), briseur (lent, robuste), abomination (frappe au sol annoncée, longue récupération, une seule en vie) | Implémenté | Autotest : statistiques et vitesses réelles ; **comportements non testés en jeu** |
+| 17 apparences indépendantes du comportement (voir le manifeste) | Implémenté | Autotest : 17 apparences sans armure ni effet de jeu |
+| Morsure aléatoire : chaque coup reçu a une chance d'être une morsure (25 à 50 % selon l'archétype, environ 1 sur 3 en moyenne) ; signal discret (barre de boss, message court, son léger) | Implémenté | Configuration testée ; **non testé en jeu** |
+| Apparitions par secteur : plafond local, mélange d'archétypes, +2 la nuit, toujours au sol (jamais sur un toit), parfois dans un bâtiment abandonné sombre, jamais dans un lieu éclairé ni au refuge | Implémenté | **Non testé en jeu** |
+| Infectés protégés du soleil (Paper 26.3 ignore `setShouldBurnInDay`) | Terminé | Autotest |
+| Composants : ruban, ressort, pièces d'arme, douilles, charge propulsive, alcool médical, seringue, sérum scellé, inhibiteur ; bandage (rend 2 cœurs, ne soigne pas la morsure) ; notes à lire | Implémenté | Autotest ; les recettes arrivent avec J3 |
+| Carte : `/apocalypse admin map [rayon] [y]` écrit `map.png` (vue du dessus, ou coupe à la hauteur y avec les conteneurs en couleur) | Terminé | Serveur réel |
+| Configuration version 2 ; une config.yml v1 est mise de côté (`config.v1.yml`), jamais effacée | Terminé | Serveur réel |
 
 ## Ce que contient J1
 
 | Fonction | État | Vérification |
 |---|---|---|
-| Monde dédié `ground_zero` (sol plat, grille de rues), refuge public muré, règles de jeu propres au monde | Terminé | Paper 26.3 build 202 réel : création, blocs du refuge, redémarrage |
+| Monde dédié `ground_zero`, refuge public muré, règles de jeu propres au monde | Terminé | Paper 26.3 build 202 réel : création, blocs du refuge, redémarrage |
 | Entrée/sortie avec inventaire séparé (objets, armure, main secondaire, XP, effets, santé, faim, position, mode de jeu) | Implémenté | Journal et reprise testés unitairement ; **non testé en jeu** |
 | Frontière : téléportations de plugins, `/home`, `/spawn`, `/warp`, boutons du guide, portails, coffre de l'Ender, lit, mode de jeu | Implémenté | **Non testé en jeu** |
 | Morsure : 60 s en temps réel, barre de boss, alertes à 30/10/5 s, morsures suivantes sans effet sur le compte à rebours | Implémenté | Règles testées unitairement ; **non testé en jeu** |
@@ -22,12 +39,14 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 | Panneau : don, chute d'objets, horde, pluie d'objets, soin, nourriture, XP et modification d'inventaire refusés pour un joueur dans Ground Zero | Terminé | Test de fumée du panneau |
 | Configuration invalide : règles de référence appliquées et signalées ; base inaccessible : mode sûr | Implémenté | Configuration invalide testée sur serveur réel ; mode sûr non testé |
 
-Pas encore dans J1 : fouille et conteneurs, fabrication, pistolet, autres infectés, bruit et perception, sièges, faune contaminée, directeur de menace complet, équipes et PvP, compétences, introduction, pack de ressources, statut Apocalypse dans le panneau, balise de base. Ils suivent dans les jalons J2 à J4.
+Pas encore là : fabrication et stations, armes de mêlée et pistolet (J3), bruit et perception, sièges, faune contaminée, directeur de menace et hordes (J4), équipes et PvP, compétences, introduction, pack de ressources, statut Apocalypse et carte dans le panneau (J5).
 
 ## Règles pour les joueurs
 
-- `/apocalypse join ground_zero` : ton inventaire habituel est mis de côté ; tu arrives au refuge sans rien la première fois.
-- Le refuge est sûr. Dehors, les infectés mordent : **une morsure laisse 60 secondes pour finir un antidote** (clic droit maintenu 2 s). Commencer trop tard ne sauve pas.
+- `/apocalypse join ground_zero` : ton inventaire habituel est mis de côté ; tu arrives au refuge, sur la place centrale de la ville, sans rien la première fois.
+- Le refuge est sûr. Dehors, fouille les maisons, commerces, pharmacies, garages, l'hôpital, les postes de police… Chaque lieu a son butin : médical à la pharmacie et à l'hôpital, pièces au garage, munitions à la police et aux barrages. Un coffre vidé se remplit de nouveau plus tard, quand plus personne n'est autour. On y prend, on n'y range pas.
+- Les infectés mordent au hasard : **un coup sur trois environ est une morsure**. **Une morsure laisse 60 secondes pour finir un antidote** (clic droit maintenu 2 s). Commencer trop tard ne sauve pas.
+- Repère les infectés spéciaux : le sprinteur hurle avant de foncer puis s'essouffle ; le hurleur se fige pour crier (frappe-le pour l'interrompre) ; le briseur est lent mais encaisse ; l'abomination prépare une frappe au sol, écarte-toi.
 - À ta mort, ta vie est terminée : objets portés dans un **sac qui reste 5 minutes** là où tu es tombé, XP et progression perdues. Tu reviens au refuge avec le même nom. Tes constructions et tes coffres restent.
 - `/apocalypse bag` donne la position et le temps restant (aucune téléportation) ; `/apocalypse bag open` ouvre ton sac à portée si son apparence a disparu.
 - `/apocalypse leave` depuis le refuge, jamais avec une morsure. Se déconnecter ne stoppe pas l'infection.
@@ -55,13 +74,40 @@ Revenir en arrière :
 |---|---|
 | `/apocalypse join [ground_zero]`, `leave`, `status`, `infection`, `bag [open]` | `duckcat.apocalypse.play` (tous) |
 | `/apocalypse admin status`, `enable`, `disable`, `reload`, `selftest` | `duckcat.apocalypse.admin` (OP) |
+| `/apocalypse admin map [rayon] [y]` : carte `map.png` dans le dossier du plugin (génère les tronçons manquants) | `duckcat.apocalypse.admin` |
 | `/apocalypse admin world create`, `world bind <monde> confirm` | `duckcat.apocalypse.admin` |
-| `/apocalypse admin give <joueur> <antidote\|scrap\|cloth> [n]` (tracé) | `duckcat.apocalypse.admin` |
+| `/apocalypse admin give <joueur> <objet> [n]` (tracé ; objets : `antidote`, `bandage`, `scrap`, `cloth`, `tape`, `spring`, `gun_parts`, `casings`, `propellant`, `alcohol`, `syringe`, `serum`, `inhibitor`, `note`) | `duckcat.apocalypse.admin` |
 | Traverser la frontière avec son profil habituel, pour observer (tracé) | `duckcat.apocalypse.bypass` (OP) |
 
 ## Configuration
 
-`plugins/DuckCatApocalypse/config.yml`, commenté. Toutes les durées, vitesses, budgets d'apparition et tables de butin ont des bornes ; une valeur hors bornes est refusée avec son chemin. `reload` garde la configuration précédente si la nouvelle est invalide, et une infection ou un sac en cours garde l'échéance calculée à sa création.
+`plugins/DuckCatApocalypse/config.yml` (version 2), commenté. Toutes les durées, vitesses, chances de morsure, budgets d'apparition par secteur, capacités des archétypes et tables de butin (infectés et lieux) ont des bornes ; une valeur hors bornes ou une référence inconnue (archétype, apparence, secteur, lieu, objet) est refusée avec son chemin. `reload` garde la configuration précédente si la nouvelle est invalide, et une infection ou un sac en cours garde l'échéance calculée à sa création. Un fichier d'une version précédente est renommé `config.v1.yml` au démarrage et remplacé par la nouvelle version : reporte tes réglages à la main.
+
+## Apparences des infectés (manifeste)
+
+L'apparence ne change jamais les statistiques : elle est tirée parmi celles autorisées pour l'archétype, avec plus de soignants près de l'hôpital, d'ouvriers en zone industrielle et de fermiers à la campagne. Sans pack de ressources, ce sont des zombies vanilla : variante, taille et vêtements teints purement cosmétiques (sans armure).
+
+| ID | Visible sans pack | Limite honnête |
+|---|---|---|
+| `citizen` | Zombie, t-shirt et pantalon de couleurs variées, taille 0,97-1,03 | Même visage et même peau |
+| `citizen_tall` | Manteau long sombre, taille 1,08-1,14 | |
+| `citizen_short` | Taille 0,88-0,93 | |
+| `child` | Bébé zombie vêtu de couleurs vives, sans le bonus de vitesse vanilla | Pas d'autre morphologie d'enfant |
+| `elder` | Gilet beige ou brun, pantalon gris, parfois cheveux gris (casque teint) | Âge seulement suggéré |
+| `nurse` | Blouse et pantalon blancs ou bleu clair | |
+| `paramedic` | Veste rouge, pantalon bleu marine | |
+| `worker` | Gilet orange, pantalon bleu, casque de chantier | |
+| `security` | Tenue noire, parfois casquette | |
+| `farmer` | Zombie villageois fermier (chapeau de paille), régions variées | |
+| `villager` | Zombie villageois de 7 régions et 13 métiers | Diversité d'origines par les régions vanilla, pas des nationalités |
+| `drifter` | Husk (peau sable), parfois veste | L'effet de faim du husk est retiré |
+| `runner` | Haut de sport coloré, baskets blanches | |
+| `howler` | Zombie villageois sans métier (robe verte), un peu plus grand | Signal lisible du hurleur |
+| `heavy_worker` | Casque de chantier et plastron de fer, taille 1,15-1,23 | Signal lisible du briseur |
+| `heavy_security` | Casque et plastron de fer anti-émeute, tenue noire, taille 1,15-1,23 | Signal lisible du briseur |
+| `abomination` | Zombie torse nu de taille 1,6 | Pas de modèle de boss spécifique |
+
+Non réalisé sans pack : visages, teintes de peau, femmes et hommes distincts, corpulences. La diversité visuelle complète demande un pack de ressources qui n'est pas encore livré.
 
 ## Données et reprise après incident
 
@@ -78,9 +124,9 @@ Revenir en arrière :
 mvn -B -f apocalypse/pom.xml verify   # Java 25 ; ou l'image maven:3.9.11-eclipse-temurin-25
 ```
 
-37 tests : règles d'infection et d'antidote, horloge, butin garanti, configuration, sac, plan de reprise, codage des profils, base SQLite réelle (contraintes, transactions abandonnées, instantané).
+43 tests : règles d'infection et d'antidote, horloge, butin garanti, configuration (chances de morsure, secteurs, lieux, références inconnues), plan de la ville (déterminisme, lots, repères, relief), sac, plan de reprise, codage des profils, base SQLite réelle (contraintes, transactions abandonnées, instantané).
 
-`/apocalypse admin selftest` vérifie sur le serveur réel, sans joueur, les API dont dépend le scénario : objets et composants de l'antidote, sérialisation d'un inventaire avec emplacements vides, écriture en base, règles du monde, apparition et réglage d'un errant.
+`/apocalypse admin selftest` vérifie sur le serveur réel, sans joueur, les API dont dépend le scénario : objets et composants de l'antidote, sérialisation d'un inventaire avec emplacements vides, écriture en base, règles du monde, errant protégé du soleil, chaque archétype (santé, armure, vitesse réelle) et chaque apparence, conteneurs générés conformes au plan de la ville, tirage d'une fouille. Il génère au besoin quelques îlots autour du refuge (une ou deux secondes la première fois).
 
 ### Tester sur une instance isolée de ton VPS
 
@@ -118,9 +164,20 @@ Procédure manuelle J1 sur une instance isolée, avec un client Minecraft Java 2
 9. Se déconnecter mordu, revenir après la fin du compte : mort hors ligne, sac à la dernière position sûre.
 10. Redémarrer le serveur pendant une infection : le compte reprend où il en était.
 
+Procédure J2 :
+
+1. Sortir du refuge : rues, voitures, maisons ; les infectés apparaissent au sol, en plein jour sans brûler.
+2. Ouvrir un coffre d'une maison : son nom indique le lieu, le butin apparaît ; refermer et rouvrir : même contenu ; tenter d'y déposer un objet : refusé ; le casser : refusé.
+3. Se laisser toucher plusieurs fois : toutes les attaques ne mordent pas ; à la morsure, barre de boss et message court, sans titre plein écran.
+4. Approcher un sprinteur, un hurleur et un briseur (centre-ville, hôpital, zone industrielle) et vérifier leurs signaux.
+5. Utiliser un bandage : 2 cœurs rendus, la morsure continue.
+
 ## Limites connues
 
 - La durée d'administration de l'antidote est comptée en ticks par le client et le serveur : un serveur ralenti l'allonge, l'échéance reste en temps réel.
 - Les objets tenus au curseur ou dans la grille de fabrication au moment de la mort tombent au sol comme en vanilla.
 - Les progrès et statistiques Minecraft restent communs aux deux profils.
-- Apparences : zombies vanilla adultes avec quelques vêtements teints ; la diversité visuelle annoncée viendra avec J2.
+- Les infectés suivent encore la détection vanilla (portée de poursuite) en plus de la mémoire du poursuivant : la perception par la vue et le bruit arrive avec J4.
+- Les infectés n'ouvrent ni ne cassent les portes : une porte fermée les arrête jusqu'aux sièges de J4.
+- Les étages des immeubles et de l'hôpital se parcourent par des échelles ; les apparitions intérieures se font au rez-de-chaussée.
+- Le monde est généré à la volée : la première visite d'une zone coûte un peu plus au serveur qu'un monde plat.

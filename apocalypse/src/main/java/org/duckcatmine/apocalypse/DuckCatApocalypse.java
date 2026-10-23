@@ -1,5 +1,6 @@
 package org.duckcatmine.apocalypse;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.duckcatmine.apocalypse.infection.InfectionService;
 import org.duckcatmine.apocalypse.items.ItemRegistry;
 import org.duckcatmine.apocalypse.items.VanillaUseGuard;
 import org.duckcatmine.apocalypse.loot.LootService;
+import org.duckcatmine.apocalypse.loot.SearchService;
 import org.duckcatmine.apocalypse.mobs.MobListener;
 import org.duckcatmine.apocalypse.mobs.MobService;
 import org.duckcatmine.apocalypse.mobs.SpawnDirector;
@@ -56,6 +58,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private BagService bags;
     private MobService mobs;
     private LootService loot;
+    private SearchService search;
     private ProtectionService protection;
     private SafePositions safePositions;
     private SpawnDirector director;
@@ -65,7 +68,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        migrateConfig();
         saveDefaultConfig();
+        reloadConfig();
         keys = new Keys(this);
         try {
             settings = ApocalypseConfig.parse(getConfig());
@@ -125,6 +130,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(bags, this);
         events.registerEvents(deaths, this);
         events.registerEvents(loot, this);
+        search = new SearchService(this);
+        events.registerEvents(search, this);
         ApocalypseCommand command = new ApocalypseCommand(this);
         PluginCommand registered = getCommand("apocalypse");
         if (registered != null) {
@@ -158,6 +165,19 @@ public final class DuckCatApocalypse extends JavaPlugin {
         }
     }
 
+    /** A config.yml of an older version is set aside (never deleted) so the new defaults are written. */
+    private void migrateConfig() {
+        File file = new File(getDataFolder(), "config.yml");
+        if (!file.isFile()) return;
+        int version = YamlConfiguration.loadConfiguration(file).getInt("config-version", 1);
+        if (version >= ApocalypseConfig.VERSION) return;
+        File aside = new File(getDataFolder(), "config.v" + version + ".yml");
+        for (int n = 2; aside.exists(); n++) aside = new File(getDataFolder(), "config.v" + version + "-" + n + ".yml");
+        if (file.renameTo(aside)) getLogger().warning("config.yml version " + version + " mise de côté (" + aside.getName()
+                + ") : nouvelle configuration version " + ApocalypseConfig.VERSION + " écrite. Reporte tes réglages à la main si besoin.");
+        else getLogger().severe("Impossible de mettre de côté l'ancienne config.yml : règles de référence appliquées.");
+    }
+
     public String configProblem() {
         return configProblem;
     }
@@ -166,6 +186,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         ticks++;
         try {
             infections.tick();
+            mobs.tick();
             if (ticks % TICKS_PER_SECOND == 0) {
                 bags.tick();
                 protection.tick();
@@ -279,8 +300,16 @@ public final class DuckCatApocalypse extends JavaPlugin {
         return mobs;
     }
 
+    public SpawnDirector director() {
+        return director;
+    }
+
     public LootService loot() {
         return loot;
+    }
+
+    public SearchService search() {
+        return search;
     }
 
     public ProtectionService protection() {

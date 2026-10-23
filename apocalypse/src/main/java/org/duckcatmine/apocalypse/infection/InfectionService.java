@@ -9,8 +9,6 @@ import java.util.logging.Level;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.title.Title;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -79,7 +77,7 @@ public final class InfectionService implements Listener {
     public void onDamage(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player player) || event.getCause() != EntityDamageEvent.DamageCause.ENTITY_ATTACK) return;
         ApocalypseConfig.Archetype archetype = plugin.settings().archetype(plugin.mobs().archetypeOf(event.getDamager()));
-        if (archetype == null || player.isDead() || !plugin.sessions().isSurvivor(player)) return;
+        if (archetype == null || plugin.mobs().slamming() || player.isDead() || !plugin.sessions().isSurvivor(player)) return;
         double absorbed = event.isApplicable(EntityDamageEvent.DamageModifier.ABSORPTION)
                 ? -event.getDamage(EntityDamageEvent.DamageModifier.ABSORPTION) : 0;
         if (!InfectionRules.reachedPlayer(event.getFinalDamage(), absorbed)) return;
@@ -115,10 +113,9 @@ public final class InfectionService implements Listener {
         });
         display(player, infection, deadline - now);
         player.showBossBar(infection.bar);
-        player.showTitle(Title.title(Component.text("MORSURE", NamedTextColor.DARK_RED, TextDecoration.BOLD),
-                Component.text("Antidote : " + Durations.clock(duration), NamedTextColor.RED)));
-        player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_INFECT, 1f, 0.8f);
-        Text.error(player, "Tu as été mordu ! Termine un antidote NEXUS avant la fin du compte à rebours, sinon cette vie s'achève.");
+        player.sendActionBar(Component.text("Morsure : trouve un antidote avant la fin du compte à rebours.", NamedTextColor.RED));
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT_SWEET_BERRY_BUSH, 0.7f, 0.8f);
+        Text.warn(player, "Tu as été mordu : termine un antidote NEXUS avant la fin du compte à rebours, sinon cette vie s'achève.");
     }
 
     public void tick() {
@@ -163,15 +160,14 @@ public final class InfectionService implements Listener {
         long second = Math.ceilDiv(remaining, 1000L);
         if (second != infection.shownSecond) {
             infection.shownSecond = second;
-            infection.bar.name(Component.text("MORSURE — ANTIDOTE : " + Durations.clock(remaining), NamedTextColor.RED, TextDecoration.BOLD));
+            infection.bar.name(Component.text("MORSURE — ANTIDOTE : " + Durations.clock(remaining), NamedTextColor.RED));
             float total = Math.max(1, infection.deadline - infection.startedAt);
             infection.bar.progress(Math.max(0f, Math.min(1f, remaining / total)));
         }
         int warning = InfectionRules.crossedWarning(infection.lastRemaining, remaining);
         if (warning == 0) return;
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1f, warning == 30 ? 0.8f : 1.4f);
-        if (warning == 30) Text.warn(player, "Plus que 30 secondes pour finir l'antidote.");
-        else player.showTitle(Title.title(Component.empty(), Component.text(warning + " secondes !", NamedTextColor.RED, TextDecoration.BOLD)));
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.45f, warning == 30 ? 0.8f : 1.4f);
+        player.sendActionBar(Component.text("Morsure : plus que " + warning + " secondes pour l'antidote", NamedTextColor.RED));
     }
 
     /** One dose, consumed only when the cure is validated before the deadline. */

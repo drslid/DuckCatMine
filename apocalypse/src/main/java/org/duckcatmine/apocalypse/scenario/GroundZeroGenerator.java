@@ -3,51 +3,44 @@ package org.duckcatmine.apocalypse.scenario;
 import java.util.List;
 import java.util.Random;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.generator.BiomeProvider;
+import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
+import org.duckcatmine.apocalypse.scenario.city.CityLayout;
+import org.duckcatmine.apocalypse.scenario.city.CityPopulator;
+import org.duckcatmine.apocalypse.scenario.city.Terrain;
 
-/** Flat ground with a street grid; buildings are placed by code, never by vanilla structures. */
+/** Ground Zero: a ruined city around the refuge, then hills, forests, farms and the NEXUS site. Never vanilla structures. */
 public final class GroundZeroGenerator extends ChunkGenerator {
-    public static final int SURFACE = 64;
-    private static final int BLOCK = 64;
-    private static final int ROAD = 5;
-    private static final int ROAD_OFFSET = 30;
+    public static final int SURFACE = Terrain.CITY_Y;
 
     @Override
     public void generateSurface(WorldInfo info, Random random, int chunkX, int chunkZ, ChunkData data) {
-        int min = info.getMinHeight();
-        data.setRegion(0, min, 0, 16, min + 1, 16, Material.BEDROCK);
-        data.setRegion(0, min + 1, 0, 16, SURFACE - 3, 16, Material.STONE);
-        data.setRegion(0, SURFACE - 3, 0, 16, SURFACE, 16, Material.DIRT);
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                boolean road = isRoad((chunkX << 4) + x, (chunkZ << 4) + z);
-                data.setBlock(x, SURFACE, z, road ? Material.GRAY_CONCRETE : Material.GRASS_BLOCK);
-            }
-        }
-    }
-
-    static boolean isRoad(int x, int z) {
-        return Math.floorMod(x - ROAD_OFFSET, BLOCK) < ROAD || Math.floorMod(z - ROAD_OFFSET, BLOCK) < ROAD;
+        CityLayout.of(info.getSeed()).generate(data, chunkX, chunkZ);
     }
 
     @Override
     public BiomeProvider getDefaultBiomeProvider(WorldInfo info) {
+        Terrain terrain = CityLayout.of(info.getSeed()).terrain();
         return new BiomeProvider() {
             @Override
             public Biome getBiome(WorldInfo worldInfo, int x, int y, int z) {
-                return Biome.PLAINS;
+                return terrain.biome(x, z);
             }
 
             @Override
             public List<Biome> getBiomes(WorldInfo worldInfo) {
-                return List.of(Biome.PLAINS);
+                return List.of(Biome.PLAINS, Biome.RIVER, Biome.FOREST, Biome.BIRCH_FOREST, Biome.TAIGA, Biome.SWAMP, Biome.MEADOW);
             }
         };
+    }
+
+    @Override
+    public List<BlockPopulator> getDefaultPopulators(World world) {
+        return List.of(new CityPopulator());
     }
 
     @Override

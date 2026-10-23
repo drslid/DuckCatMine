@@ -84,6 +84,7 @@ public final class TeamService implements Listener {
     private final Map<UUID, String> memberOf = new HashMap<>();
     private final Map<UUID, Invite> invites = new HashMap<>();
     private final Map<UUID, BukkitTask> injections = new HashMap<>();
+    private final Map<UUID, String> names = new HashMap<>();
 
     public TeamService(DuckCatApocalypse plugin) {
         this.plugin = plugin;
@@ -374,9 +375,28 @@ public final class TeamService implements Listener {
 
     private String name(UUID id) {
         Player online = Bukkit.getPlayer(id);
-        if (online != null) return online.getName();
+        if (online != null) {
+            names.put(id, online.getName());
+            return online.getName();
+        }
+        String cached = names.get(id);
+        if (cached != null) return cached;
         String stored = plugin.database().call(c -> Store.playerName(c, id));
-        return stored == null ? id.toString().substring(0, 8) : stored;
+        String result = stored == null ? id.toString().substring(0, 8) : stored;
+        names.put(id, result);
+        return result;
+    }
+
+    /** Teams with their leader and members' names (for the panel). */
+    public List<Map.Entry<String, List<String>>> listing() {
+        List<Map.Entry<String, List<String>>> result = new ArrayList<>();
+        for (Team team : teams.values()) {
+            List<String> members = new ArrayList<>();
+            members.add(name(team.leader));
+            for (UUID member : team.members) if (!member.equals(team.leader)) members.add(name(member));
+            result.add(Map.entry(team.name, members));
+        }
+        return result;
     }
 
     public List<String> names(UUID player) {

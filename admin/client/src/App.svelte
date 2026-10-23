@@ -37,6 +37,8 @@
   let World = $state<any>(null),
     Player = $state<any>(null),
     Settings = $state<any>(null),
+    Apocalypse = $state<any>(null),
+    apocalypseInstalled = $state(false),
     Notifications = $state<any>(null),
     settingsInitial = $state('game');
   let source: EventSource,
@@ -44,19 +46,29 @@
     noticeTimer,
     demoTimer,
     paletteInput = $state<HTMLInputElement>();
-  const nav = [
+  const baseNav = [
     ['home', 'home', 'Accueil'],
     ['players', 'users', 'Joueurs'],
     ['world', 'map', 'Monde'],
     ['chat', 'chat', 'Chat'],
     ['settings', 'settings', 'Réglages'],
   ];
+  let nav = $derived(
+    apocalypseInstalled
+      ? [
+          ...baseNav.slice(0, 3),
+          ['apocalypse', 'skull', 'Ground Zero'],
+          ...baseNav.slice(3),
+        ]
+      : baseNav,
+  );
   const actions = [
     ['Joueurs et permissions', 'players'],
     ['Inventaire, objets et skins', 'players'],
     ['Carte et positions des joueurs', 'world'],
     ['Importer une construction', 'world'],
     ['Faire apparaître une créature', 'world'],
+    ['Ground Zero : mode survie zombie', 'apocalypse'],
     ['Chat de la partie', 'chat'],
     ['Sauvegardes', 'settings', 'backups'],
     ['Extensions, catalogue et import .jar', 'settings', 'plugins'],
@@ -141,9 +153,14 @@
       readId = localStorage.getItem(`duckcatmine.chat.read.${user}`) || '';
     } catch {}
     chatInitialized = false;
+    try {
+      apocalypseInstalled = !!(await api('/api/apocalypse')).installed;
+    } catch {}
     const requestedSection = location.hash.slice(1);
     await navigate(
-      ['world', 'players', 'settings', 'chat'].includes(requestedSection)
+      ['world', 'players', 'settings', 'chat', 'apocalypse'].includes(
+        requestedSection,
+      )
         ? requestedSection
         : 'home',
     );
@@ -192,6 +209,8 @@
       World = (await import('./World.svelte')).default;
     if (value === 'players' && !Player)
       Player = (await import('./Player.svelte')).default;
+    if (value === 'apocalypse' && !Apocalypse)
+      Apocalypse = (await import('./Apocalypse.svelte')).default;
     if (value === 'settings') {
       settingsInitial = sub;
       if (!Settings) Settings = (await import('./Settings.svelte')).default;
@@ -689,6 +708,13 @@
               navigate('players');
             }}
             {toast}
+          />
+        {:else if section === 'apocalypse' && Apocalypse}<Apocalypse
+            {toast}
+            openPlayer={(name) => {
+              selectedPlayer = name;
+              navigate('players');
+            }}
           />
         {:else if section === 'chat'}<div class="section-heading">
             <div>

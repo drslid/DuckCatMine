@@ -134,6 +134,17 @@ Les constructions et coffres de l'ancien monde disparaissent avec lui. Chaque su
 | `/apocalypse admin give <joueur> <objet> [n]` (tracé ; objets : `antidote`, `bandage`, `scrap`, `cloth`, `tape`, `spring`, `gun_parts`, `casings`, `propellant`, `alcohol`, `syringe`, `serum`, `inhibitor`, `note`) | `duckcat.apocalypse.admin` |
 | Traverser la frontière avec son profil habituel, pour observer (tracé) | `duckcat.apocalypse.bypass` (OP) |
 
+## Panneau web
+
+Le plugin écrit toutes les 5 s `plugins/DuckCatApocalypse/status.json` (état, menace, règles, infectés par type, survivants présents avec leur position, équipes) ; le panneau DuckCatMine le lit en lecture seule et affiche l'onglet **Ground Zero** dès que ce fichier existe :
+
+- ouvrir ou fermer le scénario, régler la menace, activer le PvP ou la destruction de blocs, envoyer une horde vers un survivant ;
+- suivre les survivants (temps de vie, points, santé, morsure en cours avec son compte à rebours, équipe) et les infectés par type ;
+- carte : `Redessiner` lance `/apocalypse admin map`, puis les survivants apparaissent dessus, mis à jour toutes les 5 s ;
+- autotest et rechargement de la configuration.
+
+Chaque action passe par une liste fermée de commandes `/apocalypse admin …` envoyées par RCON et tracées dans le journal du panneau. Un survivant listé dans `status.json` est aussi protégé des dons, soins et événements du panneau, même sans le pont de DuckCatWelcome. Un `status.json` de plus de 30 s est affiché comme « serveur arrêté » et ne liste plus personne.
+
 ## Configuration
 
 `plugins/DuckCatApocalypse/config.yml` (version 2), commenté. Toutes les durées, vitesses, chances de morsure, budgets d'apparition par secteur, capacités des archétypes et tables de butin (infectés et lieux) ont des bornes ; une valeur hors bornes ou une référence inconnue (archétype, apparence, secteur, lieu, objet) est refusée avec son chemin. `reload` garde la configuration précédente si la nouvelle est invalide, et une infection ou un sac en cours garde l'échéance calculée à sa création. Un fichier d'une version précédente est renommé `config.v1.yml` au démarrage et remplacé par la nouvelle version : reporte tes réglages à la main.

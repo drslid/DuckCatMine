@@ -316,9 +316,55 @@ function panelReply(raw) {
 }
 
 const SCENARIO_REFUSAL = 'Ce joueur est dans Ground Zero : action bloquée pour respecter les règles du scénario.';
+const APOCALYPSE_DIR = path.join('plugins', 'DuckCatApocalypse');
+
+// DuckCatApocalypse writes status.json every 5 s; older than 30 s means the server or the plugin is stopped.
+function apocalypseStatus() {
+  const status = readJsonFile(path.join(APOCALYPSE_DIR, 'status.json'), null);
+  if (!status || typeof status !== 'object' || Array.isArray(status)) return { installed: false };
+  const age = Date.now() - Number(status.generatedAt || 0);
+  const fresh = age > -60000 && age < 30000 && status.running !== false;
+  let mapRenderedAt = null;
+  try { mapRenderedAt = fs.statSync(path.join(MC_DATA_DIR, APOCALYPSE_DIR, 'map.png')).mtimeMs; } catch {}
+  return { ...status, installed: true, stale: !fresh, ageSeconds: Math.round(age / 1000), mapRenderedAt,
+    survivors: fresh && Array.isArray(status.survivors) ? status.survivors : [] };
+}
+
+function apocalypseCommand(input) {
+  const action = String(input.action || '');
+  const value = input.value;
+  if (['enable', 'disable', 'selftest', 'reload'].includes(action)) return { command: `apocalypse admin ${action}`, detail: '' };
+  if (action === 'pvp' || action === 'destruction') {
+    if (typeof value !== 'boolean') throw new HttpError(400, 'Valeur oui/non attendue.');
+    return { command: `apocalypse admin ${action} ${value ? 'on' : 'off'}`, detail: value ? 'on' : 'off' };
+  }
+  if (action === 'threat') {
+    const level = Number(value);
+    if (!Number.isFinite(level) || level < 1 || level > 50) throw new HttpError(400, 'Menace entre 1 et 50.');
+    const text = (Math.round(level * 10) / 10).toFixed(1);
+    return { command: `apocalypse admin threat ${text}`, detail: text };
+  }
+  if (action === 'horde') {
+    const player = String(value || '');
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(player)) throw new HttpError(400, 'Pseudo invalide.');
+    return { command: `apocalypse admin horde ${player}`, detail: player };
+  }
+  if (action === 'map') {
+    const radius = Number(value);
+    if (![320, 640, 960, 1280].includes(radius)) throw new HttpError(400, 'Taille de carte invalide.');
+    return { command: `apocalypse admin map ${radius}`, detail: String(radius) };
+  }
+  throw new HttpError(400, 'Action inconnue.');
+}
+
+function scenarioSurvivor(player) {
+  const status = apocalypseStatus();
+  return status.installed && status.survivors.some((survivor) => String(survivor?.name || '').toLowerCase() === player.toLowerCase());
+}
 
 // A missing bridge or an offline player is left to the command itself.
 async function refuseScenarioPlayer(player) {
+  if (scenarioSurvivor(player)) throw new HttpError(409, SCENARIO_REFUSAL);
   let scenario = null;
   try { scenario = panelReply(await rcon(`dcpanel status ${player}`)).scenario; } catch {}
   if (scenario) throw new HttpError(409, SCENARIO_REFUSAL);
@@ -1231,6 +1277,30 @@ async function serve(req, res) {
     if (/unknown command|error|failed|not found|invalid|no player/i.test(result)) throw new HttpError(409, result.slice(0, 300) || 'Le skin a été créé, mais son application a échoué.');
     audit('skin_gallery_apply', session.username, `${player} ${source}:${id}`);
     return json(res, 200, { result: result || `Skin appliqué à ${player}.` });
+  }
+  if (req.method === 'GET' && url.pathname === '/api/apocalypse') {
+    requireSession(req);
+    return json(res, 200, apocalypseStatus());
+  }
+  if (req.method === 'GET' && url.pathname === '/api/apocalypse/map.png') {
+    requireSession(req);
+    const filename = path.join(MC_DATA_DIR, APOCALYPSE_DIR, 'map.png');
+    let stat;
+    try { stat = fs.statSync(filename); } catch { throw new HttpError(404, 'Aucune carte : lance un rendu.'); }
+    if (!stat.isFile() || stat.size > 64 * 1024 * 1024) throw new HttpError(404, 'Carte indisponible.');
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'private, no-cache');
+    return fs.createReadStream(filename).pipe(res);
+  }
+  if (req.method === 'POST' && url.pathname === '/api/apocalypse/action') {
+    const session = requireSession(req);
+    requireCsrf(req, session);
+    const input = await body(req);
+    const { command, detail } = apocalypseCommand(input);
+    const result = await rcon(command, 60000);
+    if (/unknown command|incorrect argument|réservé aux administrateurs/i.test(result)) throw new HttpError(409, result.slice(0, 300));
+    audit(`apocalypse_${input.action}`, session.username, detail);
+    return json(res, 200, { result: result.replace(/☣\s*/g, '').trim().slice(0, 4000) });
   }
   if (req.method === 'POST' && url.pathname === '/api/events') {
     const session = requireSession(req);

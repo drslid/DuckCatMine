@@ -37,6 +37,7 @@ import org.duckcatmine.apocalypse.loot.SearchService;
 import org.duckcatmine.apocalypse.mobs.MobListener;
 import org.duckcatmine.apocalypse.mobs.MobService;
 import org.duckcatmine.apocalypse.mobs.SpawnDirector;
+import org.duckcatmine.apocalypse.panel.StatusWriter;
 import org.duckcatmine.apocalypse.perception.NoiseService;
 import org.duckcatmine.apocalypse.persistence.BackupListener;
 import org.duckcatmine.apocalypse.persistence.Database;
@@ -81,6 +82,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private TeamService teams;
     private ProgressService progress;
     private IntroService intro;
+    private StatusWriter status;
     private ProtectionService protection;
     private SafePositions safePositions;
     private SpawnDirector director;
@@ -141,6 +143,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             teams = new TeamService(this);
             progress = new ProgressService(this);
             intro = new IntroService(this);
+            status = new StatusWriter(this);
             scenario.load();
             if (scenario.isEnabled()) clock.resume();
             infections.load();
@@ -245,6 +248,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
                 mobs.sweep();
             }
             if (ticks % (TICKS_PER_SECOND * settings.spawning().intervalSeconds()) == 0) director.tick();
+            if (ticks % (TICKS_PER_SECOND * 5) == 0) status.tick();
             if (ticks % (TICKS_PER_SECOND * settings.checkpointMs() / 1000) == 0 && clock.running()) persistClock();
         } catch (RuntimeException e) {
             getLogger().log(Level.SEVERE, "Erreur dans la boucle du scénario", e);
@@ -291,6 +295,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             }
         }
         if (bags != null) bags.hideAll();
+        if (status != null) status.writeStopped();
         if (siege != null) siege.clear();
         if (mobs != null) mobs.removeAll();
         if (threat != null) {

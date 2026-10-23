@@ -57,7 +57,7 @@ public final class MapRenderer {
                     if (chunk != null) paint(chunk, image, minX, minZ, size, sliceY);
                     done[0]++;
                     if (done[0] % Math.max(1, total / 10) == 0 && done[0] < total) report.accept("Rendu : " + done[0] * 100 / total + " %");
-                    if (done[0] == total) finish(image, report);
+                    if (done[0] == total) finish(image, report, minX, minZ, size, sliceY);
                     else Bukkit.getScheduler().runTask(plugin, pump[0]);
                 });
             }
@@ -67,7 +67,7 @@ public final class MapRenderer {
         return null;
     }
 
-    private void finish(BufferedImage image, Consumer<String> report) {
+    private void finish(BufferedImage image, Consumer<String> report, int minX, int minZ, int size, Integer sliceY) {
         File target = output();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             String message;
@@ -75,6 +75,12 @@ public final class MapRenderer {
                 File temp = new File(target.getParentFile(), "map.png.tmp");
                 ImageIO.write(image, "png", temp);
                 if (!temp.renameTo(target)) throw new IOException("renommage impossible");
+                String meta = "{\"minX\":" + minX + ",\"minZ\":" + minZ + ",\"size\":" + size + ",\"sliceY\":"
+                        + (sliceY == null ? "null" : sliceY) + ",\"renderedAt\":" + System.currentTimeMillis() + "}";
+                java.nio.file.Path metaTemp = new File(target.getParentFile(), "map.json.tmp").toPath();
+                java.nio.file.Files.writeString(metaTemp, meta);
+                java.nio.file.Files.move(metaTemp, new File(target.getParentFile(), "map.json").toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 message = "Carte écrite : " + target.getPath();
             } catch (IOException e) {
                 message = "Écriture de la carte impossible : " + e.getMessage();

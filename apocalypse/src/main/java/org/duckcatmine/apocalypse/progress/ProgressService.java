@@ -56,6 +56,7 @@ public final class ProgressService implements Listener {
     private static final class Life {
         final String run;
         int points;
+        long startedAt;
         final Map<Skill, Integer> ranks = new LinkedHashMap<>();
 
         Life(String run) {
@@ -127,12 +128,26 @@ public final class ProgressService implements Listener {
         life = new Life(run);
         if (stored != null && stored.alive()) {
             life.points = stored.points();
+            life.startedAt = stored.startedAt();
             life.ranks.putAll(decode(stored.skills(), rules().maxRank()));
         } else {
+            life.startedAt = plugin.clock().now();
             for (Skill skill : Skill.values()) life.ranks.put(skill, 0);
         }
         lives.put(player.getUniqueId(), life);
         return life;
+    }
+
+    /** Points of the current life (for the panel), or 0 outside Ground Zero. */
+    public int points(Player player) {
+        Life life = plugin.sessions().isSurvivor(player) ? life(player) : null;
+        return life == null ? 0 : life.points;
+    }
+
+    /** How long the current life has lasted, in scenario time. */
+    public long lifeMillis(Player player) {
+        Life life = plugin.sessions().isSurvivor(player) ? life(player) : null;
+        return life == null ? 0 : Math.max(0, plugin.clock().now() - life.startedAt);
     }
 
     // ------------------------------------------------------------------ points

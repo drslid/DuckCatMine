@@ -197,6 +197,86 @@ const demoCatalog = [
     downloads: 46700,
   },
 ];
+const apocalypseRules = { pvp: false, destruction: true, globalCap: 60 };
+let apocalypseThreat = 3.4;
+function demoApocalypse() {
+  return {
+    installed: true,
+    stale: false,
+    ageSeconds: 2,
+    version: 1,
+    running: true,
+    enabled: true,
+    world: 'ground_zero',
+    epoch: 2,
+    database: true,
+    time: { day: 4, night: false },
+    threat: {
+      level: apocalypseThreat,
+      phase: 'pressure',
+      phaseLabel: 'pression',
+      secondsLeft: 74,
+      hordes: 3,
+    },
+    rules: apocalypseRules,
+    infected: { walker: 9, pursuer: 4, runner: 2, howler: 1, infected_wolf: 1 },
+    archetypeLabels: {
+      walker: 'Errant',
+      pursuer: 'Poursuivant',
+      runner: 'Sprinteur',
+      howler: 'Hurleur',
+      infected_wolf: 'Loup infecté',
+    },
+    infectedTotal: 17,
+    incubatingAnimals: 1,
+    activeInfections: 1,
+    activeBags: 1,
+    damagedBlocks: 3,
+    survivors: [
+      {
+        name: 'Alex',
+        x: 120,
+        z: -64,
+        sector: 'Centre-ville',
+        inRefuge: false,
+        health: 14,
+        infectionSeconds: null,
+        team: 'Corbeaux',
+        points: 340,
+        lifeSeconds: 2710,
+      },
+      {
+        name: 'Sam',
+        x: 132,
+        z: -58,
+        sector: 'Centre-ville',
+        inRefuge: false,
+        health: 6.5,
+        infectionSeconds: 38,
+        team: 'Corbeaux',
+        points: 95,
+        lifeSeconds: 980,
+      },
+      {
+        name: 'Mia',
+        x: 2,
+        z: 4,
+        sector: 'Refuge',
+        inRefuge: true,
+        health: 20,
+        infectionSeconds: null,
+        team: null,
+        points: 0,
+        lifeSeconds: 120,
+      },
+    ],
+    teams: [{ name: 'Corbeaux', members: ['Alex', 'Sam'] }],
+    classicProfilesHeld: 0,
+    refuge: { x: 0, z: 0, radius: 12 },
+    borderSize: 3072,
+    mapRenderedAt: null,
+  };
+}
 export async function request(url: string, method = 'GET', data: any = {}) {
   const u = new URL(url, 'https://demo.invalid');
   if (u.pathname === '/api/me' || u.pathname === '/api/login')
@@ -254,6 +334,26 @@ export async function request(url: string, method = 'GET', data: any = {}) {
   if (u.pathname === '/api/plugins/cancel') {
     demoPending = demoPending.filter((p) => p.id !== data.artifact);
     return { id: 'demo-job' };
+  }
+  if (u.pathname === '/api/apocalypse')
+    return structuredClone(demoApocalypse());
+  if (u.pathname === '/api/apocalypse/action') {
+    if (data.action === 'pvp') apocalypseRules.pvp = !!data.value;
+    if (data.action === 'destruction')
+      apocalypseRules.destruction = !!data.value;
+    if (data.action === 'threat')
+      apocalypseThreat = Number(data.value) || apocalypseThreat;
+    if (data.action === 'selftest')
+      return {
+        result: [
+          'OK  objets du scénario : 27 objets authentifiés',
+          'OK  siège en situation : porte en bois enfoncée par un errant en 14 coups, roche intacte',
+          'OK  faune contaminée : vache convertie en bétail infecté',
+          'OK  largage : 40 tirages hors refuge, dont 31 en ville',
+          'Autotest réussi.',
+        ].join('\n'),
+      };
+    return { result: 'Démonstration : action simulée.' };
   }
   if (u.pathname === '/api/status')
     return structuredClone({ ...state, observedAt: new Date().toISOString() });

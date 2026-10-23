@@ -44,6 +44,7 @@ public final class NoiseService implements Listener {
         emitted++;
         if (source != null) noisyUntil.put(source.getUniqueId(), plugin.clock().now() + 3000);
         plugin.mobs().hear(at, radius);
+        if (radius >= plugin.settings().play().noise().gunshot() * 0.9) plugin.threat().loudNoise();
     }
 
     /** Whether a quiet player escapes the notice of an infected that has not engaged yet. */

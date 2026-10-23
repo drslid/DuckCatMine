@@ -27,6 +27,7 @@ import org.duckcatmine.apocalypse.core.SystemClock;
 import org.duckcatmine.apocalypse.death.BagService;
 import org.duckcatmine.apocalypse.death.DeathService;
 import org.duckcatmine.apocalypse.death.SafePositions;
+import org.duckcatmine.apocalypse.fauna.FaunaService;
 import org.duckcatmine.apocalypse.infection.InfectionService;
 import org.duckcatmine.apocalypse.items.ItemRegistry;
 import org.duckcatmine.apocalypse.items.VanillaUseGuard;
@@ -45,7 +46,9 @@ import org.duckcatmine.apocalypse.scenario.ProtectionService;
 import org.duckcatmine.apocalypse.scenario.ScenarioService;
 import org.duckcatmine.apocalypse.session.BoundaryListener;
 import org.duckcatmine.apocalypse.session.SessionService;
+import org.duckcatmine.apocalypse.siege.SiegeManager;
 import org.duckcatmine.apocalypse.spawn.DropService;
+import org.duckcatmine.apocalypse.threat.ThreatDirector;
 
 public final class DuckCatApocalypse extends JavaPlugin {
     private static final long TICK_PERIOD = 5L;
@@ -69,6 +72,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private CraftingService crafting;
     private FirearmService firearms;
     private DropService drops;
+    private SiegeManager siege;
+    private ThreatDirector threat;
+    private FaunaService fauna;
     private ProtectionService protection;
     private SafePositions safePositions;
     private SpawnDirector director;
@@ -123,10 +129,15 @@ public final class DuckCatApocalypse extends JavaPlugin {
             crafting = new CraftingService(this);
             firearms = new FirearmService(this);
             drops = new DropService(this);
+            siege = new SiegeManager(this);
+            threat = new ThreatDirector(this);
+            fauna = new FaunaService(this);
             scenario.load();
             if (scenario.isEnabled()) clock.resume();
             infections.load();
             bags.load();
+            siege.load();
+            threat.load();
         } catch (PersistenceException e) {
             getLogger().log(Level.SEVERE, "Base du scénario inaccessible", e);
             if (database != null) database.close();
@@ -151,6 +162,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(placed, this);
         events.registerEvents(crafting, this);
         events.registerEvents(firearms, this);
+        events.registerEvents(siege, this);
+        events.registerEvents(fauna, this);
+        fauna.resumeLoaded();
         ApocalypseCommand command = new ApocalypseCommand(this);
         PluginCommand registered = getCommand("apocalypse");
         if (registered != null) {
@@ -209,6 +223,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
             firearms.tick();
             if (ticks % TICKS_PER_SECOND == 0) {
                 noise.tick();
+                siege.tick();
+                threat.tick();
+                fauna.tick();
                 bags.tick();
                 protection.tick();
                 safePositions.sampleAll();
@@ -261,7 +278,15 @@ public final class DuckCatApocalypse extends JavaPlugin {
             }
         }
         if (bags != null) bags.hideAll();
+        if (siege != null) siege.clear();
         if (mobs != null) mobs.removeAll();
+        if (threat != null) {
+            try {
+                threat.persist();
+            } catch (PersistenceException e) {
+                getLogger().warning("Niveau de menace non enregistré (tolérance : 30 s de jeu).");
+            }
+        }
         if (infections != null) infections.hideAll();
         if (clock != null) {
             long now = clock.pause();
@@ -351,6 +376,18 @@ public final class DuckCatApocalypse extends JavaPlugin {
 
     public DropService drops() {
         return drops;
+    }
+
+    public SiegeManager siege() {
+        return siege;
+    }
+
+    public ThreatDirector threat() {
+        return threat;
+    }
+
+    public FaunaService fauna() {
+        return fauna;
     }
 
     public ProtectionService protection() {

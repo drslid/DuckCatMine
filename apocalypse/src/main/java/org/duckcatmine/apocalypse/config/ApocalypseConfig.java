@@ -31,10 +31,36 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
 
     /** Gameplay rules added after the core survival loop. */
     public record Play(Spawn spawn, StartKit kit, Map<String, Recipe> recipes, Map<String, Weapon> weapons, Pistol pistol,
-                       Repair repair, Noise noise, Perception perception, Traps traps) {
+                       Repair repair, Noise noise, Perception perception, Traps traps, Siege siege, Threat threat, Fauna fauna) {
         public Play {
             recipes = Map.copyOf(recipes);
             weapons = Map.copyOf(weapons);
+        }
+    }
+
+    /** Block damage by blocked infected (spec §14): resistance per material category, budgets. */
+    public record Siege(boolean enabled, int maxBlocksPerSecond, int maxAttackersPerBlock, double hitSeconds, double blockedSeconds,
+                        Map<String, Double> resistance) {
+        public Siege {
+            resistance = Map.copyOf(resistance);
+        }
+    }
+
+    /** Persistent threat and tension cycle (spec §16). Phase durations in seconds, spawn factors per phase. */
+    public record Threat(double perHour, int maxLocalBonus, double specialBoostPerLevel, double specialBoostMax,
+                         Map<String, Double> cycleSeconds, Map<String, Double> cycleFactors, int hordeMin, int hordeMax,
+                         boolean nightHorde) {
+        public Threat {
+            cycleSeconds = Map.copyOf(cycleSeconds);
+            cycleFactors = Map.copyOf(cycleFactors);
+        }
+    }
+
+    /** Contamination of animals (spec §15). */
+    public record Fauna(boolean enabled, double infectionChance, int incubationMinSeconds, int incubationMaxSeconds, int maxInfected,
+                        int maxPerTenMinutes, List<String> species) {
+        public Fauna {
+            species = List.copyOf(species);
         }
     }
 
@@ -323,7 +349,49 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.integer("perception.dark-light-level", 4, 0, 15),
                 read.decimal("perception.investigate-seconds", 20, 2, 120));
         Traps traps = new Traps(read.decimal("traps.damage", 6, 0, 40), read.integer("traps.charges", 8, 1, 100));
-        return new Play(spawn, kit, recipes, weapons, pistol, repair, noise, perception, traps);
+        Map<String, Double> resistance = read.numbers("siege.resistance", 1, 100_000);
+        for (String category : List.of("barricade", "reinforced", "glass", "soft", "wood", "stone", "metal"))
+            if (!resistance.containsKey(category)) read.errors.add("siege.resistance." + category + " : valeur obligatoire.");
+        Siege siege = new Siege(
+                read.bool("siege.enabled", true),
+                read.integer("siege.max-blocks-per-second", 8, 1, 100),
+                read.integer("siege.max-attackers-per-block", 3, 1, 20),
+                read.decimal("siege.hit-seconds", 1.0, 0.25, 10),
+                read.decimal("siege.blocked-seconds", 2.0, 0.5, 30),
+                resistance);
+        Map<String, Double> cycleSeconds = read.numbers("threat.cycle-seconds", 5, 3600);
+        Map<String, Double> cycleFactors = read.numbers("threat.cycle-factors", 0, 5);
+        for (String phase : List.of("calm", "signs", "pressure", "peak", "relief")) {
+            if (!cycleSeconds.containsKey(phase)) read.errors.add("threat.cycle-seconds." + phase + " : valeur obligatoire.");
+            if (!cycleFactors.containsKey(phase)) read.errors.add("threat.cycle-factors." + phase + " : valeur obligatoire.");
+        }
+        int hordeMin = read.integer("threat.horde-min", 3, 1, 20);
+        int hordeMax = read.integer("threat.horde-max", 8, 1, 30);
+        if (hordeMin > hordeMax) read.errors.add("threat.horde-min doit être inférieur ou égal à horde-max.");
+        Threat threat = new Threat(
+                read.decimal("threat.per-hour", 3, 0, 100),
+                read.integer("threat.max-local-bonus", 4, 0, 16),
+                read.decimal("threat.special-boost-per-level", 0.08, 0, 1),
+                read.decimal("threat.special-boost-max", 2.5, 1, 10),
+                cycleSeconds, cycleFactors, hordeMin, hordeMax,
+                read.bool("threat.night-horde", true));
+        int incubationMin = read.integer("fauna.incubation-min-seconds", 30, 5, 3600);
+        int incubationMax = read.integer("fauna.incubation-max-seconds", 60, 5, 3600);
+        if (incubationMin > incubationMax) read.errors.add("fauna.incubation-min-seconds doit être inférieur ou égal au maximum.");
+        List<String> species = new ArrayList<>();
+        List<?> rawSpecies = read.root.getList("fauna.species");
+        for (Object value : rawSpecies == null ? List.of("wolf", "cow", "sheep", "pig") : rawSpecies) {
+            if (value instanceof String name && List.of("wolf", "cow", "sheep", "pig", "goat", "chicken").contains(name)) species.add(name);
+            else read.errors.add("fauna.species : espèce non prise en charge " + value + " (wolf, cow, sheep, pig, goat, chicken).");
+        }
+        Fauna fauna = new Fauna(
+                read.bool("fauna.enabled", true),
+                read.decimal("fauna.infection-chance", 0.5, 0, 1),
+                incubationMin, incubationMax,
+                read.integer("fauna.max-infected", 12, 0, 200),
+                read.integer("fauna.max-per-ten-minutes", 6, 0, 200),
+                species);
+        return new Play(spawn, kit, recipes, weapons, pistol, repair, noise, perception, traps, siege, threat, fauna);
     }
 
     private static final class Reader {

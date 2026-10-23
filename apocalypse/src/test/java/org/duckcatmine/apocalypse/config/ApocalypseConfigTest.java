@@ -99,6 +99,37 @@ class ApocalypseConfigTest {
         assertTrue(config.archetypes().containsKey(ApocalypseConfig.INFECTED_WOLF), "archetypes added by an update are kept");
         assertEquals(bundledRecipes(), config.play().recipes().keySet());
         assertEquals(3, config.play().recipes().get("ammo").ingredients().size());
+        assertEquals(7, config.play().siege().resistance().size(), "siege resistances come from the defaults");
+        assertEquals(5, config.play().threat().cycleSeconds().size());
+        assertTrue(config.play().fauna().species().contains("wolf"));
+    }
+
+    @Test
+    void siegeThreatAndFaunaRules() throws Exception {
+        ApocalypseConfig config = ApocalypseConfig.parse(bundled());
+        var siege = config.play().siege();
+        assertTrue(siege.resistance().get("reinforced") > siege.resistance().get("barricade"), "a reinforced barricade holds longer");
+        assertTrue(siege.resistance().get("stone") > siege.resistance().get("wood"));
+        assertTrue(siege.maxBlocksPerSecond() > 0 && siege.maxAttackersPerBlock() > 0);
+        var threat = config.play().threat();
+        assertTrue(threat.cycleFactors().get("relief") < 1 && threat.cycleFactors().get("peak") > 1, "relief eases, the peak presses");
+        assertTrue(threat.hordeMin() <= threat.hordeMax());
+        var fauna = config.play().fauna();
+        assertTrue(fauna.incubationMinSeconds() >= 30 && fauna.incubationMaxSeconds() <= 60, "visible incubation of 30 to 60 s");
+        assertTrue(config.archetype(ApocalypseConfig.INFECTED_WOLF).siegePower() < config.archetype("breaker").siegePower());
+
+        YamlConfiguration broken = yaml("""
+                config-version: 2
+                threat:
+                  horde-min: 9
+                  horde-max: 2
+                fauna:
+                  species: [wolf, dragon]
+                """);
+        broken.setDefaults(bundled());
+        String errors = String.join("\n", assertThrows(ConfigException.class, () -> ApocalypseConfig.parse(broken)).errors());
+        assertTrue(errors.contains("horde-min"), errors);
+        assertTrue(errors.contains("dragon"), errors);
     }
 
     private static java.util.Set<String> bundledRecipes() throws Exception {

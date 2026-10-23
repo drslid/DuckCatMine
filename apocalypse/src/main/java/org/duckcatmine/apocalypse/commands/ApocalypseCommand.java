@@ -72,7 +72,7 @@ public final class ApocalypseCommand implements TabExecutor {
         Text.info(sender, "/apocalypse leave — quitter depuis le refuge (impossible avec une morsure)");
         Text.info(sender, "/apocalypse status | infection | bag [open] | recipes [objet]");
         if (sender.hasPermission(ADMIN))
-            Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
+            Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | threat [valeur] | destruction on|off | horde <joueur> | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
     }
 
     private void status(Player player) {
@@ -117,6 +117,18 @@ public final class ApocalypseCommand implements TabExecutor {
             }
             case "world" -> world(sender, args);
             case "give" -> give(sender, args, actor);
+            case "threat" -> threat(sender, args, actor);
+            case "horde" -> {
+                Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : null;
+                if (target == null || !plugin.sessions().isSurvivor(target) || plugin.scenario().inRefuge(target.getLocation())) {
+                    Text.error(sender, "/apocalypse admin horde <joueur> — le joueur doit être dans Ground Zero, hors du refuge.");
+                    return;
+                }
+                int size = plugin.director().horde(target, plugin.settings().play().threat().hordeMax());
+                audit(actor, "admin_horde", target.getName() + " x" + size);
+                Text.good(sender, size + " infecté(s) envoyé(s) vers " + target.getName() + " (tracé).");
+            }
+            case "destruction" -> destruction(sender, args, actor);
             case "map" -> {
                 int radius;
                 Integer slice = null;
@@ -166,8 +178,55 @@ public final class ApocalypseCommand implements TabExecutor {
                 + plugin.infections().count() + " | sacs actifs : " + plugin.bags().count()
                 + " | horloge : " + plugin.clock().now() / 1000 + " s" + (plugin.clock().running() ? "" : " (figée)"));
         int held = plugin.database().call(c -> Store.countProfiles(c, "CLASSIC"));
+        var threat = plugin.threat();
+        Text.info(sender, String.format(Locale.ROOT, "Menace : %.2f | phase : %s (%d s) | hordes : %d | siège : %s, %d bloc(s) entamé(s) | animaux en incubation : %d",
+                threat.level(), threat.phase().label(), threat.secondsLeft(), threat.hordes(),
+                plugin.siege().enabled() ? "actif" : "coupé", plugin.siege().damagedBlocks(), plugin.fauna().incubatingCount()));
         Text.info(sender, "Inventaires classiques gardés par le scénario : " + held
                 + (held == 0 ? " — désinstallation sans risque." : " — garder le plugin installé (même désactivé) jusqu'à 0."));
+    }
+
+    private void threat(CommandSender sender, String[] args, String actor) {
+        if (args.length < 3) {
+            var threat = plugin.threat();
+            Text.info(sender, String.format(Locale.ROOT, "Menace %.2f, phase %s encore %d s. /apocalypse admin threat <1-50> pour la fixer.",
+                    threat.level(), threat.phase().label(), threat.secondsLeft()));
+            return;
+        }
+        double value;
+        try {
+            value = Double.parseDouble(args[2].replace(',', '.'));
+        } catch (NumberFormatException e) {
+            value = -1;
+        }
+        if (!(value >= 1 && value <= 50)) {
+            Text.error(sender, "Valeur entre 1 et 50.");
+            return;
+        }
+        plugin.threat().setLevel(value);
+        audit(actor, "admin_threat", args[2]);
+        Text.good(sender, "Menace fixée à " + args[2] + " (tracé).");
+    }
+
+    private void destruction(CommandSender sender, String[] args, String actor) {
+        String mode = args.length < 3 ? "" : args[2].toLowerCase(Locale.ROOT);
+        if (!mode.equals("on") && !mode.equals("off")) {
+            Text.info(sender, "Destruction de blocs par les infectés : " + (plugin.siege().enabled() ? "active" : "coupée")
+                    + ". /apocalypse admin destruction on|off");
+            return;
+        }
+        plugin.siege().setEnabled(mode.equals("on"));
+        audit(actor, "admin_destruction", mode);
+        Text.good(sender, "Destruction de blocs " + (mode.equals("on") ? "activée" : "coupée (dégâts en cours effacés)") + " (tracé).");
+    }
+
+    private void audit(String actor, String action, String detail) {
+        long now = plugin.clock().now();
+        plugin.database().submit(c -> {
+            Store.audit(c, now, actor, action, detail);
+            return null;
+        });
+        plugin.getLogger().info("Administration (" + actor + ") : " + action + " " + detail);
     }
 
     private void world(CommandSender sender, String[] args) {
@@ -235,7 +294,9 @@ public final class ApocalypseCommand implements TabExecutor {
         } else if (args.length == 2 && args[0].equalsIgnoreCase("bag")) {
             options.add("open");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
-            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map"));
+            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat", "destruction", "horde"));
+            else if (args.length == 3 && args[1].equalsIgnoreCase("horde")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
+            else if (args.length == 3 && args[1].equalsIgnoreCase("destruction")) options.addAll(List.of("on", "off"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("world")) options.addAll(List.of("create", "bind", "recreate"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("give")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
             else if (args.length == 4 && args[1].equalsIgnoreCase("give")) options.addAll(plugin.items().ids());

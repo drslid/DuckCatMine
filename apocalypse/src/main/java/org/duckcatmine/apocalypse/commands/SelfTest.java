@@ -11,16 +11,19 @@ import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
+import org.bukkit.entity.Cow;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.inventory.ItemStack;
 import org.duckcatmine.apocalypse.DuckCatApocalypse;
 import org.duckcatmine.apocalypse.config.ApocalypseConfig;
+import org.duckcatmine.apocalypse.fauna.FaunaService;
 import org.duckcatmine.apocalypse.items.ItemRegistry;
 import org.duckcatmine.apocalypse.mobs.Appearance;
 import org.duckcatmine.apocalypse.persistence.Store;
 import org.duckcatmine.apocalypse.scenario.GroundZeroGenerator;
 import org.duckcatmine.apocalypse.scenario.city.CityLayout;
+import org.duckcatmine.apocalypse.siege.SiegeManager;
 
 /** Exercises the server APIs the scenario relies on, on the real Paper build, without any player. */
 final class SelfTest {
@@ -142,6 +145,96 @@ final class SelfTest {
                 }
             }
             return Appearance.values().length + " apparences appliquées sans effet de jeu";
+        });
+        check(lines, "siège et menace", () -> {
+            java.util.Map<Material, String> expected = java.util.Map.of(Material.OAK_DOOR, "wood", Material.GLASS_PANE, "glass",
+                    Material.IRON_BARS, "metal", Material.BRICKS, "stone", Material.WHITE_CONCRETE, "stone", Material.COBBLESTONE_WALL, "stone",
+                    Material.HAY_BLOCK, "soft", Material.SPRUCE_LOG, "wood");
+            for (java.util.Map.Entry<Material, String> entry : expected.entrySet()) {
+                if (!entry.getValue().equals(SiegeManager.category(entry.getKey())))
+                    throw new IllegalStateException(entry.getKey() + " classé " + SiegeManager.category(entry.getKey()));
+            }
+            for (Material natural : List.of(Material.STONE, Material.DIRT, Material.GRASS_BLOCK, Material.DEEPSLATE, Material.IRON_ORE,
+                    Material.BEDROCK, Material.OBSIDIAN, Material.SAND, Material.GRAVEL, Material.ANDESITE)) {
+                if (SiegeManager.category(natural) != null) throw new IllegalStateException("terrain naturel attaquable : " + natural);
+            }
+            var threat = plugin.threat();
+            if (threat.level() < 1) throw new IllegalStateException("menace " + threat.level());
+            return String.format(java.util.Locale.ROOT, "portes, vitres, métal, maçonnerie attaquables, terrain naturel jamais ; menace %.2f (%s), plafond local 4 -> %d",
+                    threat.level(), threat.phase().label(), threat.localCap(4));
+        });
+        check(lines, "siège en situation", () -> {
+            if (!plugin.siege().enabled()) return "ignoré : destruction coupée par un administrateur";
+            Location base = street(plugin, world).getBlock().getLocation().add(0, 200, 0);
+            List<Block> built = new ArrayList<>();
+            Zombie mob = null;
+            org.bukkit.entity.Pig target = null;
+            try {
+                for (int dz = -1; dz <= 4; dz++) {
+                    Block floor = base.clone().add(0, -1, dz).getBlock();
+                    if (!floor.getType().isAir()) throw new IllegalStateException("emplacement de test occupé");
+                    floor.setType(Material.SMOOTH_STONE, false);
+                    built.add(floor);
+                }
+                Block lower = base.clone().add(0, 0, 1).getBlock(), upper = lower.getRelative(0, 1, 0);
+                org.bukkit.block.data.type.Door door = (org.bukkit.block.data.type.Door) Material.OAK_DOOR.createBlockData();
+                door.setHalf(org.bukkit.block.data.Bisected.Half.BOTTOM);
+                lower.setBlockData(door, false);
+                door.setHalf(org.bukkit.block.data.Bisected.Half.TOP);
+                upper.setBlockData(door, false);
+                built.add(lower);
+                built.add(upper);
+                mob = plugin.mobs().spawnWalker(base.clone().add(0.5, 0, 0.5));
+                mob.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0);
+                target = world.spawn(base.clone().add(0.5, 0, 4.5), org.bukkit.entity.Pig.class, pig -> {
+                    pig.setAI(false);
+                    pig.setSilent(true);
+                });
+                mob.setTarget(target);
+                if (!target.equals(mob.getTarget())) throw new IllegalStateException("cible refusée par le serveur");
+                ApocalypseConfig.Archetype walker = plugin.settings().archetype(ApocalypseConfig.WALKER);
+                long now = plugin.clock().now() + 60_000;
+                int hits = 0;
+                String refused = null;
+                while (lower.getType() == Material.OAK_DOOR && hits < 100) {
+                    refused = plugin.siege().attempt(mob, walker, 0, now);
+                    if (refused != null) break;
+                    now += 1100;
+                    hits++;
+                }
+                if (refused != null) throw new IllegalStateException("coup refusé après " + hits + " coups : " + refused);
+                if (lower.getType() != Material.AIR || upper.getType() != Material.AIR) throw new IllegalStateException("porte encore là après " + hits + " coups");
+                int expected = (int) Math.ceil(plugin.settings().play().siege().resistance().get("wood") / walker.siegePower());
+                if (hits != expected) throw new IllegalStateException(hits + " coups au lieu de " + expected);
+                lower.setType(Material.STONE, false);
+                for (int k = 0; k < 10; k++, now += 1100) plugin.siege().consider(mob, walker, 0, now);
+                if (lower.getType() != Material.STONE) throw new IllegalStateException("roche naturelle détruite");
+                return "porte en bois enfoncée par un errant en " + hits + " coups (deux moitiés, sans objet lâché), roche intacte";
+            } finally {
+                if (mob != null) {
+                    mob.remove();
+                    plugin.mobs().forget(mob.getUniqueId());
+                }
+                if (target != null) target.remove();
+                for (Block block : built) block.setType(Material.AIR, false);
+                plugin.siege().clear();
+            }
+        });
+        check(lines, "faune contaminée", () -> {
+            Cow cow = world.spawn(street(plugin, world), Cow.class);
+            try {
+                plugin.fauna().transform(cow);
+                if (!FaunaService.LIVESTOCK.equals(plugin.mobs().archetypeOf(cow)) || !plugin.mobs().tracks(cow))
+                    throw new IllegalStateException("vache non convertie");
+                if (Math.abs(cow.getHealth() - plugin.settings().archetype(FaunaService.LIVESTOCK).health()) > 1e-6)
+                    throw new IllegalStateException("santé " + cow.getHealth());
+                if (cow.canBreed()) throw new IllegalStateException("reproduction encore possible");
+                if (!org.bukkit.Bukkit.getMobGoals().getAllGoals(cow).isEmpty()) throw new IllegalStateException("comportement vanilla resté actif");
+                return "vache convertie en bétail infecté (IA vanilla retirée, reproduction bloquée), puis retirée";
+            } finally {
+                cow.remove();
+                plugin.mobs().forget(cow.getUniqueId());
+            }
         });
         if (!(world.getGenerator() instanceof GroundZeroGenerator)) {
             lines.add("--  ville : ignorée, monde non généré par Ground Zero");

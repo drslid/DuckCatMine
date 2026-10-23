@@ -2,7 +2,18 @@
 
 Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un monde dédié, où une morsure laisse 60 secondes pour finir un antidote et où la mort fait perdre tout ce que l'on porte et toute la progression de la vie, pendant que les constructions restent dans le monde.
 
-**État : alpha, jalon J3 « survivre et fabriquer ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
+**État : alpha, jalon J4 « la ville se défend ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
+
+## Ce que contient J4
+
+| Fonction | État | Vérification |
+|---|---|---|
+| Siège : un infecté bloqué sur le chemin d'un survivant frappe l'obstacle (porte, vitre, barricade, mur construit) ; fissures visibles, sons, résistance par matériau (barricade 20, bois 40, maçonnerie 120, métal et barricade renforcée 250), puissance par archétype (errant 3, briseur 14, abomination 25) ; jamais la roche ou la terre naturelles, les conteneurs, les stations, le refuge, ni une base revendiquée dont le propriétaire est absent ; au plus 3 assaillants par bloc et 8 blocs détruits par seconde ; aucun objet lâché | Implémenté | Autotest en situation : porte enfoncée par un errant en 14 coups, roche intacte ; **non testé en jeu** |
+| Réparation d'un bloc entamé : clic droit avec des planches (bois, barricade), de la ferraille (métal) ou de la pierre/des briques (maçonnerie), une fois par seconde | Implémenté | **Non testé en jeu** |
+| Menace persistante : monte seulement quand quelqu'un joue hors du refuge (3 par heure), jamais pendant l'absence, pas remise à zéro par la mort ; augmente le plafond local et la part d'infectés spéciaux ; sprinteurs dès 1, hurleurs et briseurs à 2, abomination à 4 | Implémenté | Autotest ; **non testé en jeu** |
+| Cycle de tension : calme, indices (gémissements lointains), pression, pic avec une horde qui marche vers l'endroit où tu étais, répit ; un tir ou une explosion avance le pic ; à la tombée de la nuit, une horde de plus | Implémenté | **Non testé en jeu** |
+| Faune : vaches, moutons et cochons autour des fermes et dans les prairies, meutes de loups en forêt ; un infecté qui blesse un animal peut le contaminer (50 %), incubation visible de 30 à 60 s (particules, plaintes, lenteur), puis l'animal devient hostile et mord comme un infecté ; plus de reproduction ni d'apprivoisement ; 12 animaux infectés au plus, 6 contaminations par 10 min ; l'état survit aux redémarrages | Implémenté | Autotest (conversion d'une vache) ; génération vérifiée sur serveur réel (12 vaches, 25 moutons, 2 loups sur 169 tronçons de campagne) ; **non testé en jeu** |
+| Administration : `threat [valeur]`, `destruction on|off` (persistant), `horde <joueur>`, ligne d'état (menace, phase, hordes, siège, incubations) | Implémenté | Serveur réel |
 
 ## Ce que contient J3
 
@@ -52,7 +63,7 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 | Panneau : don, chute d'objets, horde, pluie d'objets, soin, nourriture, XP et modification d'inventaire refusés pour un joueur dans Ground Zero | Terminé | Test de fumée du panneau |
 | Configuration invalide : règles de référence appliquées et signalées ; base inaccessible : mode sûr | Implémenté | Configuration invalide testée sur serveur réel ; mode sûr non testé |
 
-Pas encore là : sièges, faune contaminée, directeur de menace et hordes (J4), équipes et PvP, compétences, introduction, pack de ressources (J5).
+Pas encore là : équipes et PvP, compétences, introduction, pack de ressources (J5).
 
 ## Règles pour les joueurs
 
@@ -61,6 +72,9 @@ Pas encore là : sièges, faune contaminée, directeur de menace et hordes (J4),
 - Fabrique sur un établi (clic droit : recettes du scénario, bouton « Établi classique » pour Minecraft), puis sur un atelier mécanique ou un poste médical que tu poses. `/apocalypse recipes` montre toutes les recettes.
 - Pistolet : clic droit pour tirer, touche d'échange de main (F) pour recharger. Chaque tir attire les infectés des environs vers l'endroit du tir.
 - Le bruit attire : courir, tirer, casser une vitre, fouiller. Accroupi, ou dans le noir sans courir, tu n'es repéré que de près. Un infecté qui te perd de vue fouille l'endroit où il t'a vu pour la dernière fois.
+- Une porte ou un mur ne protègent pas indéfiniment : un infecté bloqué qui te veut frappe l'obstacle jusqu'à le briser (les fissures montrent l'état). Consolide au clic droit avec des planches, de la ferraille ou de la pierre. Une balise protège ta base pendant ton absence, pas quand tu es dedans.
+- Plus le monde est joué, plus la menace monte : plus d'infectés autour de toi et plus de spéciaux. Des gémissements lointains annoncent une horde ; un coup de feu la fait venir plus tôt. La nuit, ils sont plus nombreux.
+- Méfie-toi des animaux qui traînent, toussent et ralentissent : ils ont été mordus et deviendront hostiles. Leur morsure t'infecte comme celle d'un infecté.
 - Les infectés mordent au hasard : **un coup sur trois environ est une morsure**. **Une morsure laisse 60 secondes pour finir un antidote** (clic droit maintenu 2 s). Commencer trop tard ne sauve pas.
 - Repère les infectés spéciaux : le sprinteur hurle avant de foncer puis s'essouffle ; le hurleur se fige pour crier (frappe-le pour l'interrompre) ; le briseur est lent mais encaisse ; l'abomination prépare une frappe au sol, écarte-toi.
 - À ta mort, ta vie est terminée : objets portés dans un **sac qui reste 5 minutes** là où tu es tombé, XP et progression perdues. Tu es largué ailleurs avec le même nom : il faut retraverser la carte pour récupérer ton sac. Tes constructions et tes coffres restent.
@@ -99,6 +113,7 @@ Les constructions et coffres de l'ancien monde disparaissent avec lui. Chaque su
 | `/apocalypse join [ground_zero]`, `leave`, `status`, `infection`, `bag [open]` | `duckcat.apocalypse.play` (tous) |
 | `/apocalypse admin status`, `enable`, `disable`, `reload`, `selftest` | `duckcat.apocalypse.admin` (OP) |
 | `/apocalypse admin map [rayon] [y]` : carte `map.png` dans le dossier du plugin (génère les tronçons manquants) | `duckcat.apocalypse.admin` |
+| `/apocalypse admin threat [1-50]` (menace), `destruction on|off` (casse de blocs par les infectés), `horde <joueur>` (tracés) | `duckcat.apocalypse.admin` |
 | `/apocalypse admin world create`, `world bind <monde> confirm` | `duckcat.apocalypse.admin` |
 | `/apocalypse admin give <joueur> <objet> [n]` (tracé ; objets : `antidote`, `bandage`, `scrap`, `cloth`, `tape`, `spring`, `gun_parts`, `casings`, `propellant`, `alcohol`, `syringe`, `serum`, `inhibitor`, `note`) | `duckcat.apocalypse.admin` |
 | Traverser la frontière avec son profil habituel, pour observer (tracé) | `duckcat.apocalypse.bypass` (OP) |
@@ -201,7 +216,9 @@ Procédure J2 :
 - La durée d'administration de l'antidote est comptée en ticks par le client et le serveur : un serveur ralenti l'allonge, l'échéance reste en temps réel.
 - Les objets tenus au curseur ou dans la grille de fabrication au moment de la mort tombent au sol comme en vanilla.
 - Les progrès et statistiques Minecraft restent communs aux deux profils.
-- Les infectés suivent encore la détection vanilla (portée de poursuite) en plus de la mémoire du poursuivant : la perception par la vue et le bruit arrive avec J4.
-- Les infectés n'ouvrent ni ne cassent les portes : une porte fermée les arrête jusqu'aux sièges de J4.
+- Les infectés repèrent encore les survivants avec la détection vanilla (portée de poursuite) ; le bruit, l'accroupissement et l'obscurité ne font que la retarder ou la limiter.
+- Les infectés n'ouvrent pas les portes : ils les enfoncent (siège), ce qui prend du temps.
+- La faune n'apparaît que dans les tronçons de campagne générés après la mise à jour J4 (le centre déjà généré est urbain et n'en avait pas).
+- Les infectés ne ciblent pas un joueur en mode créatif ou spectateur (règle du serveur) : tester en survie.
 - Les étages des immeubles et de l'hôpital se parcourent par des échelles ; les apparitions intérieures se font au rez-de-chaussée.
 - Le monde est généré à la volée : la première visite d'une zone coûte un peu plus au serveur qu'un monde plat.

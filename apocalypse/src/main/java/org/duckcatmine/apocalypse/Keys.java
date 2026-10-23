@@ -32,6 +32,8 @@ public final class Keys {
     public final NamespacedKey weaponSpeed;
     public final NamespacedKey weaponKnockback;
     public final NamespacedKey decoy;
+    /** Scenario clock deadline of an animal's contamination. */
+    public final NamespacedKey incubation;
 
     public Keys(Plugin plugin) {
         worldId = new NamespacedKey(plugin, "world_id");
@@ -55,5 +57,6 @@ public final class Keys {
         weaponSpeed = new NamespacedKey(plugin, "weapon_speed");
         weaponKnockback = new NamespacedKey(plugin, "weapon_knockback");
         decoy = new NamespacedKey(plugin, "decoy");
+        incubation = new NamespacedKey(plugin, "incubation");
     }
 }

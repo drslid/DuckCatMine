@@ -180,10 +180,11 @@ public final class MobService {
         }
     }
 
+    /** Removes the spawned infected; contaminated animals are world creatures and stay (they resume on the next start). */
     public void removeAll() {
         for (UUID id : tracked.keySet()) {
             Entity entity = Bukkit.getEntity(id);
-            if (entity != null) entity.remove();
+            if (entity instanceof Zombie) entity.remove();
         }
         tracked.clear();
     }
@@ -199,6 +200,11 @@ public final class MobService {
             ApocalypseConfig.Archetype archetype = plugin.settings().archetype(state.archetype);
             if (archetype == null) continue;
             perceive(mob, state, archetype, now);
+            if (mob.getTarget() instanceof Player) plugin.siege().consider(mob, archetype, state.lastMovedAt, now);
+            else if (mob instanceof Zombie && mob.getTarget() == null && state.investigate == null) {
+                LivingEntity prey = plugin.fauna().prey(mob);
+                if (prey != null) mob.setTarget(prey);
+            }
             plugin.placed().stepOn(mob);
             switch (state.archetype) {
                 case "runner" -> runner(mob, state, archetype, now);
@@ -218,6 +224,15 @@ public final class MobService {
 
     public boolean tracks(Entity entity) {
         return tracked.containsKey(entity.getUniqueId());
+    }
+
+    /** Sends an infected towards a place (a horde walking to where a survivor was), without tracking them afterwards. */
+    public void send(Entity entity, Location goal, long durationMs) {
+        Tracked state = tracked.get(entity.getUniqueId());
+        if (state == null) return;
+        state.investigate = goal.clone();
+        state.investigateUntil = plugin.clock().now() + durationMs;
+        state.nextPath = 0;
     }
 
     /** A noise draws idle infected towards where it happened, never to the survivor's current position. */

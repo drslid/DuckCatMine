@@ -5,11 +5,12 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.TreeType;
 import org.bukkit.block.Biome;
+import org.bukkit.entity.EntityType;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.LimitedRegion;
 import org.bukkit.generator.WorldInfo;
 
-/** Countryside trees and underground ore veins; the city keeps only its planted trees. */
+/** Countryside trees, fauna and underground ore veins; the city keeps only its planted trees. */
 public final class CityPopulator extends BlockPopulator {
     private static final Material[] ORES = {Material.COAL_ORE, Material.COAL_ORE, Material.IRON_ORE, Material.IRON_ORE,
             Material.COPPER_ORE, Material.REDSTONE_ORE, Material.GOLD_ORE};
@@ -34,7 +35,43 @@ public final class CityPopulator extends BlockPopulator {
             if (y <= Terrain.WATER_Y || !region.isInRegion(x, y + 1, z) || region.getType(x, y, z) != Material.GRASS_BLOCK) continue;
             region.generateTree(new Location(null, x, y + 1, z), random, treeType(terrain.biome(x, z), random));
         }
+        animals(random, x0, z0, region, layout, terrain);
     }
+
+    /** Livestock around farms and in meadows, wolf packs in forests: the fauna that infected can contaminate. */
+    private static void animals(Random random, int x0, int z0, LimitedRegion region, CityLayout layout, Terrain terrain) {
+        int cx = x0 + 8, cz = z0 + 8;
+        if (CityLayout.urban(cx, cz) || layout.sectorAt(cx, cz) == Sector.LAB) return;
+        boolean farm = false;
+        for (CityLayout.Placement placement : layout.placementsAt(cx, cz)) farm |= placement.kind() == CityLayout.Kind.FARM;
+        Biome biome = terrain.biome(cx, cz);
+        boolean forest = biome == Biome.FOREST || biome == Biome.BIRCH_FOREST || biome == Biome.TAIGA;
+        EntityType type;
+        int count;
+        if (farm && random.nextInt(2) == 0) {
+            type = LIVESTOCK[random.nextInt(LIVESTOCK.length)];
+            count = 2 + random.nextInt(3);
+        } else if (forest && random.nextInt(16) == 0) {
+            type = EntityType.WOLF;
+            count = 2 + random.nextInt(2);
+        } else if ((biome == Biome.PLAINS || biome == Biome.MEADOW) && random.nextInt(9) == 0) {
+            type = random.nextBoolean() ? EntityType.COW : EntityType.SHEEP;
+            count = 2 + random.nextInt(3);
+        } else {
+            return;
+        }
+        for (int k = 0; k < count; k++) {
+            int x = x0 + 2 + random.nextInt(12), z = z0 + 2 + random.nextInt(12);
+            int y = terrain.height(x, z);
+            if (y <= Terrain.WATER_Y || !region.isInRegion(x, y + 2, z) || layout.countryRoad(x, z)) continue;
+            Material ground = region.getType(x, y, z);
+            if (ground != Material.GRASS_BLOCK && ground != Material.DIRT && ground != Material.DIRT_PATH && ground != Material.FARMLAND) continue;
+            if (!region.getType(x, y + 1, z).isAir() || !region.getType(x, y + 2, z).isAir()) continue;
+            region.spawnEntity(new Location(null, x + 0.5, y + 1, z + 0.5), type);
+        }
+    }
+
+    private static final EntityType[] LIVESTOCK = {EntityType.COW, EntityType.COW, EntityType.SHEEP, EntityType.PIG};
 
     private static boolean nearRoad(CityLayout layout, int x, int z) {
         return layout.countryRoad(x, z) || layout.countryRoad(x + 3, z) || layout.countryRoad(x - 3, z)

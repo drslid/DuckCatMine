@@ -84,35 +84,23 @@ mvn -B -f apocalypse/pom.xml verify   # Java 25 ; ou l'image maven:3.9.11-eclips
 
 ### Tester sur une instance isolée de ton VPS
 
-Jamais dans le dossier de production : un clone neuf, ses propres ports en boucle locale, son propre monde.
+`scripts/apocalypse-test.sh` installe une copie de la branche dans `~/duckcatmine-apocalypse-test` (jamais le dossier de production, qu'il refuse), avec ses propres ports en boucle locale et son propre monde. Il crée et ouvre Ground Zero, puis lance l'autotest. Avec ton utilisateur habituel : le script ajoute `sudo` à Docker si nécessaire.
 
 ```sh
-git clone --branch feat/apocalypse --single-branch https://github.com/drslid/DuckCatMine.git ~/duckcatmine-apocalypse-test
-cd ~/duckcatmine-apocalypse-test
-python3 scripts/setup.py --local --apocalypse --admins TonPseudo --profile small --accept-eula --non-interactive --no-invites
-docker compose logs -f minecraft            # attendre « Done », puis Ctrl+C
-docker compose exec -T minecraft rcon-cli "apocalypse admin world create"
-docker compose exec -T minecraft rcon-cli "apocalypse admin enable"
-docker compose exec -T minecraft rcon-cli "apocalypse admin selftest"
+curl -fsSLo ~/apocalypse-test.sh https://raw.githubusercontent.com/drslid/DuckCatMine/feat/apocalypse/scripts/apocalypse-test.sh
+bash ~/apocalypse-test.sh install TonPseudo --accept-eula
 ```
 
-`--accept-eula` vaut acceptation de l'EULA Minecraft : lis-la avant. `setup.py` refuse de démarrer si les ports 18080, 18443 ou 25585 sont déjà pris (par exemple par une ancienne instance de test).
+`--accept-eula` vaut acceptation de l'EULA Minecraft : lis-la avant. Le script affiche ensuite le tunnel SSH à ouvrir depuis le PC qui a Minecraft Java 26.3, puis l'adresse `localhost:25585`. Le tunnel donne aussi le panneau de test sur `http://localhost:18080` ; pour y créer un compte : `docker compose exec -T panel node server.js invite TonPseudo` dans le dossier de test.
 
-Depuis le PC qui a Minecraft Java 26.3, garde ce tunnel ouvert pendant la partie, puis connecte-toi à `localhost:25585` :
-
-```sh
-ssh -N -L 25585:127.0.0.1:25585 -L 18080:127.0.0.1:18080 utilisateur@ton-vps
-```
-
-Le second port donne le panneau de test sur `http://localhost:18080` ; pour y créer un compte : `docker compose exec -T panel node server.js invite TonPseudo`.
-
-Mettre à jour après une correction, lire les journaux, arrêter :
+Ensuite, depuis `~/duckcatmine-apocalypse-test` :
 
 ```sh
-cd ~/duckcatmine-apocalypse-test
-git pull --ff-only && docker compose run --build --rm plugins && docker compose restart minecraft
-docker compose logs --tail=400 minecraft | grep -iE 'apocalypse|exception|error'
-docker compose down
+scripts/apocalypse-test.sh update     # récupère la dernière version de la branche, reconstruit, relance, autotest
+scripts/apocalypse-test.sh logs       # lignes utiles du journal du serveur
+scripts/apocalypse-test.sh status     # conteneurs et état du scénario
+scripts/apocalypse-test.sh cmd "apocalypse admin status"
+scripts/apocalypse-test.sh down       # arrête l'instance de test, données conservées
 ```
 
 Pour raccourcir un test, modifie `data/plugins/DuckCatApocalypse/config.yml` (par exemple `bag-lifetime-seconds: 60`) puis `/apocalypse admin reload`.

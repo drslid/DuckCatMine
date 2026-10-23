@@ -85,9 +85,78 @@ class ApocalypseConfigTest {
     }
 
     @Test
+    void anOlderFileKeepsItsValuesAndGainsNewSections() throws Exception {
+        YamlConfiguration old = yaml("""
+                config-version: 2
+                archetypes:
+                  walker:
+                    bite-chance: 0.2
+                """);
+        old.setDefaults(bundled());
+        ApocalypseConfig config = ApocalypseConfig.parse(old);
+        assertEquals(0.2, config.archetype("walker").biteChance(), 1e-9);
+        assertFalse(config.archetype("walker").guaranteed().isEmpty(), "missing keys come from the bundled defaults");
+        assertTrue(config.archetypes().containsKey(ApocalypseConfig.INFECTED_WOLF), "archetypes added by an update are kept");
+        assertEquals(bundledRecipes(), config.play().recipes().keySet());
+        assertEquals(3, config.play().recipes().get("ammo").ingredients().size());
+    }
+
+    private static java.util.Set<String> bundledRecipes() throws Exception {
+        return ApocalypseConfig.parse(bundled()).play().recipes().keySet();
+    }
+
+    @Test
     void walkerIsRequired() {
         ConfigException error = assertThrows(ConfigException.class, () -> ApocalypseConfig.parse(yaml("archetypes: {}\n")));
         assertTrue(String.join("\n", error.errors()).contains("archetypes.walker"));
+    }
+
+    @Test
+    void craftingCatalogueCoversTheMinimalRecipes() throws Exception {
+        ApocalypseConfig config = ApocalypseConfig.parse(bundled());
+        var recipes = config.play().recipes();
+        for (String id : java.util.List.of("club", "blade", "spear", "heavy_club", "workshop", "medical_station", "pistol", "ammo",
+                "bandage", "antidote", "barricade", "barricade_reinforced", "decoy", "spike_trap"))
+            assertTrue(recipes.containsKey(id), id);
+        assertEquals("workshop", recipes.get("pistol").station());
+        assertEquals("medical", recipes.get("antidote").station());
+        assertEquals(6, config.play().pistol().magazine());
+        assertEquals(2.5, config.play().pistol().reloadSeconds(), 1e-9);
+        assertTrue(config.play().weapons().get("spear").reach() > 3, "the spear reaches further");
+        for (var kit : config.play().kit().weaponKits().entrySet()) {
+            var recipe = recipes.get(kit.getKey());
+            assertEquals("workbench", recipe.station(), "a start-kit weapon is made on a plain workbench");
+            for (var ingredient : recipe.ingredients().entrySet()) {
+                int have = kit.getValue().stream().filter(stack -> stack.item().equals(ingredient.getKey())
+                        || ingredient.getKey().equals("#planks") && stack.item().endsWith("_planks")).mapToInt(ApocalypseConfig.Stack::amount).sum();
+                assertTrue(have >= ingredient.getValue(), kit.getKey() + " kit lacks " + ingredient.getKey());
+            }
+        }
+        for (var entry : config.play().kit().loot().entries())
+            assertFalse(ApocalypseConfig.RARE_ITEMS.contains(entry.item()), entry.item() + " is rare");
+        assertTrue(config.play().kit().minPreviousLifeMs() > 0, "dying on purpose does not stack start kits");
+    }
+
+    @Test
+    void rareItemsAreRefusedInTheStartKit() {
+        ConfigException error = assertThrows(ConfigException.class, () -> ApocalypseConfig.parse(yaml("""
+                archetypes:
+                  walker:
+                    guaranteed-loot:
+                      - {item: apocalypse:scrap, weight: 1}
+                start-kit:
+                  loot:
+                    - {item: apocalypse:antidote, weight: 1}
+                recipes:
+                  broken:
+                    station: garage
+                    result: {item: apocalypse:club}
+                    ingredients: {"bad id": 2}
+                """)));
+        String all = String.join("\n", error.errors());
+        assertTrue(all.contains("objet rare"), all);
+        assertTrue(all.contains("recipes.broken.station"), all);
+        assertTrue(all.contains("ingrédient invalide"), all);
     }
 
     @Test

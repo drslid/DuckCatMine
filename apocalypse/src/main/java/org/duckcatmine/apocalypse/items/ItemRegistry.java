@@ -1,9 +1,12 @@
 package org.duckcatmine.apocalypse.items;
 
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.AttackRange;
 import io.papermc.paper.datacomponent.item.Consumable;
+import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
 import io.papermc.paper.datacomponent.item.ItemLore;
 import io.papermc.paper.datacomponent.item.UseEffects;
+import io.papermc.paper.datacomponent.item.Weapon;
 import io.papermc.paper.datacomponent.item.consumable.ConsumeEffect;
 import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation;
 import java.util.ArrayList;
@@ -17,6 +20,9 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
@@ -50,8 +56,23 @@ public final class ItemRegistry {
             List.of("Mot d'enfant", "Papa a dit de pas ouvrir la porte.", "Dehors, quelqu'un court très vite", "et puis il s'arrête pour souffler."),
             List.of("Note du gardien", "Le grand costaud encaisse tout.", "Il est lent, très lent :", "frappe à plusieurs ou fais le tour."));
 
-    private record Definition(String name, NamedTextColor color, String model, int maxStack, List<String> lore) {
+    private record Definition(String name, NamedTextColor color, Material base, String model, int maxStack, List<String> lore) {
+        Definition(String name, NamedTextColor color, String model, int maxStack, List<String> lore) {
+            this(name, color, Material.PAPER, model, maxStack, lore);
+        }
     }
+
+    public static final String PISTOL = "pistol";
+    public static final String AMMO = "ammo";
+    public static final String DECOY = "decoy";
+    public static final String WORKSHOP = "workshop";
+    public static final String MEDICAL_STATION = "medical_station";
+    public static final String BARRICADE = "barricade";
+    public static final String BARRICADE_REINFORCED = "barricade_reinforced";
+    public static final String SPIKE_TRAP = "spike_trap";
+    public static final String BEACON = "beacon";
+    /** Items that become a tracked block when placed (station, defence or claim). */
+    public static final Set<String> PLACEABLE = Set.of(WORKSHOP, MEDICAL_STATION, BARRICADE, BARRICADE_REINFORCED, SPIKE_TRAP, BEACON);
 
     private final Keys keys;
     private final Map<String, Definition> definitions = new LinkedHashMap<>();
@@ -88,6 +109,36 @@ public final class ItemRegistry {
         definitions.put(BANDAGE, new Definition("Bandage", NamedTextColor.GREEN, "minecraft:paper", 16,
                 List.of("Rend 2 cœurs. Maintiens le clic droit.", "Ne soigne pas une morsure.")));
         definitions.put(NOTE, new Definition("Note", NamedTextColor.GOLD, "minecraft:writable_book", 1, List.of()));
+        definitions.put("club", new Definition("Massue improvisée", NamedTextColor.WHITE, "minecraft:wooden_shovel", 1,
+                List.of("Arme de mêlée bon marché, portée courte.")));
+        definitions.put("blade", new Definition("Lame de récupération", NamedTextColor.WHITE, "minecraft:stone_sword", 1,
+                List.of("Rapide mais fragile.")));
+        definitions.put("spear", new Definition("Lance courte", NamedTextColor.WHITE, "minecraft:stone_spear", 1,
+                List.of("Frappe de plus loin, cadence réduite.")));
+        definitions.put("heavy_club", new Definition("Massue renforcée", NamedTextColor.YELLOW, "minecraft:mace", 1,
+                List.of("Lourde : frappe fort et repousse.")));
+        definitions.put(PISTOL, new Definition("Pistolet de fortune", NamedTextColor.GOLD, "minecraft:crossbow", 1,
+                List.of("Clic droit : tirer. Touche d'échange de main (F) : recharger.", "Bruyant : chaque tir attire les infectés.")));
+        definitions.put(AMMO, new Definition("Munitions de pistolet", NamedTextColor.WHITE, "minecraft:copper_nugget", 32,
+                List.of("Pour le pistolet de fortune.")));
+        definitions.put(DECOY, new Definition("Leurre sonore", NamedTextColor.AQUA, Material.SNOWBALL, "minecraft:note_block", 8,
+                List.of("À lancer (clic droit) : sonne quelques secondes", "et attire les infectés vers lui.")));
+        definitions.put(WORKSHOP, new Definition("Atelier mécanique", NamedTextColor.AQUA, Material.SMITHING_TABLE, null, 1,
+                List.of("À poser : armes à feu, munitions, barricades renforcées,", "leurres et réparations.")));
+        definitions.put(MEDICAL_STATION, new Definition("Poste médical", NamedTextColor.AQUA, Material.BREWING_STAND, null, 1,
+                List.of("À poser : bandages et antidote NEXUS.")));
+        definitions.put(BARRICADE, new Definition("Barricade légère", NamedTextColor.WHITE, Material.DARK_OAK_FENCE, null, 16,
+                List.of("Retarde les infectés ; ils finissent par la casser.")));
+        definitions.put(BARRICADE_REINFORCED, new Definition("Barricade renforcée", NamedTextColor.YELLOW,
+                Material.WAXED_WEATHERED_COPPER_GRATE, null, 16, List.of("Résiste longtemps aux coups des infectés.")));
+        definitions.put(SPIKE_TRAP, new Definition("Piège à pointes", NamedTextColor.WHITE, Material.POINTED_DRIPSTONE, null, 8,
+                List.of("Blesse les infectés qui marchent dessus.", "Charges limitées ; jamais dans le refuge.")));
+        definitions.put(BEACON, new Definition("Balise de base", NamedTextColor.AQUA, Material.LODESTONE, null, 1,
+                List.of("Revendique ta base (rayon 12) pour toi et ton équipe.", "Pas de siège quand vous êtes tous absents.")));
+    }
+
+    public static boolean isMelee(String id) {
+        return ApocalypseConfig.WEAPONS.contains(id);
     }
 
     public void reload(ApocalypseConfig config) {
@@ -101,9 +152,9 @@ public final class ItemRegistry {
     public ItemStack create(String id, int amount) {
         Definition definition = definitions.get(id);
         if (definition == null) return null;
-        ItemStack stack = ItemStack.of(Material.PAPER);
+        ItemStack stack = ItemStack.of(definition.base());
         stack.setData(DataComponentTypes.ITEM_NAME, Component.text(definition.name(), definition.color()));
-        stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(definition.model()));
+        if (definition.model() != null) stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(definition.model()));
         stack.setData(DataComponentTypes.MAX_STACK_SIZE, definition.maxStack());
         List<Component> lore = new ArrayList<>();
         for (String line : definition.lore()) lore.add(Component.text(line, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
@@ -137,9 +188,42 @@ public final class ItemRegistry {
                     .speedMultiplier(infection.antidoteSpeedMultiplier())
                     .build());
         }
+        if (isMelee(id)) melee(stack, config.play().weapons().get(id));
+        if (PISTOL.equals(id)) {
+            stack.setData(DataComponentTypes.MAX_DAMAGE, config.play().pistol().durability());
+            stack.setData(DataComponentTypes.DAMAGE, 0);
+            stack.editPersistentDataContainer(data -> {
+                data.set(keys.magazine, PersistentDataType.INTEGER, 0);
+                data.set(keys.gunId, PersistentDataType.STRING, java.util.UUID.randomUUID().toString());
+            });
+        }
+        if (SPIKE_TRAP.equals(id))
+            stack.editPersistentDataContainer(data -> data.set(keys.charges, PersistentDataType.INTEGER, config.play().traps().charges()));
         stack.editPersistentDataContainer(data -> data.set(keys.item, PersistentDataType.STRING, id));
         stack.setAmount(Math.max(1, Math.min(amount, definition.maxStack())));
         return stack;
+    }
+
+    /** Real attack values on an inert base: vanilla applies them, wears the weapon per hit and breaks it at the end. */
+    private void melee(ItemStack stack, ApocalypseConfig.Weapon weapon) {
+        ItemAttributeModifiers.Builder attributes = ItemAttributeModifiers.itemAttributes()
+                .addModifier(Attribute.ATTACK_DAMAGE, new AttributeModifier(keys.weaponDamage, weapon.damage() - 1,
+                        AttributeModifier.Operation.ADD_NUMBER), EquipmentSlotGroup.MAINHAND)
+                .addModifier(Attribute.ATTACK_SPEED, new AttributeModifier(keys.weaponSpeed, weapon.attacksPerSecond() - 4,
+                        AttributeModifier.Operation.ADD_NUMBER), EquipmentSlotGroup.MAINHAND);
+        if (weapon.knockback() > 0) attributes.addModifier(Attribute.ATTACK_KNOCKBACK, new AttributeModifier(keys.weaponKnockback,
+                weapon.knockback(), AttributeModifier.Operation.ADD_NUMBER), EquipmentSlotGroup.MAINHAND);
+        stack.setData(DataComponentTypes.ATTRIBUTE_MODIFIERS, attributes.build());
+        stack.setData(DataComponentTypes.MAX_DAMAGE, weapon.durability());
+        stack.setData(DataComponentTypes.DAMAGE, 0);
+        stack.setData(DataComponentTypes.WEAPON, Weapon.weapon().itemDamagePerAttack(1).build());
+        if (weapon.reach() > 3.01) stack.setData(DataComponentTypes.ATTACK_RANGE, AttackRange.attackRange()
+                .minReach(0).maxReach((float) weapon.reach()).minCreativeReach(0).maxCreativeReach((float) weapon.reach() + 1)
+                .hitboxMargin(0.1f).mobFactor(1).build());
+    }
+
+    public boolean is(ItemStack stack, String id) {
+        return id.equals(idOf(stack));
     }
 
     public String idOf(ItemStack stack) {
@@ -167,6 +251,18 @@ public final class ItemRegistry {
             check(errors, "archetypes." + archetype.id() + ".bonus-loot", archetype.bonus());
         }
         for (ApocalypseConfig.Place place : config.places().values()) check(errors, "places." + place.id() + ".loot", place.loot());
+        check(errors, "start-kit.loot", config.play().kit().loot());
+        config.play().kit().weaponKits().forEach((kit, stacks) -> stacks.forEach(stack -> {
+            if (resolve(stack.item(), stack.amount()) == null) errors.add("start-kit.weapon-kits." + kit + " : objet inconnu " + stack.item() + ".");
+        }));
+        for (ApocalypseConfig.Recipe recipe : config.play().recipes().values()) {
+            if (resolve(recipe.result().item(), recipe.result().amount()) == null)
+                errors.add("recipes." + recipe.id() + ".result : objet inconnu " + recipe.result().item() + ".");
+            for (String ingredient : recipe.ingredients().keySet()) {
+                if (!ingredient.startsWith("#") && resolve(ingredient, 1) == null)
+                    errors.add("recipes." + recipe.id() + ".ingredients : objet inconnu " + ingredient + ".");
+            }
+        }
         return errors;
     }
 

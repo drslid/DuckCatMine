@@ -48,6 +48,11 @@ public final class MobService {
         boolean interrupted;
         Location lastSeen;
         long lastSeenAt;
+        Location investigate;
+        long investigateUntil;
+        long nextPath;
+        Location lastPosition;
+        long lastMovedAt;
 
         Tracked(String archetype) {
             this.archetype = archetype;
@@ -193,8 +198,9 @@ public final class MobService {
             Tracked state = entry.getValue();
             ApocalypseConfig.Archetype archetype = plugin.settings().archetype(state.archetype);
             if (archetype == null) continue;
+            perceive(mob, state, archetype, now);
+            plugin.placed().stepOn(mob);
             switch (state.archetype) {
-                case "pursuer" -> pursuer(mob, state, archetype, now);
                 case "runner" -> runner(mob, state, archetype, now);
                 case "howler" -> howler(mob, state, archetype, now);
                 case "abomination" -> abomination(mob, state, archetype, now);
@@ -202,6 +208,68 @@ public final class MobService {
                 }
             }
         }
+    }
+
+    /** Registers an existing creature (an infected animal) under an archetype, with the same rules as spawned infected. */
+    public void adopt(LivingEntity entity, String archetype) {
+        entity.getPersistentDataContainer().set(plugin.keys().archetype, PersistentDataType.STRING, archetype);
+        tracked.put(entity.getUniqueId(), new Tracked(archetype));
+    }
+
+    public boolean tracks(Entity entity) {
+        return tracked.containsKey(entity.getUniqueId());
+    }
+
+    /** A noise draws idle infected towards where it happened, never to the survivor's current position. */
+    public void hear(Location at, double radius) {
+        long until = plugin.clock().now() + (long) (plugin.settings().play().perception().investigateSeconds() * 1000);
+        double squared = radius * radius;
+        for (Map.Entry<UUID, Tracked> entry : tracked.entrySet()) {
+            if (!(Bukkit.getEntity(entry.getKey()) instanceof Mob mob) || !mob.getWorld().equals(at.getWorld())) continue;
+            if (mob.getLocation().distanceSquared(at) > squared) continue;
+            Player target = target(mob);
+            if (target != null && mob.hasLineOfSight(target)) continue;
+            Tracked state = entry.getValue();
+            state.investigate = at.clone().add(random.nextGaussian() * 1.5, 0, random.nextGaussian() * 1.5);
+            state.investigateUntil = until;
+            state.nextPath = 0;
+        }
+    }
+
+    /** Investigating a noise, then searching the last known position for a bounded time (spec §9). */
+    private void perceive(Mob mob, Tracked state, ApocalypseConfig.Archetype archetype, long now) {
+        Location here = mob.getLocation();
+        if (state.lastPosition == null || !state.lastPosition.getWorld().equals(here.getWorld()) || state.lastPosition.distanceSquared(here) > 0.36) {
+            state.lastPosition = here;
+            state.lastMovedAt = now;
+        }
+        Player target = target(mob);
+        if (target != null) {
+            if (mob.hasLineOfSight(target)) {
+                state.lastSeen = target.getLocation();
+                state.lastSeenAt = now;
+                state.investigate = null;
+            }
+            return;
+        }
+        Location goal = null;
+        if (state.investigate != null && now < state.investigateUntil && state.investigate.getWorld().equals(mob.getWorld())) {
+            if (here.distanceSquared(state.investigate) < 4) state.investigate = null;
+            else goal = state.investigate;
+        } else if (state.lastSeen != null && state.lastSeen.getWorld().equals(mob.getWorld())
+                && now - state.lastSeenAt < archetype.memorySeconds() * 1000) {
+            if (here.distanceSquared(state.lastSeen) < 4) state.lastSeen = null;
+            else goal = state.lastSeen;
+        }
+        if (goal == null || now < state.nextPath) return;
+        state.nextPath = now + 1000;
+        mob.getPathfinder().moveTo(goal, "pursuer".equals(state.archetype) ? 1.15 : 1.0);
+    }
+
+    /** Last time this infected actually moved (siege uses it to tell a blocked infected from an idle one). */
+    public long lastMovedAt(Entity entity) {
+        Tracked state = tracked.get(entity.getUniqueId());
+        return state == null ? 0 : state.lastMovedAt;
     }
 
     /** A hit interrupts a howler's scream while it is being prepared. */
@@ -213,24 +281,6 @@ public final class MobService {
     private Player target(Mob mob) {
         return mob.getTarget() instanceof Player player && player.isValid() && !player.isDead()
                 && player.getWorld().equals(mob.getWorld()) ? player : null;
-    }
-
-    /** Keeps searching the last place where it saw its prey, for a bounded time. */
-    private void pursuer(Mob mob, Tracked state, ApocalypseConfig.Archetype archetype, long now) {
-        Player target = target(mob);
-        if (target != null) {
-            if (mob.hasLineOfSight(target)) {
-                state.lastSeen = target.getLocation();
-                state.lastSeenAt = now;
-            }
-            return;
-        }
-        if (state.lastSeen == null || !state.lastSeen.getWorld().equals(mob.getWorld())) return;
-        if (now - state.lastSeenAt > archetype.ability("memory-seconds", 12) * 1000 || mob.getLocation().distanceSquared(state.lastSeen) < 4) {
-            state.lastSeen = null;
-            return;
-        }
-        mob.getPathfinder().moveTo(state.lastSeen, 1.15);
     }
 
     /** Announced burst of speed, then an exhausted recovery: the window to break line of sight or strike. */
@@ -309,13 +359,7 @@ public final class MobService {
         Location origin = howler.getLocation();
         howler.getWorld().playSound(origin, Sound.ENTITY_GHAST_SCREAM, 4f, 0.5f);
         howler.getWorld().spawnParticle(Particle.SONIC_BOOM, howler.getEyeLocation(), 1);
-        double squared = radius * radius;
-        for (Map.Entry<UUID, Tracked> entry : tracked.entrySet()) {
-            if ("howler".equals(entry.getValue().archetype)) continue;
-            if (!(Bukkit.getEntity(entry.getKey()) instanceof Mob other) || !other.getWorld().equals(howler.getWorld())) continue;
-            if (other.getTarget() != null || other.getLocation().distanceSquared(origin) > squared) continue;
-            other.getPathfinder().moveTo(origin, 1.1);
-        }
+        plugin.noise().emit(origin, radius, null);
         if (reinforcements > 0 && howler.getTarget() instanceof Player player) plugin.director().reinforce(player, reinforcements);
     }
 

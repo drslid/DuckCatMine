@@ -98,6 +98,9 @@ archetypes:
     speed-variation: 0.015
     follow-range: 24
     bite-chance: 0.30
+    memory-seconds: 6
+    siege-power: 3
+    points: 10
     appearances: [citizen, citizen_tall, citizen_short, child, elder, nurse, worker, security, villager, farmer, drifter]
     guaranteed-loot:
       - {item: apocalypse:scrap, weight: 50}
@@ -117,10 +120,11 @@ archetypes:
     speed-variation: 0.01
     follow-range: 32
     bite-chance: 0.33
+    # Fouille la dernière position connue de sa proie plus longtemps que les autres.
+    memory-seconds: 15
+    siege-power: 3
+    points: 18
     appearances: [citizen, citizen_tall, security, paramedic, worker, villager, drifter]
-    abilities:
-      # Durée pendant laquelle il fouille la dernière position connue après avoir perdu sa cible.
-      memory-seconds: 12
     guaranteed-loot:
       - {item: apocalypse:cloth, weight: 50}
       - {item: apocalypse:scrap, weight: 35}
@@ -139,6 +143,10 @@ archetypes:
     speed-variation: 0.01
     follow-range: 32
     bite-chance: 0.36
+    memory-seconds: 8
+    siege-power: 2
+    points: 25
+    min-threat: 1
     appearances: [runner, citizen_short, child]
     abilities:
       # Rafale annoncée par un cri bref, puis récupération essoufflée.
@@ -164,6 +172,10 @@ archetypes:
     speed: 0.19
     follow-range: 32
     bite-chance: 0.25
+    memory-seconds: 6
+    siege-power: 1
+    points: 65
+    min-threat: 2
     appearances: [howler]
     abilities:
       # Cri préparé (interrompu par un coup) qui attire les infectés proches vers le hurleur.
@@ -190,6 +202,11 @@ archetypes:
     bite-chance: 0.30
     armor: 6
     knockback-resistance: 0.8
+    memory-seconds: 10
+    # Fort contre les barricades : chaque coup use bien plus un bloc.
+    siege-power: 14
+    points: 120
+    min-threat: 2
     appearances: [heavy_worker, heavy_security]
     guaranteed-loot:
       - {item: apocalypse:scrap, weight: 60, amount: 2}
@@ -210,6 +227,10 @@ archetypes:
     knockback-resistance: 1.0
     scale: 1.6
     max-alive: 1
+    memory-seconds: 12
+    siege-power: 25
+    points: 600
+    min-threat: 4
     appearances: [abomination]
     abilities:
       # Frappe au sol annoncée : élan visible, dégâts de zone (pas une morsure), longue récupération.
@@ -225,6 +246,40 @@ archetypes:
       - {item: apocalypse:antidote, weight: 50}
       - {item: apocalypse:gun_parts, weight: 30, amount: 2}
       - {item: apocalypse:syringe, weight: 20, amount: 2}
+  # Animaux contaminés par une morsure (jamais apparus directement) : mêmes règles de morsure et de butin.
+  infected_wolf:
+    name: Loup infecté
+    health: 16
+    damage: 4.0
+    speed: 0.36
+    follow-range: 24
+    bite-chance: 0.4
+    memory-seconds: 10
+    siege-power: 1
+    points: 35
+    guaranteed-loot:
+      - {item: minecraft:leather, weight: 50}
+      - {item: minecraft:bone, weight: 50, amount: 2}
+    bonus-loot:
+      - {item: apocalypse:cloth, weight: 60}
+      - {item: apocalypse:syringe, weight: 30}
+      - {item: apocalypse:inhibitor, weight: 10}
+  infected_livestock:
+    name: Bête infectée
+    health: 18
+    damage: 3.5
+    speed: 0.27
+    follow-range: 16
+    bite-chance: 0.3
+    memory-seconds: 6
+    siege-power: 4
+    points: 30
+    guaranteed-loot:
+      - {item: minecraft:leather, weight: 50}
+      - {item: minecraft:rotten_flesh, weight: 50, amount: 2}
+    bonus-loot:
+      - {item: apocalypse:cloth, weight: 70}
+      - {item: apocalypse:alcohol, weight: 30}
 
 # Fouille : tables par type de lieu (rolls = nombre de piles tirées au remplissage).
 places:
@@ -444,3 +499,174 @@ places:
 
 clock:
   checkpoint-seconds: 5
+
+# Largage : chaque nouvelle vie (première entrée ou après une mort) commence n'importe où sur la carte, jamais dans
+# le refuge ni près du complexe NEXUS. city-chance = part des largages en ville (le reste : campagne).
+spawn:
+  city-chance: 0.65
+  refuge-margin: 24
+  border-margin: 48
+
+# Provisions de départ tirées au hasard : uniquement des objets courants (les objets rares sont refusés ici).
+# Avec un peu de chance, de quoi fabriquer une première arme. Rien si la vie précédente a duré moins de
+# min-previous-life-minutes (mourir exprès ne sert pas à cumuler des provisions).
+start-kit:
+  rolls-min: 2
+  rolls-max: 4
+  loot:
+    - {item: minecraft:bread, weight: 20, amount: 2}
+    - {item: minecraft:apple, weight: 14, amount: 2}
+    - {item: minecraft:carrot, weight: 10, amount: 3}
+    - {item: minecraft:cookie, weight: 8, amount: 3}
+    - {item: minecraft:dried_kelp, weight: 8, amount: 4}
+    - {item: minecraft:torch, weight: 14, amount: 3}
+    - {item: apocalypse:cloth, weight: 10}
+    - {item: apocalypse:bandage, weight: 5}
+    - {item: minecraft:stick, weight: 8, amount: 2}
+    - {item: minecraft:string, weight: 5, amount: 2}
+    - {item: apocalypse:note, weight: 4}
+  weapon-chance: 0.4
+  weapon-kits:
+    club:
+      - {item: minecraft:oak_planks, amount: 2}
+      - {item: apocalypse:cloth, amount: 1}
+    blade:
+      - {item: apocalypse:scrap, amount: 2}
+      - {item: apocalypse:tape, amount: 1}
+    spear:
+      - {item: minecraft:stick, amount: 2}
+      - {item: apocalypse:scrap, amount: 1}
+      - {item: apocalypse:cloth, amount: 1}
+  min-previous-life-minutes: 10
+
+# Fabrication : clic droit sur un établi (workbench), un atelier mécanique (workshop) ou un poste médical (medical).
+# Ingrédients : apocalypse:<objet>, minecraft:<objet> ou #planks, #logs, #wool (toutes les essences).
+# noise : bruit fait en fabriquant (none, low, medium, high), qui peut attirer les infectés.
+recipes:
+  club:
+    station: workbench
+    result: {item: apocalypse:club}
+    ingredients: {"#planks": 2, "apocalypse:cloth": 1}
+    usage: Première arme bon marché, portée courte.
+  blade:
+    station: workbench
+    result: {item: apocalypse:blade}
+    ingredients: {"apocalypse:scrap": 2, "apocalypse:tape": 1}
+    usage: Arme rapide mais fragile.
+  spear:
+    station: workbench
+    result: {item: apocalypse:spear}
+    ingredients: {"minecraft:stick": 2, "apocalypse:scrap": 1, "apocalypse:cloth": 1}
+    usage: Frappe de plus loin, cadence réduite.
+  heavy_club:
+    station: workbench
+    result: {item: apocalypse:heavy_club}
+    ingredients: {"apocalypse:club": 1, "apocalypse:scrap": 3, "apocalypse:tape": 1}
+    noise: low
+    usage: Plus solide, frappe fort et repousse.
+  workshop:
+    station: workbench
+    result: {item: apocalypse:workshop}
+    ingredients: {"minecraft:crafting_table": 1, "apocalypse:scrap": 4, "#planks": 2}
+    noise: low
+    usage: Fabrication et réparation avancées (pistolet, munitions, barricades).
+  medical_station:
+    station: workbench
+    result: {item: apocalypse:medical_station}
+    ingredients: {"minecraft:crafting_table": 1, "apocalypse:scrap": 2, "apocalypse:cloth": 2}
+    usage: Préparation des bandages et de l'antidote.
+  pistol:
+    station: workshop
+    result: {item: apocalypse:pistol}
+    ingredients: {"apocalypse:gun_parts": 2, "apocalypse:scrap": 4, "apocalypse:spring": 1, "apocalypse:tape": 2}
+    noise: medium
+    usage: Arme de secours bruyante, chargeur de 6.
+  ammo:
+    station: workshop
+    result: {item: apocalypse:ammo, amount: 8}
+    ingredients: {"apocalypse:casings": 8, "apocalypse:propellant": 2, "apocalypse:scrap": 2}
+    noise: medium
+    usage: Petit lot coûteux de munitions de pistolet.
+  bandage:
+    station: medical
+    result: {item: apocalypse:bandage, amount: 2}
+    ingredients: {"apocalypse:cloth": 2, "apocalypse:alcohol": 1}
+    usage: Soin modeste ; ne soigne pas une morsure.
+  antidote:
+    station: medical
+    result: {item: apocalypse:antidote}
+    ingredients: {"apocalypse:serum": 1, "apocalypse:inhibitor": 1, "apocalypse:syringe": 1}
+    usage: Arrête le compte à rebours s'il est terminé à temps.
+  barricade:
+    station: workbench
+    result: {item: apocalypse:barricade, amount: 2}
+    ingredients: {"#planks": 4, "minecraft:stick": 2}
+    noise: low
+    usage: Retarde un groupe d'infectés.
+  barricade_reinforced:
+    station: workshop
+    result: {item: apocalypse:barricade_reinforced}
+    ingredients: {"apocalypse:barricade": 1, "apocalypse:scrap": 4, "apocalypse:tape": 1}
+    noise: medium
+    usage: Résiste bien plus longtemps aux coups.
+  decoy:
+    station: workshop
+    result: {item: apocalypse:decoy}
+    ingredients: {"minecraft:redstone": 1, "apocalypse:scrap": 2, "apocalypse:spring": 1}
+    usage: "À lancer : sonne quelques secondes et attire les infectés."
+  spike_trap:
+    station: workbench
+    result: {item: apocalypse:spike_trap}
+    ingredients: {"#planks": 2, "apocalypse:scrap": 3, "apocalypse:cloth": 1}
+    usage: Blesse les infectés qui marchent dessus, charges limitées.
+  beacon:
+    station: workbench
+    result: {item: apocalypse:beacon}
+    ingredients: {"apocalypse:scrap": 2, "apocalypse:tape": 1, "minecraft:torch": 1}
+    usage: Revendique ta base (rayon 12) ; elle n'est pas assiégée en ton absence.
+
+# Armes de mêlée : dégâts par coup (cœurs = dégâts / 2), cadence, usure (coups), portée (lance), recul.
+weapons:
+  club: {damage: 5.0, attacks-per-second: 1.2, durability: 60}
+  blade: {damage: 4.5, attacks-per-second: 2.0, durability: 40}
+  spear: {damage: 5.5, attacks-per-second: 1.0, durability: 70, reach: 4.0}
+  heavy_club: {damage: 7.5, attacks-per-second: 0.9, durability: 150, knockback: 0.6}
+
+# Pistolet de fortune : clic droit pour tirer, touche d'échange de main (F) pour recharger.
+pistol:
+  damage: 8.0
+  range: 40
+  magazine: 6
+  reload-seconds: 2.5
+  fire-delay-seconds: 0.45
+  durability: 120
+
+# Réparation à l'atelier mécanique de l'arme tenue en main.
+repair:
+  restore-percent: 50
+  melee: {"apocalypse:scrap": 1, "apocalypse:tape": 1}
+  pistol: {"apocalypse:scrap": 2, "apocalypse:spring": 1}
+
+# Bruit (portée en blocs) : attire les infectés vers l'endroit du bruit, pas vers ta position actuelle.
+noise:
+  gunshot: 48
+  explosion: 64
+  sprint: 10
+  glass: 16
+  melee: 6
+  container: 5
+  decoy: 32
+  decoy-seconds: 10
+  siege: 12
+  crafting: 10
+
+# Perception : accroupi, un infecté ne te repère qu'à courte portée ; dans le noir aussi, sauf si tu cours.
+perception:
+  sneak-detection: 8
+  dark-detection: 12
+  dark-light-level: 4
+  investigate-seconds: 20
+
+traps:
+  damage: 6
+  charges: 8

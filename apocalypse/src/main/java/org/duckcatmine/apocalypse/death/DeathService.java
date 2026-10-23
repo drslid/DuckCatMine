@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -52,6 +53,8 @@ public final class DeathService implements Listener {
     private final DuckCatApocalypse plugin;
     private final Set<UUID> infectionKills = new HashSet<>();
     private final Map<UUID, Long> awaitingRespawn = new HashMap<>();
+    private final Map<UUID, CompletableFuture<Location>> drops = new HashMap<>();
+    private final Set<UUID> dropped = new HashSet<>();
 
     public DeathService(DuckCatApocalypse plugin) {
         this.plugin = plugin;
@@ -107,6 +110,7 @@ public final class DeathService implements Listener {
         event.setNewTotalExp(0);
         if (outcome.bag() != null) plugin.bags().register(outcome.bag(), items);
         awaitingRespawn.put(id, outcome.seq());
+        drops.put(id, plugin.drops().pick(player.getWorld()));
         plugin.infections().end(id);
         plugin.protection().clear(id);
         plugin.safePositions().forget(id);
@@ -138,7 +142,15 @@ public final class DeathService implements Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         if (plugin.sessions().profile(player) == SessionService.Profile.APOCALYPSE) {
-            if (plugin.scenario().isEnabled()) event.setRespawnLocation(plugin.scenario().refugeSpawn());
+            if (!plugin.scenario().isEnabled()) return;
+            CompletableFuture<Location> drop = drops.remove(player.getUniqueId());
+            Location at = drop != null && drop.isDone() && !drop.isCompletedExceptionally() ? drop.join() : null;
+            if (at != null && plugin.scenario().isScenarioWorld(at.getWorld())) {
+                event.setRespawnLocation(at);
+                dropped.add(player.getUniqueId());
+            } else {
+                event.setRespawnLocation(plugin.scenario().refugeSpawn());
+            }
         } else if (plugin.scenario().isScenarioWorld(event.getRespawnLocation().getWorld())) {
             event.setRespawnLocation(plugin.scenario().fallbackExit());
         }
@@ -173,6 +185,7 @@ public final class DeathService implements Listener {
         String name = player.getName();
         String scenarioId = plugin.settings().scenario().id();
         String run = UUID.nameUUIDFromBytes((id + ":" + seq).getBytes(StandardCharsets.UTF_8)).toString();
+        String previousRun = plugin.sessions().runOf(player);
         try {
             plugin.database().call(c -> {
                 Store.ensurePlayer(c, id, name, applied);
@@ -185,15 +198,19 @@ public final class DeathService implements Listener {
             return;
         }
         ProfileCodec.resetForNewLife(player);
-        if (plugin.scenario().isEnabled() && !plugin.scenario().inRefuge(player.getLocation()))
-            plugin.sessions().teleport(player, plugin.scenario().refugeSpawn());
+        if (plugin.scenario().isEnabled() && !dropped.remove(id)) {
+            plugin.drops().pick(plugin.scenario().world()).thenAccept(at -> {
+                if (player.isOnline() && !player.isDead() && plugin.sessions().isSurvivor(player)) plugin.sessions().teleport(player, at);
+            });
+        }
         plugin.sessions().markApplied(player, SessionService.Profile.APOCALYPSE, run, seq);
         plugin.database().submit(c -> {
             Store.setOpState(c, id, seq, OpState.DONE);
             return null;
         });
         plugin.protection().start(player);
-        Text.warn(player, "Ta vie précédente est terminée. Même nom, même visage, nouvelle vie : tout ce que tu portais est dans ton sac.");
+        Text.warn(player, "Ta vie précédente est terminée. Même nom, même visage, nouvelle vie larguée ailleurs : tout ce que tu portais est dans ton sac.");
+        if (!run.equals(previousRun)) plugin.drops().giveKit(player, previousRun);
         plugin.bags().remind(player);
     }
 

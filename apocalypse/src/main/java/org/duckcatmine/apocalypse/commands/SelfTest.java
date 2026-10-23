@@ -51,6 +51,25 @@ final class SelfTest {
             if (!items[2].equals(ItemStack.deserializeBytes(items[2].serializeAsBytes()))) throw new IllegalStateException("objet seul modifié");
             return items.length + " emplacements relus à l'identique, vide compris";
         });
+        check(lines, "armes et fabrication", () -> {
+            for (String id : ApocalypseConfig.WEAPONS) {
+                ItemStack weapon = plugin.items().create(id, 1);
+                if (!weapon.hasData(DataComponentTypes.ATTRIBUTE_MODIFIERS) || !weapon.hasData(DataComponentTypes.WEAPON)
+                        || !weapon.hasData(DataComponentTypes.MAX_DAMAGE)) throw new IllegalStateException(id + " : composants d'arme absents");
+            }
+            if (!plugin.items().create("spear", 1).hasData(DataComponentTypes.ATTACK_RANGE)) throw new IllegalStateException("portée de la lance absente");
+            ItemStack pistol = plugin.items().create(ItemRegistry.PISTOL, 1);
+            if (pistol.getPersistentDataContainer().get(plugin.keys().gunId, org.bukkit.persistence.PersistentDataType.STRING) == null)
+                throw new IllegalStateException("pistolet sans identité");
+            int recipes = 0;
+            for (ApocalypseConfig.Recipe recipe : plugin.settings().play().recipes().values()) {
+                if (plugin.items().resolve(recipe.result().item(), recipe.result().amount()) == null)
+                    throw new IllegalStateException("recette " + recipe.id() + " sans résultat");
+                recipes++;
+            }
+            return ApocalypseConfig.WEAPONS.size() + " armes de mêlée (dégâts, cadence, usure), lance à portée longue, pistolet, "
+                    + recipes + " recettes";
+        });
         check(lines, "base de données", () -> {
             plugin.database().call(c -> {
                 Store.putMeta(c, "selftest", Long.toString(System.currentTimeMillis()));
@@ -129,6 +148,19 @@ final class SelfTest {
             return lines;
         }
         CityLayout layout = CityLayout.of(world.getSeed());
+        check(lines, "largage", () -> {
+            int city = 0;
+            for (int k = 0; k < 40; k++) {
+                int[] column = plugin.drops().candidate(world);
+                if (column == null) continue;
+                if (plugin.scenario().refugeArea().near(column[0], column[1], 4)) throw new IllegalStateException("largage dans le refuge");
+                if (!layout.openGround(column[0], column[1])) throw new IllegalStateException("largage dans un bâtiment");
+                if (layout.sectorAt(column[0], column[1]) == org.duckcatmine.apocalypse.scenario.city.Sector.LAB)
+                    throw new IllegalStateException("largage au laboratoire");
+                if (Math.max(Math.abs(column[0]), Math.abs(column[1])) <= CityLayout.CITY_EDGE) city++;
+            }
+            return "40 tirages hors refuge, bâtiments, eau et laboratoire, dont " + city + " en ville";
+        });
         List<CityLayout.ContainerSpot> spots = new ArrayList<>();
         check(lines, "ville et conteneurs", () -> {
             int[][] cells = {{0, 1}, {1, 0}, {-1, -1}, {1, 1}, {3, -3}, {-3, 2}, {2, 1}, {-2, -3}};

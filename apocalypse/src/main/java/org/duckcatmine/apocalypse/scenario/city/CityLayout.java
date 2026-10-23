@@ -149,6 +149,22 @@ public final class CityLayout {
         return spots;
     }
 
+    /** Outside every building footprint (streets, yards, parks, squares, fields, ruins): somewhere to stand outdoors. */
+    public boolean openGround(int x, int z) {
+        for (Placement placement : placementsAt(x, z)) {
+            boolean inside = x >= placement.minX() && x <= placement.maxX() && z >= placement.minZ() && z <= placement.maxZ();
+            if (!inside) continue;
+            switch (placement.kind()) {
+                case YARD, PARK, PLAZA, RUIN, FARM, GAS_STATION, CHECKPOINT -> {
+                }
+                default -> {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     /** Walkable ground of a column ignoring roofs: the site floor inside a placement, street level in the city, else {@code terrainTop}. */
     public int floorAt(int x, int z, int terrainTop) {
         for (Placement placement : placementsAt(x, z)) {

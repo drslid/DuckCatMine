@@ -121,18 +121,17 @@ public final class SessionService {
         }
         UUID id = player.getUniqueId();
         if (!pendingJoins.add(id)) return;
-        var refuge = plugin.settings().refuge();
         Text.info(player, "Préparation de Ground Zero…");
-        scenario.world().getChunkAtAsync(refuge.centerX() >> 4, refuge.centerZ() >> 4).whenComplete((chunk, error) -> {
+        plugin.drops().pick(scenario.world()).whenComplete((drop, error) -> {
             if (!plugin.isEnabled()) return;
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 pendingJoins.remove(id);
-                if (player.isOnline()) enter(player);
+                if (player.isOnline()) enter(player, drop);
             });
         });
     }
 
-    private void enter(Player player) {
+    private void enter(Player player, Location drop) {
         ScenarioService scenario = plugin.scenario();
         if (!scenario.isEnabled() || scenario.world() == null || scenario.isScenarioWorld(player.getWorld())
                 || profile(player) != Profile.CLASSIC || player.isDead()) return;
@@ -173,7 +172,8 @@ public final class SessionService {
         }
         ProfileSnapshot survivor = entry.survivor() == null ? null : ProfileSnapshot.decode(entry.survivor());
         Location target = survivor == null ? null : ProfileCodec.location(survivor);
-        if (target == null || !scenario.isScenarioWorld(target.getWorld()) || epoch(player) != scenario.epoch()) target = scenario.refugeSpawn();
+        if (survivor == null && drop != null && scenario.isScenarioWorld(drop.getWorld())) target = drop;
+        else if (target == null || !scenario.isScenarioWorld(target.getWorld()) || epoch(player) != scenario.epoch()) target = scenario.refugeSpawn();
         if (!teleport(player, target)) {
             rollbackSwap(id, entry.seq(), CLASSIC_KIND);
             Text.error(player, "Téléportation refusée : rien n'a changé.");
@@ -191,9 +191,10 @@ public final class SessionService {
             return null;
         });
         if (survivor == null) {
-            Text.warn(player, "Une nouvelle vie commence au refuge public. Tu n'as rien : fouille, fabrique, survis.");
+            Text.warn(player, "Largage : une nouvelle vie commence quelque part dans Ground Zero. Tu n'as presque rien : fouille, fabrique, survis.");
             Text.info(player, "Une morsure laisse 60 secondes pour finir un antidote. À ta mort, tout ce que tu portes"
-                    + " reste 5 minutes dans ton sac, là où tu es tombé. Tes constructions restent dans le monde.");
+                    + " reste 5 minutes dans ton sac, là où tu es tombé. Le refuge muré au centre-ville est sûr ; on en sort par là.");
+            plugin.drops().giveKit(player, null);
             plugin.protection().start(player);
         } else {
             Text.good(player, "Retour dans Ground Zero : ta survie reprend où tu l'avais laissée.");

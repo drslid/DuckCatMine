@@ -60,6 +60,8 @@ public final class ApocalypseCommand implements TabExecutor {
                 if (args.length > 1 && args[1].equalsIgnoreCase("open")) plugin.bags().openNearest(player);
                 else bags(player);
             }
+            case "recipes", "recettes" -> plugin.crafting().open(player, org.duckcatmine.apocalypse.crafting.CraftingService.Station.CATALOG,
+                    args.length > 1 ? args[1] : null);
             default -> help(player);
         }
         return true;
@@ -68,7 +70,7 @@ public final class ApocalypseCommand implements TabExecutor {
     private void help(CommandSender sender) {
         Text.info(sender, "/apocalypse join ground_zero — entrer (ton inventaire habituel est mis de côté)");
         Text.info(sender, "/apocalypse leave — quitter depuis le refuge (impossible avec une morsure)");
-        Text.info(sender, "/apocalypse status | infection | bag [open]");
+        Text.info(sender, "/apocalypse status | infection | bag [open] | recipes [objet]");
         if (sender.hasPermission(ADMIN))
             Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
     }
@@ -226,7 +228,7 @@ public final class ApocalypseCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
-            options.addAll(List.of("join", "leave", "status", "infection", "bag", "help"));
+            options.addAll(List.of("join", "leave", "status", "infection", "bag", "recipes", "help"));
             if (sender.hasPermission(ADMIN)) options.add("admin");
         } else if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             options.add(plugin.settings().scenario().id());

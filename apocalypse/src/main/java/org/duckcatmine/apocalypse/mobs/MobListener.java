@@ -55,6 +55,11 @@ public final class MobListener implements Listener {
         if (!plugin.sessions().isSurvivor(player) || plugin.scenario().inRefuge(player.getLocation())
                 || plugin.protection().isProtected(player)) {
             event.setCancelled(true);
+            return;
+        }
+        if (event.getReason() == org.bukkit.event.entity.EntityTargetEvent.TargetReason.CLOSEST_PLAYER
+                && event.getEntity() instanceof org.bukkit.entity.Mob mob && plugin.noise().concealed(player, mob)) {
+            event.setCancelled(true);
         }
     }
 

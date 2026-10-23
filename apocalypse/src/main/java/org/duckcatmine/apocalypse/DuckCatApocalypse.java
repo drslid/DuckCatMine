@@ -18,6 +18,9 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.duckcatmine.apocalypse.commands.ApocalypseCommand;
+import org.duckcatmine.apocalypse.combat.FirearmService;
+import org.duckcatmine.apocalypse.crafting.CraftingService;
+import org.duckcatmine.apocalypse.crafting.PlacedBlocks;
 import org.duckcatmine.apocalypse.config.ApocalypseConfig;
 import org.duckcatmine.apocalypse.config.ConfigException;
 import org.duckcatmine.apocalypse.core.SystemClock;
@@ -32,6 +35,7 @@ import org.duckcatmine.apocalypse.loot.SearchService;
 import org.duckcatmine.apocalypse.mobs.MobListener;
 import org.duckcatmine.apocalypse.mobs.MobService;
 import org.duckcatmine.apocalypse.mobs.SpawnDirector;
+import org.duckcatmine.apocalypse.perception.NoiseService;
 import org.duckcatmine.apocalypse.persistence.BackupListener;
 import org.duckcatmine.apocalypse.persistence.Database;
 import org.duckcatmine.apocalypse.persistence.PersistenceException;
@@ -41,6 +45,7 @@ import org.duckcatmine.apocalypse.scenario.ProtectionService;
 import org.duckcatmine.apocalypse.scenario.ScenarioService;
 import org.duckcatmine.apocalypse.session.BoundaryListener;
 import org.duckcatmine.apocalypse.session.SessionService;
+import org.duckcatmine.apocalypse.spawn.DropService;
 
 public final class DuckCatApocalypse extends JavaPlugin {
     private static final long TICK_PERIOD = 5L;
@@ -59,6 +64,11 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private MobService mobs;
     private LootService loot;
     private SearchService search;
+    private NoiseService noise;
+    private PlacedBlocks placed;
+    private CraftingService crafting;
+    private FirearmService firearms;
+    private DropService drops;
     private ProtectionService protection;
     private SafePositions safePositions;
     private SpawnDirector director;
@@ -108,6 +118,11 @@ public final class DuckCatApocalypse extends JavaPlugin {
             bags = new BagService(this);
             deaths = new DeathService(this);
             director = new SpawnDirector(this);
+            noise = new NoiseService(this);
+            placed = new PlacedBlocks(this);
+            crafting = new CraftingService(this);
+            firearms = new FirearmService(this);
+            drops = new DropService(this);
             scenario.load();
             if (scenario.isEnabled()) clock.resume();
             infections.load();
@@ -132,6 +147,10 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(loot, this);
         search = new SearchService(this);
         events.registerEvents(search, this);
+        events.registerEvents(noise, this);
+        events.registerEvents(placed, this);
+        events.registerEvents(crafting, this);
+        events.registerEvents(firearms, this);
         ApocalypseCommand command = new ApocalypseCommand(this);
         PluginCommand registered = getCommand("apocalypse");
         if (registered != null) {
@@ -187,7 +206,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
         try {
             infections.tick();
             mobs.tick();
+            firearms.tick();
             if (ticks % TICKS_PER_SECOND == 0) {
+                noise.tick();
                 bags.tick();
                 protection.tick();
                 safePositions.sampleAll();
@@ -310,6 +331,26 @@ public final class DuckCatApocalypse extends JavaPlugin {
 
     public SearchService search() {
         return search;
+    }
+
+    public NoiseService noise() {
+        return noise;
+    }
+
+    public PlacedBlocks placed() {
+        return placed;
+    }
+
+    public CraftingService crafting() {
+        return crafting;
+    }
+
+    public FirearmService firearms() {
+        return firearms;
+    }
+
+    public DropService drops() {
+        return drops;
     }
 
     public ProtectionService protection() {

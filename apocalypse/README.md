@@ -2,7 +2,20 @@
 
 Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un monde dédié, où une morsure laisse 60 secondes pour finir un antidote et où la mort fait perdre tout ce que l'on porte et toute la progression de la vie, pendant que les constructions restent dans le monde.
 
-**État : alpha, jalon J2 « ville et infectés ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
+**État : alpha, jalon J3 « survivre et fabriquer ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
+
+## Ce que contient J3
+
+| Fonction | État | Vérification |
+|---|---|---|
+| Largage : chaque nouvelle vie (première entrée ou après une mort) commence n'importe où sur la carte (65 % en ville, le reste en campagne), jamais dans le refuge, dans un bâtiment, dans l'eau, près du laboratoire ni à côté d'un autre survivant | Implémenté | Autotest (40 tirages) ; **non testé en jeu** |
+| Provisions de départ aléatoires, uniquement des objets courants (les objets rares sont refusés par la configuration) ; 40 % de chances d'avoir de quoi fabriquer une première arme ; rien si la vie précédente a duré moins de 10 min | Implémenté | Tests de configuration ; **non testé en jeu** |
+| Fabrication : menu de recettes sur l'établi (avec accès à l'établi classique), l'atelier mécanique et le poste médical ; ingrédients authentifiés, consommés seulement si tout est là ; résultat dans l'inventaire ou au sol ; bruit selon la recette ; catalogue `/apocalypse recipes` | Implémenté | Autotest (15 recettes valides) ; **non testé en jeu** |
+| Armes de mêlée : massue, lame, lance (portée 4 blocs), massue renforcée ; dégâts, cadence et usure réelles, barre d'usure visible | Implémenté | Autotest (composants) ; **non testé en jeu** |
+| Pistolet de fortune : clic droit pour tirer (tir tracé, arrêté par les blocs), touche F pour recharger (2,5 s, interrompu si on change d'objet), chargeur de 6, munitions fabriquées, usure, cadence, bruit fort ; refusé au refuge | Implémenté | **Non testé en jeu** |
+| Réparation à l'atelier (50 % de l'usure contre des composants) | Implémenté | **Non testé en jeu** |
+| Barricades (légère, renforcée), piège à pointes (charges, crédite son propriétaire présent), leurre sonore à lancer, balise de base : identité gardée dans le tronçon, rendue à la casse, insensible aux pistons | Implémenté | **Non testé en jeu** ; la casse par les infectés arrive avec J4 |
+| Bruit et perception : tir, explosion, course, vitre brisée, coups, fouille, fabrication et leurre attirent les infectés vers l'endroit du bruit ; tout infecté fouille la dernière position où il t'a vu (6 à 15 s selon l'archétype) ; accroupi ou dans le noir sans courir, on n'est repéré que de près | Implémenté | **Non testé en jeu** |
 
 ## Ce que contient J2
 
@@ -39,15 +52,18 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 | Panneau : don, chute d'objets, horde, pluie d'objets, soin, nourriture, XP et modification d'inventaire refusés pour un joueur dans Ground Zero | Terminé | Test de fumée du panneau |
 | Configuration invalide : règles de référence appliquées et signalées ; base inaccessible : mode sûr | Implémenté | Configuration invalide testée sur serveur réel ; mode sûr non testé |
 
-Pas encore là : fabrication et stations, armes de mêlée et pistolet (J3), bruit et perception, sièges, faune contaminée, directeur de menace et hordes (J4), équipes et PvP, compétences, introduction, pack de ressources, statut Apocalypse et carte dans le panneau (J5).
+Pas encore là : sièges, faune contaminée, directeur de menace et hordes (J4), équipes et PvP, compétences, introduction, pack de ressources (J5).
 
 ## Règles pour les joueurs
 
-- `/apocalypse join ground_zero` : ton inventaire habituel est mis de côté ; tu arrives au refuge, sur la place centrale de la ville, sans rien la première fois.
-- Le refuge est sûr. Dehors, fouille les maisons, commerces, pharmacies, garages, l'hôpital, les postes de police… Chaque lieu a son butin : médical à la pharmacie et à l'hôpital, pièces au garage, munitions à la police et aux barrages. Un coffre vidé se remplit de nouveau plus tard, quand plus personne n'est autour. On y prend, on n'y range pas.
+- `/apocalypse join ground_zero` : ton inventaire habituel est mis de côté ; tu es largué quelque part dans Ground Zero avec quelques provisions courantes, parfois de quoi fabriquer une arme.
+- Le refuge muré du centre-ville est sûr ; c'est aussi par là qu'on quitte Ground Zero. Dehors, fouille les maisons, commerces, pharmacies, garages, l'hôpital, les postes de police… Chaque lieu a son butin : médical à la pharmacie et à l'hôpital, pièces au garage, munitions à la police et aux barrages. Un coffre vidé se remplit de nouveau plus tard, quand plus personne n'est autour. On y prend, on n'y range pas.
+- Fabrique sur un établi (clic droit : recettes du scénario, bouton « Établi classique » pour Minecraft), puis sur un atelier mécanique ou un poste médical que tu poses. `/apocalypse recipes` montre toutes les recettes.
+- Pistolet : clic droit pour tirer, touche d'échange de main (F) pour recharger. Chaque tir attire les infectés des environs vers l'endroit du tir.
+- Le bruit attire : courir, tirer, casser une vitre, fouiller. Accroupi, ou dans le noir sans courir, tu n'es repéré que de près. Un infecté qui te perd de vue fouille l'endroit où il t'a vu pour la dernière fois.
 - Les infectés mordent au hasard : **un coup sur trois environ est une morsure**. **Une morsure laisse 60 secondes pour finir un antidote** (clic droit maintenu 2 s). Commencer trop tard ne sauve pas.
 - Repère les infectés spéciaux : le sprinteur hurle avant de foncer puis s'essouffle ; le hurleur se fige pour crier (frappe-le pour l'interrompre) ; le briseur est lent mais encaisse ; l'abomination prépare une frappe au sol, écarte-toi.
-- À ta mort, ta vie est terminée : objets portés dans un **sac qui reste 5 minutes** là où tu es tombé, XP et progression perdues. Tu reviens au refuge avec le même nom. Tes constructions et tes coffres restent.
+- À ta mort, ta vie est terminée : objets portés dans un **sac qui reste 5 minutes** là où tu es tombé, XP et progression perdues. Tu es largué ailleurs avec le même nom : il faut retraverser la carte pour récupérer ton sac. Tes constructions et tes coffres restent.
 - `/apocalypse bag` donne la position et le temps restant (aucune téléportation) ; `/apocalypse bag open` ouvre ton sac à portée si son apparence a disparu.
 - `/apocalypse leave` depuis le refuge, jamais avec une morsure. Se déconnecter ne stoppe pas l'infection.
 

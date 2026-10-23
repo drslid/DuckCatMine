@@ -34,7 +34,7 @@ Pas encore dans J1 : fouille et conteneurs, fabrication, pistolet, autres infect
 
 ## Installation et retour arrière
 
-Le module est construit avec les autres plugins mais installé seulement sur demande.
+Le module est construit avec les autres plugins mais installé seulement sur demande. Pour une installation neuve, ajoute `--apocalypse` à `scripts/setup.py`. Pour une installation existante :
 
 1. Crée une sauvegarde complète depuis le panneau et télécharge l'archive hors du VPS.
 2. Dans le dossier d'installation : ajoute `DUCKCAT_APOCALYPSE=1` à `.env`, puis `docker compose run --build --rm plugins`.
@@ -54,7 +54,7 @@ Revenir en arrière :
 | Commande | Permission |
 |---|---|
 | `/apocalypse join [ground_zero]`, `leave`, `status`, `infection`, `bag [open]` | `duckcat.apocalypse.play` (tous) |
-| `/apocalypse admin status`, `enable`, `disable`, `reload` | `duckcat.apocalypse.admin` (OP) |
+| `/apocalypse admin status`, `enable`, `disable`, `reload`, `selftest` | `duckcat.apocalypse.admin` (OP) |
 | `/apocalypse admin world create`, `world bind <monde> confirm` | `duckcat.apocalypse.admin` |
 | `/apocalypse admin give <joueur> <antidote\|scrap\|cloth> [n]` (tracé) | `duckcat.apocalypse.admin` |
 | Traverser la frontière avec son profil habituel, pour observer (tracé) | `duckcat.apocalypse.bypass` (OP) |
@@ -79,6 +79,43 @@ mvn -B -f apocalypse/pom.xml verify   # Java 25 ; ou l'image maven:3.9.11-eclips
 ```
 
 37 tests : règles d'infection et d'antidote, horloge, butin garanti, configuration, sac, plan de reprise, codage des profils, base SQLite réelle (contraintes, transactions abandonnées, instantané).
+
+`/apocalypse admin selftest` vérifie sur le serveur réel, sans joueur, les API dont dépend le scénario : objets et composants de l'antidote, sérialisation d'un inventaire avec emplacements vides, écriture en base, règles du monde, apparition et réglage d'un errant.
+
+### Tester sur une instance isolée de ton VPS
+
+Jamais dans le dossier de production : un clone neuf, ses propres ports en boucle locale, son propre monde.
+
+```sh
+git clone --branch feat/apocalypse --single-branch https://github.com/drslid/DuckCatMine.git ~/duckcatmine-apocalypse-test
+cd ~/duckcatmine-apocalypse-test
+python3 scripts/setup.py --local --apocalypse --admins TonPseudo --profile small --accept-eula --non-interactive --no-invites
+docker compose logs -f minecraft            # attendre « Done », puis Ctrl+C
+docker compose exec -T minecraft rcon-cli "apocalypse admin world create"
+docker compose exec -T minecraft rcon-cli "apocalypse admin enable"
+docker compose exec -T minecraft rcon-cli "apocalypse admin selftest"
+```
+
+`--accept-eula` vaut acceptation de l'EULA Minecraft : lis-la avant. `setup.py` refuse de démarrer si les ports 18080, 18443 ou 25585 sont déjà pris (par exemple par une ancienne instance de test).
+
+Depuis le PC qui a Minecraft Java 26.3, garde ce tunnel ouvert pendant la partie, puis connecte-toi à `localhost:25585` :
+
+```sh
+ssh -N -L 25585:127.0.0.1:25585 -L 18080:127.0.0.1:18080 utilisateur@ton-vps
+```
+
+Le second port donne le panneau de test sur `http://localhost:18080` ; pour y créer un compte : `docker compose exec -T panel node server.js invite TonPseudo`.
+
+Mettre à jour après une correction, lire les journaux, arrêter :
+
+```sh
+cd ~/duckcatmine-apocalypse-test
+git pull --ff-only && docker compose run --build --rm plugins && docker compose restart minecraft
+docker compose logs --tail=400 minecraft | grep -iE 'apocalypse|exception|error'
+docker compose down
+```
+
+Pour raccourcir un test, modifie `data/plugins/DuckCatApocalypse/config.yml` (par exemple `bag-lifetime-seconds: 60`) puis `/apocalypse admin reload`.
 
 Procédure manuelle J1 sur une instance isolée, avec un client Minecraft Java 26.3 :
 

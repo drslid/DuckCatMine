@@ -67,7 +67,7 @@ public final class ApocalypseCommand implements TabExecutor {
         Text.info(sender, "/apocalypse leave — quitter depuis le refuge (impossible avec une morsure)");
         Text.info(sender, "/apocalypse status | infection | bag [open]");
         if (sender.hasPermission(ADMIN))
-            Text.info(sender, "/apocalypse admin status | enable | disable | reload | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
+            Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
     }
 
     private void status(Player player) {
@@ -112,6 +112,19 @@ public final class ApocalypseCommand implements TabExecutor {
             }
             case "world" -> world(sender, args);
             case "give" -> give(sender, args, actor);
+            case "selftest" -> {
+                boolean failed = false;
+                for (String line : SelfTest.run(plugin)) {
+                    if (line.startsWith("ÉCHEC")) {
+                        failed = true;
+                        Text.error(sender, line);
+                    } else {
+                        Text.info(sender, line);
+                    }
+                }
+                if (failed) Text.error(sender, "Autotest en échec : envoie ces lignes et les journaux du serveur.");
+                else Text.good(sender, "Autotest réussi.");
+            }
             default -> help(sender);
         }
     }
@@ -192,7 +205,7 @@ public final class ApocalypseCommand implements TabExecutor {
         } else if (args.length == 2 && args[0].equalsIgnoreCase("bag")) {
             options.add("open");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
-            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "world", "give"));
+            if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("world")) options.addAll(List.of("create", "bind"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("give")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
             else if (args.length == 4 && args[1].equalsIgnoreCase("give")) options.addAll(plugin.items().ids());

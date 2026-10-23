@@ -42,6 +42,7 @@ if [[ ! -f "$self_dir/setup.py" || ! -f "$self_dir/../compose.yaml" ]]; then
     command -v "$tool" >/dev/null || { echo "Outil manquant : $tool" >&2; exit 1; }
   done
   dest="${DUCKCAT_TEST_DIR:-$HOME/duckcatmine-apocalypse-test}"
+  isolated_only "$dest"
   mkdir -p "$dest"
   echo "Copie de la branche $BRANCH dans $dest"
   fetch_branch "$dest"

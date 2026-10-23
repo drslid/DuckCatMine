@@ -61,6 +61,16 @@ public final class SessionService {
         return value == null ? 0 : value;
     }
 
+    /** Ground Zero generation of the player's survivor position (1 for players from before rebuilds existed). */
+    private int epoch(Player player) {
+        Integer value = player.getPersistentDataContainer().get(plugin.keys().worldEpoch, PersistentDataType.INTEGER);
+        return value == null ? 1 : value;
+    }
+
+    private void stampEpoch(Player player) {
+        player.getPersistentDataContainer().set(plugin.keys().worldEpoch, PersistentDataType.INTEGER, plugin.scenario().epoch());
+    }
+
     /** Holds the survivor profile and stands in Ground Zero. */
     public boolean isSurvivor(Player player) {
         return profile(player) == Profile.APOCALYPSE && plugin.scenario().isScenarioWorld(player.getWorld());
@@ -163,12 +173,13 @@ public final class SessionService {
         }
         ProfileSnapshot survivor = entry.survivor() == null ? null : ProfileSnapshot.decode(entry.survivor());
         Location target = survivor == null ? null : ProfileCodec.location(survivor);
-        if (target == null || !scenario.isScenarioWorld(target.getWorld())) target = scenario.refugeSpawn();
+        if (target == null || !scenario.isScenarioWorld(target.getWorld()) || epoch(player) != scenario.epoch()) target = scenario.refugeSpawn();
         if (!teleport(player, target)) {
             rollbackSwap(id, entry.seq(), CLASSIC_KIND);
             Text.error(player, "Téléportation refusée : rien n'a changé.");
             return;
         }
+        stampEpoch(player);
         if (survivor == null) ProfileCodec.resetForNewLife(player);
         else ProfileCodec.apply(player, survivor);
         player.setGameMode(GameMode.SURVIVAL);
@@ -336,6 +347,10 @@ public final class SessionService {
         if (!scenario.isEnabled()) {
             leave(player, true, true);
             return;
+        }
+        if (epoch(player) != scenario.epoch() && teleport(player, scenario.refugeSpawn())) {
+            stampEpoch(player);
+            Text.warn(player, "Ground Zero a été reconstruit depuis ta dernière visite : tu reprends au refuge avec ce que tu portais.");
         }
         if (player.getGameMode() != GameMode.SURVIVAL) player.setGameMode(GameMode.SURVIVAL);
         plugin.infections().show(player);

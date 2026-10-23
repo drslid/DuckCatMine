@@ -178,9 +178,15 @@ public final class ApocalypseCommand implements TabExecutor {
             String error = plugin.scenario().bindExisting(args[3]);
             if (error != null) Text.error(sender, error);
             else Text.good(sender, "Monde " + args[3] + " associé. Vérifie la position du refuge dans config.yml avant d'ouvrir.");
+        } else if (mode.equals("recreate") && args.length == 4 && args[3].equals("confirm")) {
+            String error = plugin.scenario().recreate();
+            if (error != null) Text.error(sender, error);
+            else Text.good(sender, "Ground Zero reconstruit (génération " + plugin.scenario().epoch()
+                    + "). Les survivants reprendront au refuge avec ce qu'ils portent. Ouvre-le avec /apocalypse admin enable.");
         } else {
             Text.info(sender, "/apocalypse admin world create — crée un monde neuf dédié (aucun monde existant n'est touché)");
             Text.info(sender, "/apocalypse admin world bind <monde> confirm — associe un monde déjà chargé (règles de jeu modifiées)");
+            Text.info(sender, "/apocalypse admin world recreate confirm — reconstruit le monde associé après avoir mis son dossier de côté (serveur arrêté)");
         }
     }
 
@@ -228,10 +234,11 @@ public final class ApocalypseCommand implements TabExecutor {
             options.add("open");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
             if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map"));
-            else if (args.length == 3 && args[1].equalsIgnoreCase("world")) options.addAll(List.of("create", "bind"));
+            else if (args.length == 3 && args[1].equalsIgnoreCase("world")) options.addAll(List.of("create", "bind", "recreate"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("give")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
             else if (args.length == 4 && args[1].equalsIgnoreCase("give")) options.addAll(plugin.items().ids());
             else if (args.length == 5 && args[1].equalsIgnoreCase("world")) options.add("confirm");
+            else if (args.length == 4 && args[1].equalsIgnoreCase("world") && args[2].equalsIgnoreCase("recreate")) options.add("confirm");
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
         options.removeIf(option -> !option.toLowerCase(Locale.ROOT).startsWith(prefix));

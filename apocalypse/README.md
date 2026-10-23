@@ -68,6 +68,14 @@ Revenir en arrière :
 - **Désinstaller** : garder le plugin installé, même suspendu, tant que `/apocalypse admin status` indique des inventaires classiques gardés par le scénario. Chaque survivant hors ligne récupère le sien à sa prochaine connexion ; quand le compteur vaut 0, le JAR peut être retiré.
 - **Tout annuler** : restaurer depuis le panneau la sauvegarde créée avant l'installation (ce qui s'est passé depuis est perdu).
 
+Reconstruire Ground Zero (nouvelle génération de la ville, par exemple après une mise à jour du générateur) sans toucher aux joueurs :
+
+1. `/apocalypse admin disable`, puis arrêter Minecraft.
+2. Mettre de côté `world/dimensions/minecraft/ground_zero` (le déplacer hors du dossier `data`, ne pas le supprimer tout de suite). Ne jamais toucher à `apocalypse.db` : elle garde les inventaires habituels des survivants déconnectés.
+3. Relancer Minecraft, puis `/apocalypse admin world recreate confirm` et `/apocalypse admin enable`.
+
+Les constructions et coffres de l'ancien monde disparaissent avec lui. Chaque survivant garde sa vie et ce qu'il porte, et reprend au refuge à sa prochaine connexion ou entrée.
+
 ## Commandes
 
 | Commande | Permission |

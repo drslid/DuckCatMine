@@ -25,6 +25,7 @@ public final class ScenarioService {
     private boolean enabled;
     private String problem = "Aucun monde associé : /apocalypse admin world create";
     private Location spawn;
+    private int epoch = 1;
 
     public ScenarioService(DuckCatApocalypse plugin) {
         this.plugin = plugin;
@@ -33,6 +34,8 @@ public final class ScenarioService {
     public void load() {
         String name = plugin.database().call(c -> Store.meta(c, "world"));
         String expectedId = plugin.database().call(c -> Store.meta(c, "world_id"));
+        String storedEpoch = plugin.database().call(c -> Store.meta(c, "world_epoch"));
+        epoch = storedEpoch == null ? 1 : Integer.parseInt(storedEpoch);
         boolean wanted = "true".equals(plugin.database().call(c -> Store.meta(c, "enabled")));
         world = null;
         enabled = false;
@@ -41,7 +44,8 @@ public final class ScenarioService {
         World loaded = Bukkit.getWorld(name);
         if (loaded == null) {
             if (!storageExists(name)) {
-                problem = "Le monde " + name + " est introuvable ; il n'est jamais recréé automatiquement.";
+                problem = "Le monde " + name + " est introuvable ; il n'est jamais recréé automatiquement (reconstruction volontaire : "
+                        + "/apocalypse admin world recreate confirm).";
                 return;
             }
             loaded = creator(name).createWorld();
@@ -77,6 +81,46 @@ public final class ScenarioService {
         created.save();
         bind(created, id);
         return null;
+    }
+
+    /**
+     * Rebuilds the bound world once an administrator has moved its folder aside, server stopped. Deletes nothing:
+     * profiles, lives and held classic inventories stay in the database; survivors of the previous generation resume
+     * at the refuge with what they carry.
+     */
+    public String recreate() {
+        String name = plugin.database().call(c -> Store.meta(c, "world"));
+        if (name == null) return "Aucun monde associé : utilise /apocalypse admin world create.";
+        if (Bukkit.getWorld(name) != null || storageExists(name))
+            return "Le monde " + name + " existe encore : arrête le serveur, mets son dossier de côté, puis relance cette commande.";
+        World created = creator(name).createWorld();
+        if (created == null) return "Création du monde impossible.";
+        String id = mark(created);
+        applyRules(created);
+        RefugeBuilder.build(created, refugeArea(), GroundZeroGenerator.SURFACE);
+        ApocalypseConfig.Refuge refuge = plugin.settings().refuge();
+        created.setSpawnLocation(refuge.centerX(), GroundZeroGenerator.SURFACE + 1, refuge.centerZ(), 0f);
+        created.save();
+        int next = epoch + 1;
+        long now = plugin.clock().now();
+        plugin.database().call(c -> {
+            Store.putMeta(c, "world_id", id);
+            Store.putMeta(c, "world_epoch", Integer.toString(next));
+            Store.putMeta(c, "enabled", "false");
+            Store.audit(c, now, "console", "world_recreate", name + " " + id + " epoch " + next);
+            return null;
+        });
+        world = created;
+        epoch = next;
+        enabled = false;
+        spawn = null;
+        problem = null;
+        return null;
+    }
+
+    /** Generation number of the bound world; positions saved in an older generation are not trusted. */
+    public int epoch() {
+        return epoch;
     }
 
     /** Associates an existing, already loaded world; the main worlds are refused. */

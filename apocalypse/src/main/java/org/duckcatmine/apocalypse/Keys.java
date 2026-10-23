@@ -23,6 +23,8 @@ public final class Keys {
     public final NamespacedKey playerPlaced;
     public final NamespacedKey burst;
     public final NamespacedKey slowed;
+    /** Generation of Ground Zero in which the player's survivor position is valid. */
+    public final NamespacedKey worldEpoch;
 
     public Keys(Plugin plugin) {
         worldId = new NamespacedKey(plugin, "world_id");
@@ -38,5 +40,6 @@ public final class Keys {
         playerPlaced = new NamespacedKey(plugin, "player_placed");
         burst = new NamespacedKey(plugin, "burst");
         slowed = new NamespacedKey(plugin, "slowed");
+        worldEpoch = new NamespacedKey(plugin, "world_epoch");
     }
 }

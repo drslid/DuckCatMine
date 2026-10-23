@@ -53,7 +53,9 @@ test('activation, login, session, CSRF and logout', async () => {
               preview: Array(16).fill('S'.repeat(16)).join('/') })}`
               : value.startsWith('dctower check ') ? 'DCTOWER:Emplacement prêt en world X 100 Z 100 sur terrain plat.'
                 : value.startsWith('dctower place ') ? 'DCTOWER:Construction posée en world X 100 Y 63 Z 100. Construction classique.'
-                  : 'OK';
+                  : value === 'dcpanel status Zed' ? 'DCPLAYER:{"name":"Zed","world":"ground_zero","scenario":"ground_zero"}'
+                    : value === 'dcpanel heal Zed' ? 'DCPLAYER:{"error":"scenario"}'
+                      : 'OK';
           connection.write(rconPacket(id, 0, reply));
         }
       }
@@ -193,6 +195,47 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal((await post('/api/items/give', { player: 'Alex', item: 'diamond;op', count: 1 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
     assert.equal((await post('/api/items/action', { player: 'Alex', item: 'minecraft:not_a_real_item', count: 1, mode: 'drop' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
     assert.equal((await post('/api/items/action', { player: 'Alex', item: 'minecraft:diamond', count: 1, mode: 'drop' }, { Cookie: cookie })).status, 403);
+    const beforeScenarioChecks = rconCommands.length;
+    assert.equal((await post('/api/items/give', { player: 'Zed', item: 'diamond', count: 1 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 409);
+    assert.equal((await post('/api/items/action', { player: 'Zed', item: 'minecraft:diamond', count: 1, mode: 'drop' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 409);
+    const scenarioHeal = await post('/api/players/live-action', { player: 'Zed', operation: 'heal' }, { Cookie: cookie, 'X-CSRF-Token': csrf });
+    assert.equal(scenarioHeal.status, 409);
+    assert.match((await scenarioHeal.json()).error, /Ground Zero/);
+    assert(!rconCommands.slice(beforeScenarioChecks).some((command) => command.startsWith('give Zed') || command.includes('summon item')),
+      'no item may reach a Ground Zero survivor from the panel');
+    assert.equal((await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).status, 200);
+    assert.equal((await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json()).installed, false);
+    const apocalypseDir = path.join(mcdata, 'plugins', 'DuckCatApocalypse');
+    fs.mkdirSync(apocalypseDir, { recursive: true });
+    fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 1, generatedAt: Date.now(), running: true,
+      enabled: true, world: 'ground_zero', threat: { level: 2.5, phase: 'pressure', phaseLabel: 'pression', secondsLeft: 40, hordes: 1 },
+      rules: { pvp: false, destruction: true, globalCap: 60 }, infected: { walker: 3 }, infectedTotal: 3,
+      survivors: [{ name: 'Mia', x: 10, z: -4, points: 30, infectionSeconds: null }], teams: [] }));
+    assert.equal((await fetch(`${origin}/api/apocalypse`)).status, 401);
+    const apocalypse = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();
+    assert.equal(apocalypse.installed, true);
+    assert.equal(apocalypse.stale, false);
+    assert.equal(apocalypse.survivors[0].name, 'Mia');
+    assert.equal((await fetch(`${origin}/api/apocalypse/map.png`, { headers: { Cookie: cookie } })).status, 404);
+    const beforeSurvivorGive = rconCommands.length;
+    assert.equal((await post('/api/items/give', { player: 'Mia', item: 'diamond', count: 1 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 409,
+      'a survivor listed by the plugin is protected even without the bridge');
+    assert(!rconCommands.slice(beforeSurvivorGive).some((command) => command.startsWith('give Mia')));
+    assert.equal((await post('/api/apocalypse/action', { action: 'threat', value: 3 }, { Cookie: cookie })).status, 403);
+    assert.equal((await post('/api/apocalypse/action', { action: 'threat', value: 3.14 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 200);
+    assert(rconCommands.includes('apocalypse admin threat 3.1'));
+    assert.equal((await post('/api/apocalypse/action', { action: 'threat', value: 99 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
+    assert.equal((await post('/api/apocalypse/action', { action: 'pvp', value: 'on' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
+    assert.equal((await post('/api/apocalypse/action', { action: 'pvp', value: true }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 200);
+    assert(rconCommands.includes('apocalypse admin pvp on'));
+    assert.equal((await post('/api/apocalypse/action', { action: 'horde', value: 'Mia;op' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
+    assert.equal((await post('/api/apocalypse/action', { action: 'map', value: 5000 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
+    assert.equal((await post('/api/apocalypse/action', { action: 'world recreate confirm' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
+    fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 1, generatedAt: Date.now() - 120000, running: true,
+      survivors: [{ name: 'Mia' }] }));
+    const stale = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();
+    assert.equal(stale.stale, true);
+    assert.deepEqual(stale.survivors, [], 'an old status never lists survivors as present');
     assert.equal((await post('/api/mobs/spawn', { mob: 'cow', world: 'world', x: 0, z: 0, count: 1 }, { Cookie: cookie })).status, 403);
     assert.equal((await post('/api/mobs/spawn', { mob: 'cow;op', world: 'world', x: 0, z: 0, count: 1 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
     assert.equal((await post('/api/mobs/spawn', { mob: 'cow', world: 'elsewhere', x: 0, z: 0, count: 1 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);

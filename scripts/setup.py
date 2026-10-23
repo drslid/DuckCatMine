@@ -99,6 +99,8 @@ def main():
     parser.add_argument('--prepare-only', action='store_true', help='Prepare files, do not start containers')
     parser.add_argument('--local', action='store_true', help='Isolated development install on loopback ports, HTTP only')
     parser.add_argument('--no-invites', action='store_true', help='For automated integration checks')
+    parser.add_argument('--apocalypse', action='store_true',
+                        help='Also install the optional DuckCatApocalypse plugin; its world is only created by an admin command')
     args = parser.parse_args()
     if (ROOT / '.env').exists() or (ROOT / 'data/level.dat').exists() or (ROOT / 'data/world').exists():
         raise RuntimeError('Existing installation detected. No files changed. See the update guide.')
@@ -163,6 +165,8 @@ def main():
                GAME_BIND='127.0.0.1:25585' if args.local else '25565')
     if token:
         env.update(DUCKDNS_SUBDOMAIN=subdomain, COMPOSE_PROFILES='duckdns')
+    if args.apocalypse:
+        env['DUCKCAT_APOCALYPSE'] = '1'
     write_file('.env', ''.join(f'{key}={value}\n' for key, value in env.items()), private=True)
     write_file('secrets/rcon_password', secrets.token_hex(32) + '\n', private=True)
     write_file('secrets/duckdns_token', token + '\n', private=True)
@@ -191,6 +195,9 @@ def main():
     else:
         raise RuntimeError('Panel did not start. Run docker compose logs panel. Your files are preserved.')
     print(f'\nPanel: {origin}\nMinecraft Java: {env["MC_ADDRESS"]}\nThe first game start and HTTPS certificate can take a few minutes.')
+    if args.apocalypse:
+        print('Ground Zero is installed but closed. When Minecraft is up: '
+              'docker compose exec -T minecraft rcon-cli "apocalypse admin world create", then "apocalypse admin enable".')
     if not args.no_invites:
         print('Private activation links (48 hours). Set your web passwords in your browser:')
         for name in names:

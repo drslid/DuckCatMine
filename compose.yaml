@@ -104,7 +104,7 @@ services:
       BACKUP_INTERVAL: 24h
       INITIAL_DELAY: "2m"
       PRUNE_BACKUPS_DAYS: "7"
-      EXCLUDES: cache,logs,*.tmp,bluemap
+      EXCLUDES: cache,logs,*.tmp,bluemap,apocalypse.db,apocalypse.db-wal,apocalypse.db-shm
       TZ: "${TZ:-Europe/Paris}"
     secrets: [rcon_password]
     volumes: ["./data:/data:ro", "./backups:/backups"]
@@ -131,6 +131,8 @@ services:
       context: .
       dockerfile: Dockerfile.plugins
     user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      DUCKCAT_APOCALYPSE: "${DUCKCAT_APOCALYPSE:-0}"
     volumes: ["./data/plugins:/plugins"]
 
   duckdns:

@@ -43,12 +43,11 @@ final class Shops {
         int y = y0 + 1;
         f.fill(1, y, 3, 3, y, 3, B.of(Material.STRIPPED_OAK_WOOD));
         int back = d - 5;
+        // Face-front stock barrels sit in clearly separated aisles, with visible goods above them.
         for (int row = 6; row < back - 1; row += 3) {
             for (int u = 2; u < w - 2; u++) {
                 if (u == doorU) continue;
-                f.set(u, y, row, B.of(Material.OAK_PLANKS));
-                f.set(u, y + 1, row, B.slab(Material.OAK_SLAB, false));
-                if (r.nextInt(5) == 0) Structures.barrel(f, u, y + 1, row, PlaceType.SHOP);
+                shelf(f, u, y, row, PlaceType.SHOP, (u + row) % 4);
             }
         }
         f.fill(1, y, back, w - 2, y + 3, back, wall);
@@ -106,12 +105,13 @@ final class Shops {
         }
         int back = d - 7;
         for (int u = 3; u < w - 3; u += 4) {
-            for (int v = 6; v < back; v++) {
-                f.set(u, y, v, B.of(Material.SPRUCE_PLANKS));
-                f.set(u, y + 1, v, B.slab(Material.SPRUCE_SLAB, false));
-                f.set(u, y + 2, v, B.of(Material.SPRUCE_PLANKS));
-                if (r.nextInt(9) == 0) Structures.barrel(f, u, y + 1, v, PlaceType.SUPERMARKET);
-            }
+            for (int v = 6; v < back; v++) shelf(f, u, y, v, PlaceType.SUPERMARKET, (u / 4) % 4);
+        }
+        // Refrigerated wall and staffed-looking checkout lanes, all stock is lootable.
+        for (int v = 6; v < back; v += 3) {
+            f.set(w - 2, y, v, B.of(Material.PACKED_ICE));
+            f.set(w - 2, y + 1, v, B.of(Material.WHITE_STAINED_GLASS));
+            Structures.barrel(f, w - 2, y, v + 1, PlaceType.SUPERMARKET);
         }
         f.fill(1, y, back, w - 2, y + 4, back, wall);
         f.fill(w / 2, y, back, w / 2 + 1, y + 2, back, B.AIR);
@@ -120,6 +120,13 @@ final class Shops {
         f.fill(w - 6, y, d - 1, w - 3, y + 2, d - 1, B.AIR);
         Structures.cobwebs(f, r, w, d, y0 + 5, 3 + r.nextInt(4));
         Structures.decay(f, r, w, d, y0 + 1, y0 + 4, 1 + r.nextInt(3));
+    }
+
+    private static void shelf(Frame f, int u, int y, int v, PlaceType place, int category) {
+        f.container(u, y, v, B.facing(Material.BARREL, BlockFace.WEST), place);
+        Material goods = switch (category) { case 0 -> Material.HAY_BLOCK; case 1 -> Material.MELON; case 2 -> Material.PUMPKIN; default -> Material.BOOKSHELF; };
+        f.set(u, y + 1, v, B.of(goods));
+        f.set(u, y + 2, v, B.slab(Material.SPRUCE_SLAB, false));
     }
 
     static void garage(Frame f, Random r, int y0) {

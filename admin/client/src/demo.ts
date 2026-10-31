@@ -227,7 +227,15 @@ function demoApocalypse() {
     stale: false,
     ageSeconds: 2,
     version: 3,
-    capabilities: ['departure', 'teleport', 'mouse-driving', 'infected-map'],
+    capabilities: [
+      'departure',
+      'teleport',
+      'mouse-driving',
+      'infected-map',
+      'map-teleport',
+      'radar',
+      'city-renovation',
+    ],
     departure: gzDeparture,
     generatedAt: Date.now(),
     running: true,
@@ -258,7 +266,7 @@ function demoApocalypse() {
       type: i === 0 ? 'abomination' : i < 4 ? 'runner' : 'walker',
       x: 110 + (i % 5) * 12 + Math.round(Math.sin(Date.now() / 5000 + i) * 3),
       y: 65,
-      z: -35 + Math.floor(i / 5) * 14,
+      z: -60 + Math.floor(i / 5) * 14,
     })),
     incubatingAnimals: 1,
     activeInfections: 1,
@@ -267,6 +275,8 @@ function demoApocalypse() {
     survivors: [
       {
         name: 'Alex',
+        y: 65,
+        yaw: 0,
         x: 120,
         z: -64,
         sector: 'Centre-ville',
@@ -279,7 +289,9 @@ function demoApocalypse() {
       },
       {
         name: 'Sam',
-        x: 132,
+        y: 65,
+        yaw: -90,
+        x: 126,
         z: -58,
         sector: 'Centre-ville',
         inRefuge: false,
@@ -291,6 +303,8 @@ function demoApocalypse() {
       },
       {
         name: 'Mia',
+        y: 65,
+        yaw: 0,
         x: 2,
         z: 4,
         sector: 'Refuge',
@@ -392,6 +406,13 @@ export async function request(url: string, method = 'GET', data: any = {}) {
       gzDeparture.members = [];
       gzDeparture.phase = 'waiting';
       gzDepartureEnd = 0;
+    }
+    if (data.action === 'teleport-point') {
+      gzRelocated.set('Alex', { x: data.value.x, z: data.value.z });
+      return {
+        result:
+          'Démonstration : Alex a rejoint le point choisi. Aucun serveur contacté.',
+      };
     }
     if (data.action === 'teleport') {
       const at = demoApocalypse().survivors.find(

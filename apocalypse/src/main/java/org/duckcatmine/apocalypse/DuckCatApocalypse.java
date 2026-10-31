@@ -80,9 +80,12 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private PlacedBlocks placed;
     private CraftingService crafting;
     private FirearmService firearms;
+    private org.duckcatmine.apocalypse.radar.RadarService radar;
     private ThrowableService throwables;
     private VehicleService vehicles;
+    private org.duckcatmine.apocalypse.scenario.city.CityRenovator renovator;
     private DropService drops;
+    private org.duckcatmine.apocalypse.spawn.MapTeleportService mapTeleports;
     private DepartureService departures;
     private SiegeManager siege;
     private ThreatDirector threat;
@@ -104,6 +107,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public void onEnable() {
         migrateConfig();
         saveDefaultConfig();
+        migrateSurvivalContent();
         reloadConfig();
         keys = new Keys(this);
         try {
@@ -149,6 +153,10 @@ public final class DuckCatApocalypse extends JavaPlugin {
             throwables = new ThrowableService(this);
             vehicles = new VehicleService(this);
             drops = new DropService(this);
+            renovator = new org.duckcatmine.apocalypse.scenario.city.CityRenovator(this);
+            mapTeleports = new org.duckcatmine.apocalypse.spawn.MapTeleportService(this);
+            radar = new org.duckcatmine.apocalypse.radar.RadarService(this);
+            items.radarConfigurer(radar::configure);
             departures = new DepartureService(this);
             siege = new SiegeManager(this);
             threat = new ThreatDirector(this);
@@ -189,6 +197,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(placed, this);
         events.registerEvents(crafting, this);
         events.registerEvents(firearms, this);
+        events.registerEvents(radar, this);
         events.registerEvents(throwables, this);
         events.registerEvents(vehicles, this);
         events.registerEvents(siege, this);
@@ -244,6 +253,21 @@ public final class DuckCatApocalypse extends JavaPlugin {
         if (file.renameTo(aside)) getLogger().warning("config.yml version " + version + " mise de côté (" + aside.getName()
                 + ") : nouvelle configuration version " + ApocalypseConfig.VERSION + " écrite. Reporte tes réglages à la main si besoin.");
         else getLogger().severe("Impossible de mettre de côté l'ancienne config.yml : règles de référence appliquées.");
+    }
+
+    private void migrateSurvivalContent() {
+        File file = new File(getDataFolder(), "config.yml");
+        var raw = YamlConfiguration.loadConfiguration(file);
+        try (var stream = getResource("config.yml")) {
+            if (stream == null) return;
+            var defaults = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8));
+            if (!org.duckcatmine.apocalypse.config.SurvivalUpgrade.migrate(raw, defaults)) return;
+            ApocalypseConfig.parse(raw);
+            var aside = getDataFolder().toPath().resolve("config.before-survival-v2-" + System.currentTimeMillis() + ".yml");
+            java.nio.file.Files.copy(file.toPath(), aside);
+            raw.save(file);
+            getLogger().info("Butin et recettes améliorés ; autres réglages conservés. Copie : " + aside.getFileName());
+        } catch (Exception e) { getLogger().warning("Migration du contenu différée, config actuelle conservée : " + e.getMessage()); }
     }
 
     public String configProblem() {
@@ -410,6 +434,12 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public CraftingService crafting() {
         return crafting;
     }
+
+    public org.duckcatmine.apocalypse.scenario.city.CityRenovator renovator() { return renovator; }
+
+    public org.duckcatmine.apocalypse.spawn.MapTeleportService mapTeleports() { return mapTeleports; }
+
+    public org.duckcatmine.apocalypse.radar.RadarService radar() { return radar; }
 
     public FirearmService firearms() {
         return firearms;

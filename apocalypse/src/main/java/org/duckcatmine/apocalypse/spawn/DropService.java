@@ -120,17 +120,33 @@ public final class DropService {
         return null;
     }
 
-    /** Random common provisions for a new life; nothing if the previous life ended too quickly (no farming by dying). */
+    /** One usable minimum plus random provisions per life. Marker and inventory are saved together. */
     public void giveKit(Player player, String previousRun) {
         ApocalypseConfig.StartKit kit = plugin.settings().play().kit();
-        if (previousRun != null && kit.minPreviousLifeMs() > 0) {
-            Store.RunRow previous = plugin.database().call(c -> Store.run(c, previousRun));
-            if (previous != null && previous.endedAt() != null && previous.endedAt() - previous.startedAt() < kit.minPreviousLifeMs()) {
-                Text.warn(player, "Ta vie précédente a été trop courte : aucune provision cette fois. Fouille vite les maisons.");
-                return;
-            }
-        }
+        String run = plugin.sessions().runOf(player);
+        var marker = new org.bukkit.NamespacedKey(plugin, "starter_kit_run_v2");
+        if (run == null || run.equals(player.getPersistentDataContainer().get(marker, org.bukkit.persistence.PersistentDataType.STRING))) return;
+        List<ItemStack> given = rollKit();
+        for (ItemStack stack : given)
+            player.getInventory().addItem(stack).values().forEach(rest -> player.getWorld().dropItemNaturally(player.getLocation(), rest));
+        plugin.radar().give(player);
+        player.getPersistentDataContainer().set(marker, org.bukkit.persistence.PersistentDataType.STRING, run);
+        player.saveData();
+        Text.good(player, "Kit de survie : arme, nourriture, soins, outils et butin aléatoire. Le sonar est dans ta seconde main (F).");
+    }
+
+    /** Pure inventory roll, also exercised by the Paper self-test without touching a player. */
+    public List<ItemStack> rollKit() {
+        ApocalypseConfig.StartKit kit = plugin.settings().play().kit();
         List<ItemStack> given = new ArrayList<>();
+        // The minimum is always usable immediately, including first entry and short previous lives.
+        String[] weapons = {"club", "blade", "spear"};
+        given.add(plugin.items().create(weapons[random.nextInt(weapons.length)], 1));
+        Material[] food = {Material.BREAD, Material.BAKED_POTATO, Material.COOKED_CHICKEN};
+        given.add(ItemStack.of(food[random.nextInt(food.length)], 4 + random.nextInt(3)));
+        given.add(plugin.items().create("bandage", 2));
+        given.add(ItemStack.of(Material.TORCH, 8));
+        given.add(ItemStack.of(Material.STONE_PICKAXE));
         int rolls = kit.rollsMin() + (kit.rollsMax() > kit.rollsMin() ? random.nextInt(kit.rollsMax() - kit.rollsMin() + 1) : 0);
         LootTable table = kit.loot();
         for (int k = 0; k < rolls && !table.isEmpty(); k++) {
@@ -138,34 +154,14 @@ public final class DropService {
             ItemStack stack = plugin.items().resolve(entry.item(), entry.amount());
             if (stack != null) given.add(stack);
         }
-        String weapon = null;
         if (!kit.weaponKits().isEmpty() && random.nextDouble() < kit.weaponChance()) {
             List<Map.Entry<String, List<ApocalypseConfig.Stack>>> kits = new ArrayList<>(kit.weaponKits().entrySet());
             Map.Entry<String, List<ApocalypseConfig.Stack>> chosen = kits.get(random.nextInt(kits.size()));
-            weapon = chosen.getKey();
             for (ApocalypseConfig.Stack part : chosen.getValue()) {
                 ItemStack stack = plugin.items().resolve(part.item(), part.amount());
                 if (stack != null) given.add(stack);
             }
         }
-        for (ItemStack stack : given)
-            player.getInventory().addItem(stack).values().forEach(rest -> player.getWorld().dropItemNaturally(player.getLocation(), rest));
-        if (given.isEmpty()) return;
-        Text.info(player, "Tu as trouvé quelques provisions sur toi en te réveillant.");
-        if (weapon != null) {
-            ApocalypseConfig.Recipe recipe = plugin.settings().play().recipes().get(weapon);
-            String result = recipe == null ? weapon : plugin.items().resolve(recipe.result().item(), 1) == null ? weapon : recipe.id();
-            Text.good(player, "Avec un peu de chance, de quoi fabriquer une arme (" + label(result)
-                    + ") : clic droit sur un établi, tu en trouveras dans les maisons.");
-        }
-    }
-
-    private static String label(String recipe) {
-        return switch (recipe) {
-            case "club" -> "massue improvisée";
-            case "blade" -> "lame de récupération";
-            case "spear" -> "lance courte";
-            default -> recipe;
-        };
+        return given;
     }
 }

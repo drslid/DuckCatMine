@@ -4,6 +4,18 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Mise à jour survie — alpha.5
+
+- **Carte → touche le sol → Me téléporter ici** : le compte web déplace son personnage après confirmation et vérification du sol. Chargement asynchrone ; inventaire, vie et progression conservés.
+- **Un départ équipé** : chaque nouvelle vie reçoit une arme de mêlée aléatoire, 4–6 aliments, 2 bandages, 8 torches, une pioche et des provisions aléatoires. Une reconnexion ne redonne pas le kit. Les vies existantes reçoivent ce kit une seule fois.
+- **Fouille plus généreuse** : 5–9 piles dans les maisons et boutiques, 7–12 au supermarché, 4–8 à la police et à l'entrepôt lorsque les anciens réglages par défaut étaient utilisés. Les anciens conteneurs de fouille reçoivent une seule fois 3 piles supplémentaires dans leurs emplacements libres. Les coffres des joueurs sont exclus.
+- **Trois armes à feu sans balles** : pistolet au clic droit ; fusil à pompe à courte portée ; mitraillette en maintenant le clic droit. Une usure par tir, y compris une gerbe complète. Réparation à l'atelier avant la casse ; règles de PvP et du refuge respectées. Visuels Minecraft vanilla, aucun pack ni mod obligatoire.
+- **Sonar personnel** : carte en seconde main (F), cercle de 10 blocs orienté selon le regard. Survivants en bleu, infectés et joueurs mordus proches en rouge ; joueurs lointains sur l'anneau extérieur bleu. `/apocalypse radar` récupère une carte perdue. Sur le panneau, sélectionne un survivant pour son sonar (positions toutes les 5 secondes).
+- **Maisons et magasins** : pièces meublées, cuisines, salles de bain, escaliers d'immeuble et rayons contenant du stock à prendre au clic droit. Les nouvelles zones utilisent ces modèles dès leur génération.
+- **Rénovation de l'existant** : Ground Zero → Maintenance. Zone limitée et scénario vide ; préparation asynchrone des chunks déjà générés seulement. Pause tant qu'un joueur est dans ce monde. Seuls les blocs encore identiques au modèle d'origine sont remplacés ; conteneurs, ajouts et bases revendiquées conservés. Un ancien coffre peut donc rester à son emplacement d'origine.
+
+La migration copie `config.yml`, ajoute les recettes et conserve les autres réglages personnalisés. Les tests Paper vérifient le kit, le radar contextuel, les plans dans quatre orientations, les rayons, les tirs bloqués par un mur, les arrivées sûres et la conservation d'un ajout et du contenu d'un coffre. La sensation de tir automatique et le rendu de la carte en seconde main restent à confirmer avec un client Minecraft.
+
 ## Ce que contient J5
 
 | Fonction | État | Vérification |
@@ -35,7 +47,7 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 | Provisions de départ aléatoires, uniquement des objets courants (les objets rares sont refusés par la configuration) ; 40 % de chances d'avoir de quoi fabriquer une première arme ; rien si la vie précédente a duré moins de 10 min | Implémenté | Tests de configuration ; **non testé en jeu** |
 | Fabrication : menu de recettes sur l'établi (avec accès à l'établi classique), l'atelier mécanique et le poste médical ; ingrédients authentifiés, consommés seulement si tout est là ; résultat dans l'inventaire ou au sol ; bruit selon la recette ; catalogue `/apocalypse recipes` | Implémenté | Autotest (15 recettes valides) ; **non testé en jeu** |
 | Armes de mêlée : massue, lame, lance (portée 4 blocs), massue renforcée ; dégâts, cadence et usure réelles, barre d'usure visible | Implémenté | Autotest (composants) ; **non testé en jeu** |
-| Pistolet de fortune : clic droit pour tirer (tir tracé, arrêté par les blocs), touche F pour recharger (2,5 s, interrompu si on change d'objet), chargeur de 6, munitions fabriquées, usure, cadence, bruit fort ; refusé au refuge | Implémenté | **Non testé en jeu** |
+| Armes à feu : pistolet, fusil à pompe et mitraillette, sans munitions, avec usure ; refusées au refuge | Implémenté | Rayons et composants vérifiés sur Paper ; contrôles client à confirmer |
 | Réparation à l'atelier (50 % de l'usure contre des composants) | Implémenté | **Non testé en jeu** |
 | Barricades (légère, renforcée), piège à pointes (charges, crédite son propriétaire présent), leurre sonore à lancer, balise de base : identité gardée dans le tronçon, rendue à la casse, insensible aux pistons | Implémenté | **Non testé en jeu** ; la casse par les infectés arrive avec J4 |
 | Bruit et perception : tir, explosion, course, vitre brisée, coups, fouille, fabrication et leurre attirent les infectés vers l'endroit du bruit ; tout infecté fouille la dernière position où il t'a vu (6 à 15 s selon l'archétype) ; accroupi ou dans le noir sans courir, on n'est repéré que de près | Implémenté | **Non testé en jeu** |

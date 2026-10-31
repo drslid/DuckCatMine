@@ -248,9 +248,9 @@ public final class CraftingService implements Listener {
     public boolean repair(Player player) {
         ItemStack held = player.getInventory().getItemInMainHand();
         String id = plugin.items().idOf(held);
-        boolean pistol = ItemRegistry.PISTOL.equals(id);
+        boolean pistol = ItemRegistry.GUNS.contains(id == null ? "" : id);
         if (id == null || !(pistol || ItemRegistry.isMelee(id)) || !held.hasData(DataComponentTypes.MAX_DAMAGE)) {
-            Text.warn(player, "Tiens en main une arme de mêlée ou le pistolet à réparer.");
+            Text.warn(player, "Tiens en main une arme de mêlée ou une arme à feu à réparer.");
             return false;
         }
         Integer damage = held.getData(DataComponentTypes.DAMAGE);

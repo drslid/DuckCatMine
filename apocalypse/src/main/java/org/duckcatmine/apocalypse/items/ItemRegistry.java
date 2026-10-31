@@ -63,6 +63,8 @@ public final class ItemRegistry {
     }
 
     public static final String PISTOL = "pistol";
+    public static final String SHOTGUN = "shotgun", SMG = "smg", RADAR = "radar";
+    public static final Set<String> GUNS = Set.of(PISTOL, SHOTGUN, SMG);
     public static final String AMMO = "ammo";
     public static final String DECOY = "decoy";
     public static final String WORKSHOP = "workshop";
@@ -82,6 +84,8 @@ public final class ItemRegistry {
     private final Keys keys;
     private final Map<String, Definition> definitions = new LinkedHashMap<>();
     private volatile ApocalypseConfig config;
+    private java.util.function.Consumer<ItemStack> radarConfigurer = item -> {};
+    public void radarConfigurer(java.util.function.Consumer<ItemStack> configure) { radarConfigurer = configure; }
 
     public ItemRegistry(Keys keys, ApocalypseConfig config) {
         this.keys = keys;
@@ -123,7 +127,13 @@ public final class ItemRegistry {
         definitions.put("heavy_club", new Definition("Massue renforcée", NamedTextColor.YELLOW, "minecraft:mace", 1,
                 List.of("Lourde : frappe fort et repousse.")));
         definitions.put(PISTOL, new Definition("Pistolet de fortune", NamedTextColor.GOLD, "minecraft:crossbow", 1,
-                List.of("Clic droit : tirer. Touche d'échange de main (F) : recharger.", "Bruyant : chaque tir attire les infectés.")));
+                List.of("Clic droit : tirer. Sans munitions, usure par tir.", "Répare à l’atelier avant de casser. Les tirs attirent les infectés.")));
+        definitions.put(SHOTGUN, new Definition("Fusil à pompe", NamedTextColor.GOLD, "minecraft:crossbow", 1,
+                List.of("Clic droit : gerbe de 8 plombs, portée courte.", "Sans munitions · 96 tirs · réparable à l'atelier.")));
+        definitions.put(SMG, new Definition("Mitraillette", NamedTextColor.GOLD, "minecraft:crossbow", 1,
+                List.of("Maintiens le clic droit : tir automatique.", "Sans munitions · 360 tirs · réparable à l'atelier.")));
+        definitions.put(RADAR, new Definition("Sonar de survie", NamedTextColor.AQUA, Material.FILLED_MAP, null, 1,
+                List.of("Tiens-le en seconde main (F) : radar sur 10 blocs.", "Bleu : survivants · rouge : infectés.", "Les points extérieurs indiquent les joueurs éloignés.")));
         definitions.put(AMMO, new Definition("Munitions de pistolet", NamedTextColor.WHITE, "minecraft:copper_nugget", 32,
                 List.of("Pour le pistolet de fortune.")));
         definitions.put(DECOY, new Definition("Leurre sonore", NamedTextColor.AQUA, Material.SNOWBALL, "minecraft:note_block", 8,
@@ -219,13 +229,18 @@ public final class ItemRegistry {
                     .build());
         }
         if (isMelee(id)) melee(stack, config.play().weapons().get(id));
-        if (PISTOL.equals(id)) {
-            stack.setData(DataComponentTypes.MAX_DAMAGE, config.play().pistol().durability());
+        if (GUNS.contains(id)) {
+            stack.setData(DataComponentTypes.MAX_DAMAGE, org.duckcatmine.apocalypse.combat.Gun.of(id, config).durability());
             stack.setData(DataComponentTypes.DAMAGE, 0);
             stack.editPersistentDataContainer(data -> {
                 data.set(keys.magazine, PersistentDataType.INTEGER, 0);
                 data.set(keys.gunId, PersistentDataType.STRING, java.util.UUID.randomUUID().toString());
             });
+        }
+        if (SMG.equals(id)) {
+            stack.setData(DataComponentTypes.CONSUMABLE, Consumable.consumable().consumeSeconds(3600f)
+                    .animation(ItemUseAnimation.NONE).sound(Key.key("minecraft:intentionally_empty")).hasConsumeParticles(false).build());
+            stack.setData(DataComponentTypes.USE_EFFECTS, UseEffects.useEffects().canSprint(true).speedMultiplier(1f).build());
         }
         if (SPIKE_TRAP.equals(id))
             stack.editPersistentDataContainer(data -> data.set(keys.charges, PersistentDataType.INTEGER, config.play().traps().charges()));
@@ -234,6 +249,7 @@ public final class ItemRegistry {
             stack.setData(DataComponentTypes.DAMAGE, 0);
         }
         if (JERRYCAN.equals(id)) setFuel(stack, 0);
+        if (RADAR.equals(id)) radarConfigurer.accept(stack);
         stack.editPersistentDataContainer(data -> data.set(keys.item, PersistentDataType.STRING, id));
         stack.setAmount(Math.max(1, Math.min(amount, definition.maxStack())));
         return stack;

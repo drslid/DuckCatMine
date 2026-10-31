@@ -5,6 +5,9 @@
     slice = $state<number | undefined>(),
     upgradeRadius = $state(96),
     world = $state('');
+  let renovateX = $state(0),
+    renovateZ = $state(0),
+    renovateRadius = $state(128);
   let unavailable = $derived(!status.world);
 </script>
 
@@ -131,6 +134,59 @@
         >
       </form>
     </details>
+  </article>
+
+  <article class="card">
+    <div class="card-heading">
+      <h2>Rénover les bâtiments</h2>
+      <Icon name="build" />
+    </div>
+    <p class="muted small">
+      Maisons meublées, escaliers et rayons à fouiller. La rénovation conserve
+      les ajouts, les bases revendiquées et les conteneurs. Les nouvelles zones
+      utilisent déjà les nouveaux modèles.
+    </p>
+    {#if status.renovation}<p class="notice" aria-live="polite">
+        {status.renovation.message}<br />{status.renovation.buildings} bâtiments ·
+        {status.renovation.changed} blocs améliorés · {status.renovation
+          .preserved} conservés · {status.renovation.skipped} ignorés
+      </p>{/if}
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        ask({
+          action: 'renovate',
+          value: { x: renovateX, z: renovateZ, radius: renovateRadius },
+          title: 'Rénover cette zone',
+          description: `Améliorer les bâtiments existants dans un rayon de ${renovateRadius} blocs autour de ${renovateX} · ${renovateZ}. Ground Zero doit être vide. Une sauvegarde est conseillée avant la première rénovation.`,
+          required: 'RENOVER',
+        });
+      }}
+    >
+      <div class="form-grid">
+        <label>X<input type="number" bind:value={renovateX} required /></label
+        ><label>Z<input type="number" bind:value={renovateZ} required /></label
+        ><label
+          >Rayon<input
+            type="number"
+            min="16"
+            max="768"
+            bind:value={renovateRadius}
+            required
+          /></label
+        >
+      </div>
+      <button
+        class="secondary"
+        disabled={!!busy ||
+          status.stale ||
+          unavailable ||
+          !status.capabilities?.includes('city-renovation') ||
+          !!status.survivors?.length ||
+          ['running', 'paused'].includes(status.renovation?.state)}
+        ><Icon name="build" />Rénover la zone</button
+      >
+    </form>
   </article>
 
   <article class="card wide">

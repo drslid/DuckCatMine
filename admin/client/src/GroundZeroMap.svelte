@@ -5,11 +5,13 @@
     status,
     selected = '',
     onSelect,
+    onPoint = () => {},
     showInfected = true,
   }: {
     status: any;
     selected?: string;
     onSelect: (name: string) => void;
+    onPoint?: (point: any) => void;
     showInfected?: boolean;
   } = $props();
   let frame = $state<HTMLIFrameElement>();
@@ -92,9 +94,14 @@
         data.type === 'point' &&
         data.world === world &&
         [data.x, data.y, data.z].every(Number.isInteger)
-      )
+      ) {
         point = data;
-      if (data.type === 'clear') point = null;
+        onPoint(data);
+      }
+      if (data.type === 'clear') {
+        point = null;
+        onPoint(null);
+      }
     };
     window.addEventListener('message', receive);
     return () => {
@@ -140,7 +147,7 @@
     >{point
       ? `X ${point.x} · Y ${point.y} · Z ${point.z}`
       : 'Zoom, rotation et déplacement comme dans Monde.'}</span
-  ><span>Cliquer sur un joueur ouvre ses actions.</span>
+  ><span>Touche le sol pour te téléporter, ou un joueur pour ses actions.</span>
 </div>
 
 <style>

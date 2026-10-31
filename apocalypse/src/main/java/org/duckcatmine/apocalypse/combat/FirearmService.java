@@ -4,6 +4,11 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.FluidCollisionMode;
@@ -35,190 +40,122 @@ import org.duckcatmine.apocalypse.Text;
 import org.duckcatmine.apocalypse.config.ApocalypseConfig;
 import org.duckcatmine.apocalypse.items.ItemRegistry;
 
-/**
- * The makeshift pistol (spec §13) and the sound decoy. A shot is a ray traced from the eyes that stops at the first
- * solid block or creature; damage goes through the normal damage events (PvP rules, teams, protections apply). One
- * cartridge and one hit per shot, a 6-round magazine reloaded in 2.5 s (interrupted if the pistol leaves the hand),
- * wear per shot, and a loud noise that draws the infected to where the shot was fired.
- */
+/** Server-side firearms: wall-blocked rays, ordinary damage protections, no ammo, finite wear. */
 public final class FirearmService implements Listener {
-    private record Reload(String gunId, long doneAt) {
-    }
-
     private final DuckCatApocalypse plugin;
     private final Map<UUID, Long> nextShot = new HashMap<>();
-    private final Map<UUID, Reload> reloads = new HashMap<>();
+    private final Set<UUID> automatic = new HashSet<>();
+    private BukkitTask firing;
 
-    public FirearmService(DuckCatApocalypse plugin) {
-        this.plugin = plugin;
+    public FirearmService(DuckCatApocalypse plugin) { this.plugin = plugin; }
+
+    private Gun held(Player player) {
+        return Gun.of(plugin.items().idOf(player.getInventory().getItemInMainHand()), plugin.settings());
     }
 
-    private boolean holdsPistol(Player player) {
-        return plugin.items().is(player.getInventory().getItemInMainHand(), ItemRegistry.PISTOL);
-    }
-
-    private static String gunId(ItemStack pistol, DuckCatApocalypse plugin) {
-        return pistol.getPersistentDataContainer().get(plugin.keys().gunId, PersistentDataType.STRING);
-    }
-
-    private int magazine(ItemStack pistol) {
-        Integer value = pistol.getPersistentDataContainer().get(plugin.keys().magazine, PersistentDataType.INTEGER);
-        return value == null ? 0 : value;
-    }
-
-    private static boolean broken(ItemStack pistol) {
-        Integer damage = pistol.getData(DataComponentTypes.DAMAGE);
-        Integer max = pistol.getData(DataComponentTypes.MAX_DAMAGE);
-        return damage != null && max != null && damage >= max;
-    }
-
-    private int ammo(Player player) {
-        int total = 0;
-        for (ItemStack stack : player.getInventory().getStorageContents()) if (plugin.items().is(stack, ItemRegistry.AMMO)) total += stack.getAmount();
-        return total;
-    }
-
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onUse(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND || (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK)) return;
         Player player = event.getPlayer();
-        if (!holdsPistol(player)) return;
-        event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+        Gun gun = held(player);
+        if (gun == null) return;
+        // Interact-air can arrive cancelled by vanilla because PAPER has no default action.
         event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+        boolean allowed = plugin.sessions().isSurvivor(player) && !player.isDead() && !plugin.scenario().inRefuge(player.getLocation());
+        event.setUseItemInHand(allowed && gun.automatic() ? org.bukkit.event.Event.Result.ALLOW : org.bukkit.event.Event.Result.DENY);
+        if (!allowed) { if (plugin.sessions().isSurvivor(player)) Text.warn(player, "Pas d'arme à feu dans le refuge."); return; }
         fire(player);
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onSwap(PlayerSwapHandItemsEvent event) {
-        if (!holdsPistol(event.getPlayer())) return;
-        event.setCancelled(true);
-        startReload(event.getPlayer());
-    }
-
-    private boolean allowed(Player player) {
-        if (!plugin.sessions().isSurvivor(player)) return false;
-        if (plugin.scenario().inRefuge(player.getLocation())) {
-            Text.warn(player, "Pas d'arme à feu dans le refuge.");
-            return false;
+        if (gun.automatic() && held(player) != null) {
+            automatic.add(player.getUniqueId());
+            if (firing == null) firing = plugin.getServer().getScheduler().runTaskTimer(plugin, this::autoTick, 2L, 2L);
         }
-        return true;
+    }
+
+    @EventHandler public void onStop(PlayerStopUsingItemEvent event) { automatic.remove(event.getPlayer().getUniqueId()); }
+    @EventHandler public void onQuit(PlayerQuitEvent event) { forget(event.getPlayer().getUniqueId()); }
+    @EventHandler(priority = EventPriority.HIGHEST) public void onConsume(PlayerItemConsumeEvent event) {
+        if (Gun.of(plugin.items().idOf(event.getItem()), plugin.settings()) != null) event.setCancelled(true);
+    }
+
+    private void autoTick() {
+        automatic.removeIf(id -> {
+            Player player = plugin.getServer().getPlayer(id);
+            Gun gun = player == null ? null : held(player);
+            if (gun == null || !gun.automatic() || !player.hasActiveItem() || player.getActiveItemHand() != EquipmentSlot.HAND
+                    || !plugin.items().is(player.getActiveItem(), ItemRegistry.SMG)
+                    || !plugin.sessions().isSurvivor(player) || player.isDead() || plugin.scenario().inRefuge(player.getLocation())) return true;
+            fire(player);
+            return held(player) == null;
+        });
+        if (automatic.isEmpty() && firing != null) { firing.cancel(); firing = null; }
     }
 
     public void fire(Player player) {
-        if (!allowed(player) || reloads.containsKey(player.getUniqueId())) return;
-        ItemStack pistol = player.getInventory().getItemInMainHand();
-        ApocalypseConfig.Pistol stats = plugin.settings().play().pistol();
+        Gun stats = held(player);
+        if (stats == null || !plugin.sessions().isSurvivor(player) || player.isDead() || plugin.scenario().inRefuge(player.getLocation())) return;
         long now = plugin.clock().now();
-        Long ready = nextShot.get(player.getUniqueId());
-        if (ready != null && ready > now) return;
-        if (broken(pistol)) {
-            player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 1f, 0.6f);
-            Text.warn(player, "Pistolet hors d'usage : répare-le à l'atelier mécanique.");
-            return;
-        }
-        if (magazine(pistol) <= 0) {
-            player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 1f, 1.4f);
-            if (ammo(player) > 0) startReload(player);
-            else player.sendActionBar(Component.text("Chargeur vide — aucune munition", NamedTextColor.RED));
-            return;
-        }
-        nextShot.put(player.getUniqueId(), now + (long) (stats.fireDelaySeconds() * 1000));
+        if (nextShot.getOrDefault(player.getUniqueId(), 0L) > now) return;
+        ItemStack weapon = player.getInventory().getItemInMainHand();
+        int damage = java.util.Objects.requireNonNullElse(weapon.getData(DataComponentTypes.DAMAGE), 0);
+        int max = java.util.Objects.requireNonNullElse(weapon.getData(DataComponentTypes.MAX_DAMAGE), stats.durability());
+        if (damage >= max) { Text.warn(player, "Arme hors d'usage : répare-la à l'atelier mécanique."); nextShot.put(player.getUniqueId(), now + 1500); return; }
+        nextShot.put(player.getUniqueId(), now + stats.delayMs());
         Location eye = player.getEyeLocation();
-        Vector direction = eye.getDirection();
-        RayTraceResult hit = player.getWorld().rayTrace(eye, direction, stats.range(), FluidCollisionMode.NEVER, true, 0.15,
-                entity -> entity instanceof LivingEntity living && entity != player && !living.isDead() && !(entity instanceof ArmorStand));
-        double length = hit == null ? stats.range() : hit.getHitPosition().distance(eye.toVector());
-        for (double d = 1.5; d < length; d += 1.5)
-            player.getWorld().spawnParticle(Particle.CRIT, eye.clone().add(direction.clone().multiply(d)), 1, 0, 0, 0, 0);
-        player.getWorld().spawnParticle(Particle.SMOKE, eye.clone().add(direction.clone().multiply(0.8)), 4, 0.05, 0.05, 0.05, 0.01);
-        player.getWorld().playSound(eye, Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.9f);
-        player.getWorld().playSound(eye, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 1.5f, 0.6f);
-        if (hit != null && hit.getHitEntity() instanceof LivingEntity target) {
-            target.damage(stats.damage(), DamageSource.builder(DamageType.PLAYER_ATTACK).withCausingEntity(player).withDirectEntity(player).build());
-            target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getEyeLocation(), 4, 0.2, 0.2, 0.2, 0);
-        } else if (hit != null && hit.getHitBlock() != null) {
-            player.getWorld().spawnParticle(Particle.BLOCK, hit.getHitPosition().toLocation(player.getWorld()), 8, 0.05, 0.05, 0.05,
-                    hit.getHitBlock().getBlockData());
+        // Sum pellets by target: one damage event per shot, no invulnerability-frame exploit.
+        Map<LivingEntity, Double> hits = new HashMap<>();
+        var random = java.util.concurrent.ThreadLocalRandom.current();
+        for (int pellet = 0; pellet < stats.pellets(); pellet++) {
+            Vector direction = eye.getDirection();
+            if (stats.spread() > 0) direction.add(new Vector(random.nextGaussian() * stats.spread(), random.nextGaussian() * stats.spread(), random.nextGaussian() * stats.spread())).normalize();
+            RayTraceResult hit = trace(eye, direction, stats.range(), player);
+            double length = hit == null ? stats.range() : hit.getHitPosition().distance(eye.toVector());
+            for (double d = 1.5; d < length; d += 3)
+                player.getWorld().spawnParticle(Particle.CRIT, eye.clone().add(direction.clone().multiply(d)), 1, 0, 0, 0, 0);
+            if (hit != null && hit.getHitEntity() instanceof LivingEntity target) hits.merge(target, stats.damage(), Double::sum);
+            else if (hit != null && hit.getHitBlock() != null)
+                player.getWorld().spawnParticle(Particle.BLOCK, hit.getHitPosition().toLocation(player.getWorld()), 3, .05, .05, .05, hit.getHitBlock().getBlockData());
         }
-        int left = magazine(pistol) - 1;
-        pistol.editPersistentDataContainer(data -> data.set(plugin.keys().magazine, PersistentDataType.INTEGER, left));
-        Integer damage = pistol.getData(DataComponentTypes.DAMAGE);
-        pistol.setData(DataComponentTypes.DAMAGE, (damage == null ? 0 : damage) + 1);
-        player.getInventory().setItemInMainHand(pistol);
+        for (var hit : hits.entrySet()) {
+            double before = hit.getKey().getHealth();
+            hit.getKey().damage(hit.getValue(), DamageSource.builder(DamageType.PLAYER_ATTACK).withCausingEntity(player).withDirectEntity(player).build());
+            // A successful automatic shot does not suppress the next shot for vanilla's half-second hurt window.
+            if (stats.automatic() && hit.getKey().getHealth() < before) hit.getKey().setNoDamageTicks(0);
+        }
+        player.getWorld().spawnParticle(Particle.SMOKE, eye.clone().add(eye.getDirection().multiply(.8)), 3, .05, .05, .05, .01);
+        player.getWorld().playSound(eye, Sound.ENTITY_FIREWORK_ROCKET_BLAST, stats.pellets() > 1 ? 1.8f : 1.1f, stats.pellets() > 1 ? .5f : 1.4f);
+        if (damage + 1 >= max) {
+            player.clearActiveItem();
+            player.getInventory().setItemInMainHand(null);
+            player.playSound(eye, Sound.ENTITY_ITEM_BREAK, 1f, 1f);
+            Text.warn(player, stats.label() + " cassé. Répare la prochaine arme avant la fin de sa barre d'usure.");
+        } else {
+            weapon.setData(DataComponentTypes.DAMAGE, damage + 1);
+            player.getInventory().setItemInMainHand(weapon);
+        }
         plugin.noise().emit(player.getLocation(), plugin.settings().play().noise().gunshot(), player);
         plugin.protection().endByAction(player);
-        show(player);
     }
 
-    public void startReload(Player player) {
-        if (!allowed(player) || reloads.containsKey(player.getUniqueId())) return;
-        ItemStack pistol = player.getInventory().getItemInMainHand();
-        ApocalypseConfig.Pistol stats = plugin.settings().play().pistol();
-        if (magazine(pistol) >= stats.magazine()) return;
-        if (ammo(player) <= 0) {
-            player.sendActionBar(Component.text("Aucune munition de pistolet", NamedTextColor.RED));
-            return;
-        }
-        reloads.put(player.getUniqueId(), new Reload(gunId(pistol, plugin), plugin.clock().now() + (long) (stats.reloadSeconds() * 1000)));
-        player.playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, 1f, 1f);
+    public static RayTraceResult trace(Location eye, Vector direction, double range, org.bukkit.entity.Entity excluded) {
+        return eye.getWorld().rayTrace(eye, direction, range, FluidCollisionMode.NEVER, true, .15,
+                entity -> entity instanceof LivingEntity living && entity != excluded && !living.isDead() && !(entity instanceof ArmorStand));
     }
 
-    /** Every 5 ticks: finishes or interrupts reloads and shows the magazine to whoever holds a pistol. */
+    /** Existing ticker only updates the wear hint; automatic fire runs only while a trigger is held. */
     public void tick() {
-        long now = plugin.clock().now();
-        for (Map.Entry<UUID, Reload> entry : Map.copyOf(reloads).entrySet()) {
-            Player player = plugin.getServer().getPlayer(entry.getKey());
-            Reload reload = entry.getValue();
-            if (player == null || player.isDead() || !holdsPistol(player)
-                    || !reload.gunId().equals(gunId(player.getInventory().getItemInMainHand(), plugin))) {
-                reloads.remove(entry.getKey());
-                if (player != null) player.sendActionBar(Component.text("Rechargement interrompu", NamedTextColor.GRAY));
-                continue;
-            }
-            if (now < reload.doneAt()) {
-                player.sendActionBar(Component.text("Rechargement…", NamedTextColor.YELLOW));
-                continue;
-            }
-            reloads.remove(entry.getKey());
-            finishReload(player);
-        }
         var world = plugin.scenario().world();
         if (world == null) return;
-        for (Player player : world.getPlayers()) if (!reloads.containsKey(player.getUniqueId()) && holdsPistol(player)) show(player);
-    }
-
-    private void finishReload(Player player) {
-        ItemStack pistol = player.getInventory().getItemInMainHand();
-        int capacity = plugin.settings().play().pistol().magazine();
-        int needed = capacity - magazine(pistol);
-        int loaded = 0;
-        ItemStack[] contents = player.getInventory().getStorageContents();
-        for (int slot = 0; slot < contents.length && loaded < needed; slot++) {
-            if (!plugin.items().is(contents[slot], ItemRegistry.AMMO)) continue;
-            int taken = Math.min(needed - loaded, contents[slot].getAmount());
-            contents[slot].setAmount(contents[slot].getAmount() - taken);
-            if (contents[slot].getAmount() <= 0) contents[slot] = null;
-            loaded += taken;
+        for (Player player : world.getPlayers()) {
+            Gun gun = held(player);
+            if (gun == null || !plugin.sessions().isSurvivor(player)) continue;
+            ItemStack item = player.getInventory().getItemInMainHand();
+            int max = java.util.Objects.requireNonNullElse(item.getData(DataComponentTypes.MAX_DAMAGE), gun.durability());
+            int wear = java.util.Objects.requireNonNullElse(item.getData(DataComponentTypes.DAMAGE), 0);
+            player.sendActionBar(Component.text(gun.label() + " · " + Math.max(0, max - wear) + " tirs · sans munitions", NamedTextColor.GOLD));
         }
-        player.getInventory().setStorageContents(contents);
-        int filled = magazine(pistol) + loaded;
-        pistol.editPersistentDataContainer(data -> data.set(plugin.keys().magazine, PersistentDataType.INTEGER, filled));
-        player.getInventory().setItemInMainHand(pistol);
-        player.playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_END, 1f, 1.2f);
-        show(player);
     }
 
-    private void show(Player player) {
-        ItemStack pistol = player.getInventory().getItemInMainHand();
-        String state = broken(pistol) ? " — HORS D'USAGE" : "";
-        player.sendActionBar(Component.text("Pistolet " + magazine(pistol) + "/" + plugin.settings().play().pistol().magazine()
-                + " — munitions : " + ammo(player) + state, broken(pistol) ? NamedTextColor.RED : NamedTextColor.GOLD));
-    }
-
-    public void forget(UUID id) {
-        reloads.remove(id);
-        nextShot.remove(id);
-    }
+    public void forget(UUID id) { automatic.remove(id); nextShot.remove(id); }
 
     // ------------------------------------------------------------------ decoy
 

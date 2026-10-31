@@ -1,3 +1,4 @@
+survival-content-version: 2
 # DuckCatApocalypse — réglages du scénario Ground Zero.
 # Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
 # au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
@@ -292,8 +293,8 @@ archetypes:
 # Fouille : tables par type de lieu (rolls = nombre de piles tirées au remplissage).
 places:
   house:
-    rolls-min: 1
-    rolls-max: 3
+    rolls-min: 5
+    rolls-max: 9
     loot:
       - {item: minecraft:bread, weight: 14, amount: 2}
       - {item: minecraft:apple, weight: 8, amount: 2}
@@ -314,8 +315,8 @@ places:
       - {item: minecraft:stone_axe, weight: 2}
       - {item: apocalypse:antidote, weight: 0.6}
   shop:
-    rolls-min: 1
-    rolls-max: 3
+    rolls-min: 5
+    rolls-max: 9
     loot:
       - {item: minecraft:bread, weight: 12, amount: 2}
       - {item: minecraft:cookie, weight: 6, amount: 4}
@@ -333,8 +334,8 @@ places:
       - {item: minecraft:string, weight: 4, amount: 3}
       - {item: minecraft:paper, weight: 3, amount: 3}
   supermarket:
-    rolls-min: 2
-    rolls-max: 4
+    rolls-min: 7
+    rolls-max: 12
     loot:
       - {item: minecraft:bread, weight: 14, amount: 3}
       - {item: minecraft:cooked_beef, weight: 6, amount: 2}
@@ -380,9 +381,12 @@ places:
       - {item: apocalypse:note, weight: 6}
       - {item: minecraft:glass_bottle, weight: 4, amount: 2}
   police:
-    rolls-min: 1
-    rolls-max: 3
+    rolls-min: 4
+    rolls-max: 8
     loot:
+      - {item: apocalypse:pistol, weight: 5}
+      - {item: apocalypse:shotgun, weight: 3}
+      - {item: apocalypse:smg, weight: 2}
       - {item: apocalypse:casings, weight: 16, amount: 4}
       - {item: apocalypse:propellant, weight: 12}
       - {item: apocalypse:gun_parts, weight: 8}
@@ -418,8 +422,8 @@ places:
       - {item: minecraft:iron_pickaxe, weight: 1}
       - {item: minecraft:bucket, weight: 2}
   warehouse:
-    rolls-min: 1
-    rolls-max: 4
+    rolls-min: 4
+    rolls-max: 8
     loot:
       - {item: apocalypse:scrap, weight: 20, amount: 4}
       - {item: minecraft:oak_planks, weight: 14, amount: 8}
@@ -588,7 +592,19 @@ recipes:
     result: {item: apocalypse:pistol}
     ingredients: {"apocalypse:gun_parts": 2, "apocalypse:scrap": 4, "apocalypse:spring": 1, "apocalypse:tape": 2}
     noise: medium
-    usage: Arme de secours bruyante, chargeur de 6.
+    usage: Clic droit pour tirer, sans munitions. Répare avant la fin de la barre d’usure.
+  shotgun:
+    station: workshop
+    result: {item: apocalypse:shotgun}
+    ingredients: {"apocalypse:gun_parts": 3, "apocalypse:scrap": 6, "apocalypse:spring": 2, "apocalypse:tape": 2}
+    noise: medium
+    usage: Fusil à pompe, gerbe de 8 plombs à courte portée. Sans munitions, 96 tirs.
+  smg:
+    station: workshop
+    result: {item: apocalypse:smg}
+    ingredients: {"apocalypse:gun_parts": 4, "apocalypse:scrap": 8, "apocalypse:spring": 3, "apocalypse:tape": 3}
+    noise: medium
+    usage: Maintiens le clic droit pour tirer en automatique. Sans munitions, 360 tirs.
   ammo:
     station: workshop
     result: {item: apocalypse:ammo, amount: 8}

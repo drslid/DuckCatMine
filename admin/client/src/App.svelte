@@ -711,6 +711,7 @@
             {toast}
           />
         {:else if section === 'apocalypse' && Apocalypse}<Apocalypse
+            username={user}
             {toast}
             policy={status.mapPolicy}
             openMaintenance={() => navigate('settings', 'backups')}

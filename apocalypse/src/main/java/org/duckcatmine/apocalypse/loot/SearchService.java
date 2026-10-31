@@ -85,9 +85,10 @@ public final class SearchService implements Listener {
         if (!(snapshot instanceof TileState tile)) return;
         PersistentDataContainer data = tile.getPersistentDataContainer();
         data.set(plugin.keys().searchPlace, PersistentDataType.STRING, place.id());
+        if (rolledAt != null) data.set(new org.bukkit.NamespacedKey(plugin, "stock_v2"), PersistentDataType.BOOLEAN, true);
         if (rolledAt == null) data.remove(plugin.keys().searchRolled);
         else data.set(plugin.keys().searchRolled, PersistentDataType.LONG, rolledAt);
-        if (tile instanceof Container container && container.customName() == null) container.customName(Component.text(place.label()));
+        if (tile instanceof Container container && container.customName() == null) container.customName(Component.text(place == PlaceType.SHOP || place == PlaceType.SUPERMARKET ? "Rayon · " + place.label() : place.label()));
         tile.update(true, false);
     }
 
@@ -108,7 +109,12 @@ public final class SearchService implements Listener {
     public boolean roll(Block block, Inventory inventory) {
         PlaceType place = identify(block);
         if (place == null || !(block.getState(false) instanceof TileState tile)) return false;
-        if (tile.getPersistentDataContainer().has(plugin.keys().searchRolled)) return false;
+        if (tile.getPersistentDataContainer().has(plugin.keys().searchRolled)) {
+            if (tile.getPersistentDataContainer().has(new org.bukkit.NamespacedKey(plugin, "stock_v2"))) return false;
+            mark(block, place, plugin.clock().now());
+            fill(inventory, place, 3);
+            return true;
+        }
         mark(block, place, plugin.clock().now());
         fill(inventory, place);
         return true;
@@ -122,10 +128,12 @@ public final class SearchService implements Listener {
         mark(block, place, null);
     }
 
-    private void fill(Inventory inventory, PlaceType place) {
+    private void fill(Inventory inventory, PlaceType place) { fill(inventory, place, -1); }
+
+    private void fill(Inventory inventory, PlaceType place, int fixedRolls) {
         ApocalypseConfig.Place table = plugin.settings().place(place.id());
         if (table == null) return;
-        int rolls = table.rollsMin() + random.nextInt(table.rollsMax() - table.rollsMin() + 1);
+        int rolls = fixedRolls >= 0 ? fixedRolls : table.rollsMin() + random.nextInt(table.rollsMax() - table.rollsMin() + 1);
         List<Integer> free = new ArrayList<>();
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             ItemStack current = inventory.getItem(slot);

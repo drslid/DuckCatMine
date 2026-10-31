@@ -1273,7 +1273,7 @@ async function serve(req, res) {
     const session = requireSession(req);
     requireCsrf(req, session);
     const input = await body(req);
-    const { command, detail } = apocalypseCommand(input, apocalypseStatus());
+    const { command, detail } = apocalypseCommand(input, apocalypseStatus(), session.username);
     const result = await rcon(command, 60000);
     const refused = apocalypseFailure(result);
     if (refused) {
@@ -1281,7 +1281,7 @@ async function serve(req, res) {
       throw new HttpError(409, refused.slice(0, 1000));
     }
     audit(`apocalypse_${input.action}`, session.username, detail);
-    return json(res, 200, { result: result.replace(/☣\s*/g, '').trim().slice(0, 8000) });
+    return json(res, 200, { pending: result.match(/DCAPO_PENDING:([a-f0-9-]{36})/)?.[1], result: result.replace(/☣\s*/g, '').trim().slice(0, 8000) });
   }
   if (req.method === 'POST' && url.pathname === '/api/events') {
     const session = requireSession(req);

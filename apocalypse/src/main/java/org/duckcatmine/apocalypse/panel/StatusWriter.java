@@ -105,7 +105,9 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
-        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map")));
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation")));
+        root.add("renovation", gson.toJsonTree(plugin.renovator().snapshot()));
+        root.add("teleports", gson.toJsonTree(plugin.mapTeleports().snapshot()));
         root.add("departure", gson.toJsonTree(plugin.departures().snapshot()));
         root.addProperty("generatedAt", System.currentTimeMillis());
         root.addProperty("running", true);
@@ -169,6 +171,7 @@ public final class StatusWriter {
                 survivor.addProperty("x", at.getBlockX());
                 survivor.addProperty("y", at.getBlockY());
                 survivor.addProperty("z", at.getBlockZ());
+                survivor.addProperty("yaw", at.getYaw());
                 Sector sector = plugin.director().sectorAt(at);
                 survivor.addProperty("sector", sector.label());
                 survivor.addProperty("inRefuge", scenario.inRefuge(at));

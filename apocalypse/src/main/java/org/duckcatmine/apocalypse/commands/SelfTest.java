@@ -43,6 +43,23 @@ final class SelfTest {
             return plugin.items().ids().size() + " objets authentifiés, antidote de "
                     + antidote.getData(DataComponentTypes.CONSUMABLE).consumeSeconds() + " s";
         });
+        check(lines, "kit de première entrée et sonar", () -> {
+            java.util.Set<String> rolls = new java.util.HashSet<>();
+            for (int n = 0; n < 40; n++) {
+                var kit = plugin.drops().rollKit();
+                if (kit.stream().noneMatch(i -> ItemRegistry.isMelee(plugin.items().idOf(i)))
+                        || kit.stream().noneMatch(i -> plugin.items().is(i, ItemRegistry.BANDAGE) && i.getAmount() >= 2)
+                        || kit.stream().noneMatch(i -> i.getType() == Material.STONE_PICKAXE)
+                        || kit.stream().noneMatch(i -> i.getType().isEdible() && i.getAmount() >= 4)) throw new IllegalStateException("minimum manquant");
+                rolls.add(kit.toString());
+            }
+            if (rolls.size() < 2) throw new IllegalStateException("butin non aléatoire");
+            var radar = plugin.items().create(ItemRegistry.RADAR, 1);
+            if (!(radar.getItemMeta() instanceof org.bukkit.inventory.meta.MapMeta meta) || meta.getMapView() == null
+                    || meta.getMapView().getRenderers().size() != 1 || !meta.getMapView().getRenderers().getFirst().isContextual()) throw new IllegalStateException("sonar non lié à une carte contextuelle");
+            return "40 kits complets et variés, radar individuel sans mod";
+        });
+        check(lines, "intérieurs et rayons v2", org.duckcatmine.apocalypse.scenario.city.CityRenovator::verifyBlueprints);
         check(lines, "sérialisation d'inventaire", () -> {
             ItemStack[] items = {plugin.items().create("scrap", 3), ItemStack.empty(),
                     plugin.items().create(ItemRegistry.ANTIDOTE, 1), ItemStack.of(Material.BREAD, 5)};
@@ -65,6 +82,11 @@ final class SelfTest {
             ItemStack pistol = plugin.items().create(ItemRegistry.PISTOL, 1);
             if (pistol.getPersistentDataContainer().get(plugin.keys().gunId, org.bukkit.persistence.PersistentDataType.STRING) == null)
                 throw new IllegalStateException("pistolet sans identité");
+            for (String id : ItemRegistry.GUNS) {
+                var gun = plugin.items().create(id, 1);
+                if (!gun.hasData(DataComponentTypes.MAX_DAMAGE) || gun.getData(DataComponentTypes.DAMAGE) != 0) throw new IllegalStateException("usure incorrecte : " + id);
+            }
+            if (!plugin.items().create(ItemRegistry.SMG,1).hasData(DataComponentTypes.CONSUMABLE)) throw new IllegalStateException("gâchette automatique absente");
             int recipes = 0;
             for (ApocalypseConfig.Recipe recipe : plugin.settings().play().recipes().values()) {
                 if (plugin.items().resolve(recipe.result().item(), recipe.result().amount()) == null)
@@ -281,6 +303,30 @@ final class SelfTest {
                 return "positions distinctes, magma refusé, aucun repli forcé, terrain restauré";
             } finally { for (var block : before) block.update(true,false); }
         });
+        check(lines, "tirs et sécurité de la carte", () -> {
+            Location base = street(plugin, world).getBlock().getLocation().add(20, 200, 0);
+            List<Block> touched = new ArrayList<>();
+            org.bukkit.entity.Pig target = null;
+            try {
+                for (int z = 0; z <= 8; z++) {
+                    Block b = base.clone().add(0, -1, z).getBlock();
+                    if (!b.getType().isAir()) throw new IllegalStateException("terrain de test occupé");
+                    b.setType(Material.SMOOTH_STONE, false); touched.add(b);
+                }
+                Location eye = base.clone().add(.5, .6, .5);
+                target = world.spawn(base.clone().add(.5, 0, 6.5), org.bukkit.entity.Pig.class, e -> { e.setAI(false); e.setGravity(false); e.setSilent(true); });
+                var hit = org.duckcatmine.apocalypse.combat.FirearmService.trace(eye,new org.bukkit.util.Vector(0,0,1),12,null);
+                if (hit == null || !target.equals(hit.getHitEntity())) throw new IllegalStateException("cible non touchée");
+                Block wall = base.clone().add(0,0,3).getBlock(); wall.setType(Material.BRICKS,false); touched.add(wall);
+                hit = org.duckcatmine.apocalypse.combat.FirearmService.trace(eye,new org.bukkit.util.Vector(0,0,1),12,null);
+                if (hit == null || hit.getHitBlock() == null || hit.getHitEntity() != null) throw new IllegalStateException("tir à travers le mur");
+                if (org.duckcatmine.apocalypse.spawn.MapTeleportService.safeColumn(world,base.getBlockX(),base.getBlockY(),base.getBlockZ()) == null) throw new IllegalStateException("sol sûr refusé");
+                Block floor = base.clone().add(0,-1,0).getBlock(); floor.setType(Material.MAGMA_BLOCK,false);
+                if (org.duckcatmine.apocalypse.spawn.MapTeleportService.safeColumn(world,base.getBlockX(),base.getBlockY(),base.getBlockZ()) != null) throw new IllegalStateException("arrivée sur magma acceptée");
+                return "rayon bloqué par un mur ; arrivée dégagée acceptée, magma refusé";
+            } finally { if (target != null) target.remove(); for (Block b : touched) b.setType(Material.AIR,false); }
+        });
+        check(lines, "rénovation sans perte", () -> plugin.renovator().testPreservation(street(plugin,world).getBlock().getLocation().add(30,200,20)));
         check(lines, "voiture", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 200, 0)));
         check(lines, "bombe artisanale", () -> {
             Location center = street(plugin, world).getBlock().getLocation().add(8.5, 205, 0.5);
@@ -348,6 +394,12 @@ final class SelfTest {
             int stacks = 0;
             for (ItemStack stack : container.getInventory().getContents()) if (stack != null && !stack.isEmpty()) stacks++;
             boolean again = plugin.search().roll(block, container.getInventory());
+            // Simulate a pre-upgrade generated chest: existing items survive a single stock top-up.
+            container.getInventory().setItem(0, ItemStack.of(Material.DIAMOND, 3));
+            var tile = (org.bukkit.block.TileState) block.getState();
+            tile.getPersistentDataContainer().remove(new org.bukkit.NamespacedKey(plugin, "stock_v2")); tile.update(true,false);
+            if (!plugin.search().roll(block, container.getInventory()) || plugin.search().roll(block, container.getInventory())) throw new IllegalStateException("réassort v2 répété ou absent");
+            if (container.getInventory().getItem(0) == null || container.getInventory().getItem(0).getType() != Material.DIAMOND || container.getInventory().getItem(0).getAmount() != 3) throw new IllegalStateException("ancien stock écrasé");
             plugin.search().reset(block);
             if (again) throw new IllegalStateException("second tirage accepté sans renouvellement");
             if (stacks == 0 && plugin.settings().place(spot.place().id()).rollsMin() > 0) throw new IllegalStateException("rien tiré");

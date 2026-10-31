@@ -95,3 +95,24 @@ test('rendezvous and shared departures require current supported state and two d
   refused(() => build('departure-start',null,{},{...status(),departure:{members:['Noah'],phase:'countdown'}}),409);
   refused(() => build('set',{key:{toString:null},value:1}));
 });
+
+
+test('map teleport follows the authenticated account and never a client supplied target', () => {
+  const s = { ...status(), capabilities: ['map-teleport'], world: 'ground_zero' };
+  const input = { action: 'teleport-point', value: { player: 'Sam', world: 'ground_zero', x: 12, y: 70, z: -32 } };
+  assert.equal(command(input,s,'aLeX').command,'apocalypse admin teleport-point Alex 12 70 -32');
+  assert.throws(() => command(input,s,'Unknown'));
+  assert.throws(() => command({...input,value:{...input.value,world:'world'}},s,'Alex'));
+  for (const x of [Infinity, '1\nstop', 2.5, 30000001]) assert.throws(() => command({...input,value:{...input.value,x}},s,'Alex'));
+  assert.equal(command({...input,value:{...input.value,y:null}},s,'Alex').command,'apocalypse admin teleport-point Alex 12 surface -32');
+});
+
+test('city renovation requires an empty scenario, supported plugin and explicit bounded area', () => {
+  const input={action:'renovate',value:{x:0,z:0,radius:128},confirmation:'RENOVER'};
+  const s={...status(),capabilities:['city-renovation'],survivors:[]};
+  assert.equal(command(input,s,'Alex').command,'apocalypse admin renovate 0 0 128 confirm');
+  assert.throws(() => command(input,{...s,survivors:[{name:'Alex'}]},'Alex'));
+  assert.throws(() => command({...input,confirmation:''},s,'Alex'));
+  assert.throws(() => command({...input,value:{...input.value,radius:769}},s,'Alex'));
+  assert.throws(() => command(input,{...s,renovation:{state:'paused'}},'Alex'));
+});

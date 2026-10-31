@@ -206,8 +206,8 @@ public final class SessionService {
             Store.deleteProfileBefore(c, id, SURVIVOR_KIND, seq);
             return null;
         });
+        plugin.drops().giveKit(player, null);
         if (survivor == null) {
-            plugin.drops().giveKit(player, null);
             if (intro) {
                 Location after = drop;
                 plugin.intro().play(player, () -> afterIntro(player, after));
@@ -227,7 +227,7 @@ public final class SessionService {
     }
 
     private void announceDrop(Player player) {
-        Text.warn(player, "Largage : une nouvelle vie commence quelque part dans Ground Zero. Tu n'as presque rien : fouille, fabrique, survis.");
+        Text.warn(player, "Largage : une nouvelle vie commence quelque part dans Ground Zero. Ton kit est prêt : fouille, fabrique, survis. Sonar : carte en seconde main (F).");
         Text.info(player, "Une morsure laisse 60 secondes pour finir un antidote. À ta mort, tout ce que tu portes"
                 + " reste 5 minutes dans ton sac, là où tu es tombé. Le refuge muré au centre-ville est sûr ; on en sort par là.");
         Text.warn(player, plugin.scenario().rulesLine());
@@ -528,6 +528,7 @@ public final class SessionService {
         plugin.progress().apply(player);
         plugin.infections().show(player);
         plugin.bags().remind(player);
+        plugin.drops().giveKit(player, null);
         resumeIntro(player);
     }
 

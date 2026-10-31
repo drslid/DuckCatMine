@@ -6,13 +6,16 @@
   import GroundZeroRules from './GroundZeroRules.svelte';
   import GroundZeroMaintenance from './GroundZeroMaintenance.svelte';
   import GroundZeroMap from './GroundZeroMap.svelte';
+  import GroundZeroRadar from './GroundZeroRadar.svelte';
   let {
     toast,
+    username = '',
     openPlayer,
     openMaintenance = () => {},
     policy = 'idle',
   }: {
     toast: (message: string, error?: boolean) => void;
+    username?: string;
     openPlayer: (name: string) => void;
     openMaintenance?: () => void;
     policy?: string;
@@ -30,6 +33,9 @@
     report = $state<string[]>([]);
   let context = $state<HTMLElement>();
   let destination = $state('');
+  let pickedPoint = $state<any>(null),
+    teleportJob = $state(''),
+    teleportAt = 0;
   let lightMap = $state(false);
   let showInfected = $state(true);
   let infectedPositions = $derived<any[]>(
@@ -89,6 +95,9 @@
     jerrycan: 'bucket',
   };
   let survivors = $derived<any[]>(status?.survivors || []);
+  let myself = $derived(
+    survivors.find((s) => s.name.toLowerCase() === username.toLowerCase()),
+  );
   let survivor = $derived(survivors.find((s) => s.name === selected));
   let destinations = $derived(survivors.filter((s) => s.name !== selected));
   $effect(() => {
@@ -115,6 +124,19 @@
       if (!next.stale && next.generatedAt && next.generatedAt <= refreshAfter)
         return;
       status = next;
+      if (teleportJob) {
+        const receipt = next.teleports?.find((r: any) => r.id === teleportJob);
+        if (receipt && receipt.state !== 'pending') {
+          toast(receipt.message, receipt.state !== 'done');
+          teleportJob = '';
+        } else if (next.stale || Date.now() - teleportAt > 25000) {
+          toast(
+            'Déplacement non confirmé. Vérifie ta position en jeu avant de réessayer.',
+            true,
+          );
+          teleportJob = '';
+        }
+      }
       loadError = '';
     } catch (e) {
       loadError = e.message;
@@ -156,7 +178,11 @@
         confirmation,
       });
       const text = String(result.result || '').trim();
-      if (['status', 'settings', 'selftest'].includes(action))
+      if (result.pending) {
+        teleportJob = result.pending;
+        teleportAt = Date.now();
+        toast('Préparation du point choisi…');
+      } else if (['status', 'settings', 'selftest'].includes(action))
         report = text.split('\n').filter(Boolean);
       else
         toast(
@@ -209,9 +235,32 @@
   }
   function choose(name: string) {
     selected = name;
+    pickedPoint = null;
     requestAnimationFrame(() => {
       if (window.innerWidth < 900)
         context?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+  function choosePoint(point: any) {
+    pickedPoint = point;
+    if (point) selected = '';
+    requestAnimationFrame(() => {
+      if (window.innerWidth < 900)
+        context?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+  function pickLight(event: MouseEvent) {
+    const svg = event.currentTarget as SVGSVGElement,
+      matrix = svg.getScreenCTM();
+    if (!map || !matrix || (event.target as Element).closest('[role="button"]'))
+      return;
+    const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(
+      matrix.inverse(),
+    );
+    choosePoint({
+      world: status.world,
+      x: Math.floor(map.minX + p.x),
+      z: Math.floor(map.minZ + p.y),
     });
   }
   function itemIcon(item: any) {
@@ -432,13 +481,50 @@
           >
         </div>
         {#if status.blueMap?.available && !lightMap && !demo}
-          <GroundZeroMap {status} {selected} {showInfected} onSelect={choose} />
+          <GroundZeroMap
+            {status}
+            {selected}
+            {showInfected}
+            onSelect={choose}
+            onPoint={choosePoint}
+          />
         {:else if map && status.mapRenderedAt}
           <svg
             class="gz-map"
             viewBox={`0 0 ${map.size} ${map.size}`}
-            role="group"
-            aria-label="Carte de Ground Zero avec les survivants"
+            role="button"
+            tabindex="0"
+            aria-label="Choisir un point dans Ground Zero. Flèches pour déplacer la sélection, Entrée pour choisir le centre."
+            onkeydown={(e) => {
+              if (
+                ![
+                  'ArrowUp',
+                  'ArrowDown',
+                  'ArrowLeft',
+                  'ArrowRight',
+                  'Enter',
+                  ' ',
+                ].includes(e.key) ||
+                e.target !== e.currentTarget
+              )
+                return;
+              e.preventDefault();
+              const p = pickedPoint || {
+                world: status.world,
+                x: status.refuge?.x || 0,
+                z: status.refuge?.z || 0,
+              };
+              choosePoint({
+                ...p,
+                x:
+                  p.x +
+                  (e.key === 'ArrowRight' ? 5 : e.key === 'ArrowLeft' ? -5 : 0),
+                z:
+                  p.z +
+                  (e.key === 'ArrowDown' ? 5 : e.key === 'ArrowUp' ? -5 : 0),
+              });
+            }}
+            onclick={pickLight}
           >
             {#if demo}
               <defs
@@ -493,6 +579,19 @@
                 href={`/api/apocalypse/map.png?v=${Math.round(status.mapRenderedAt)}`}
                 width={map.size}
                 height={map.size}
+              />{/if}
+            {#if pickedPoint && onMap(pickedPoint.x, pickedPoint.z)}<circle
+                cx={pickedPoint.x - map.minX}
+                cy={pickedPoint.z - map.minZ}
+                r={map.size / 55}
+                fill="none"
+                stroke="#d5e795"
+                stroke-width={map.size / 250}
+              /><circle
+                cx={pickedPoint.x - map.minX}
+                cy={pickedPoint.z - map.minZ}
+                r={map.size / 180}
+                fill="#d5e795"
               />{/if}
             {#if status.refuge}<circle
                 class="refuge"
@@ -591,7 +690,54 @@
         bind:this={context}
         aria-label="Actions sur le survivant"
       >
-        {#if survivor}
+        {#if pickedPoint}
+          <div class="card-heading">
+            <h2>Point sur la carte</h2>
+            <button
+              class="icon-button"
+              aria-label="Fermer le point"
+              onclick={() => (pickedPoint = null)}
+              ><Icon name="close" size={16} /></button
+            >
+          </div>
+          <p class="muted small">
+            X {pickedPoint.x} · {pickedPoint.y == null
+              ? 'Surface'
+              : `Y ${pickedPoint.y}`} · Z {pickedPoint.z}
+          </p>
+          <p class="muted small">
+            Rejoins ce point avec ton personnage. Le sol sera vérifié avant le
+            déplacement.
+          </p>
+          <button
+            class="primary"
+            disabled={!!busy ||
+              !!teleportJob ||
+              !myself ||
+              !open ||
+              !status.capabilities?.includes('map-teleport')}
+            onclick={() =>
+              ask({
+                action: 'teleport-point',
+                value: pickedPoint,
+                title: 'Se téléporter ici',
+                description: `Déplacer ${myself?.name || username} au point ${pickedPoint.x} · ${pickedPoint.z}. Ton inventaire et ta progression sont conservés.`,
+              })}
+          >
+            <Icon name="pin" size={16} />{teleportJob
+              ? 'Préparation…'
+              : 'Me téléporter ici'}</button
+          >
+          {#if !myself}<p class="notice">
+              Connecte-toi à Minecraft avec le même pseudo que ton compte web et
+              entre dans Ground Zero.
+            </p>{/if}
+          {#if !status.capabilities?.includes('map-teleport')}<p
+              class="muted small"
+            >
+              Disponible après activation de la mise à jour du plugin.
+            </p>{/if}
+        {:else if survivor}
           <div class="card-heading">
             <div class="person-heading">
               <span class="account-avatar">{survivor.name.slice(0, 2)}</span>
@@ -611,6 +757,7 @@
               ><Icon name="close" size={16} /></button
             >
           </div>
+          <GroundZeroRadar {status} player={survivor} />
           <div class="survivor-facts">
             <span
               ><Icon name="heart" size={15} />{survivor.health ?? '—'} / 20</span

@@ -14,19 +14,23 @@ final class Structures {
     }
 
     static void render(CityLayout.Placement p, Canvas world, CityLayout layout) {
+        render(p, world, layout, false);
+    }
+
+    static void render(CityLayout.Placement p, Canvas world, CityLayout layout, boolean legacy) {
         Frame f = new Frame(world, p.minX(), p.minZ(), p.width(), p.depth(), p.front());
         Random r = new Random(p.seed());
         int y = p.floorY();
         switch (p.kind()) {
-            case HOUSE_SMALL -> Homes.house(f, r, y, 1, PlaceType.HOUSE);
-            case HOUSE_LARGE -> Homes.house(f, r, y, 2, PlaceType.HOUSE);
-            case FARMHOUSE -> Homes.house(f, r, y, 1, PlaceType.FARM);
-            case APARTMENT -> Homes.apartment(f, r, y);
+            case HOUSE_SMALL -> { if (legacy) LegacyHomes.house(f, r, y, 1, PlaceType.HOUSE); else Homes.house(f, r, y, 1, PlaceType.HOUSE); }
+            case HOUSE_LARGE -> { if (legacy) LegacyHomes.house(f, r, y, 2, PlaceType.HOUSE); else Homes.house(f, r, y, 2, PlaceType.HOUSE); }
+            case FARMHOUSE -> { if (legacy) LegacyHomes.house(f, r, y, 1, PlaceType.FARM); else Homes.house(f, r, y, 1, PlaceType.FARM); }
+            case APARTMENT -> { if (legacy) LegacyHomes.apartment(f, r, y); else Homes.apartment(f, r, y); }
             case RUIN -> Homes.ruin(f, r, y);
             case YARD -> Homes.yard(f, r, y);
             case CABIN -> Rural.cabin(f, r, y, layout);
-            case SHOP -> Shops.shop(f, r, y);
-            case SUPERMARKET -> Shops.supermarket(f, r, y);
+            case SHOP -> { if (legacy) LegacyShops.shop(f, r, y); else Shops.shop(f, r, y); }
+            case SUPERMARKET -> { if (legacy) LegacyShops.supermarket(f, r, y); else Shops.supermarket(f, r, y); }
             case PHARMACY -> Shops.pharmacy(f, r, y);
             case GARAGE -> Shops.garage(f, r, y);
             case WAREHOUSE -> Shops.warehouse(f, r, y);

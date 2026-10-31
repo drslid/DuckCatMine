@@ -118,6 +118,8 @@ public final class CityLayout {
             ProbeCanvas probe = new ProbeCanvas(x, y, z);
             Structures.render(placement, probe, this);
             if (probe.found() != null) return probe.found();
+            Structures.render(placement, probe, this, true);
+            if (probe.found() != null) return probe.found();
         }
         return null;
     }

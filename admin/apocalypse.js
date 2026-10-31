@@ -30,12 +30,12 @@ function makeApocalypseCommands(HttpError) {
     if (outside && survivor.inRefuge) fail('Ce survivant est à l’abri dans le refuge.', 409);
     return name;
   };
-  function command(input, status) {
+  function command(input, status, username) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Action invalide.');
     const action = input.action, value = input.value;
     // Validate the action before the availability check, so unknown tokens never reach RCON.
     const simple = ['status', 'settings', 'enable', 'disable', 'selftest', 'reload'];
-    const known = [...simple, 'pvp', 'destruction', 'threat', 'horde', 'map', 'set', 'preset', 'give', 'evacuate', 'upgrade', 'lives-reset', 'world-create', 'world-bind', 'world-recreate', 'teleport', 'departure-start', 'departure-cancel'];
+    const known = [...simple, 'pvp', 'destruction', 'threat', 'horde', 'map', 'set', 'preset', 'give', 'evacuate', 'upgrade', 'lives-reset', 'world-create', 'world-bind', 'world-recreate', 'teleport', 'teleport-point', 'renovate', 'departure-start', 'departure-cancel'];
     if (!known.includes(action)) fail('Action inconnue.');
     if (!status?.installed || status.stale) fail('Ground Zero ne répond pas. Attends la fin du démarrage.', 409);
     const result = (suffix, detail = '') => ({ command: `apocalypse admin ${suffix}`, detail });
@@ -44,6 +44,24 @@ function makeApocalypseCommands(HttpError) {
       if (action === 'departure-start' && (!status.departure?.members?.length || status.departure.phase !== 'waiting'))
         fail('Aucun groupe en attente de départ.', 409);
       return result(`departure ${action === 'departure-start' ? 'start' : 'cancel'}`, 'départ groupé');
+    }
+    if (action === 'renovate') {
+      if (!status.capabilities?.includes('city-renovation')) fail('Mets le plugin Ground Zero à jour pour rénover la ville.', 409);
+      if (status.survivors?.length) fail('Fais sortir les joueurs de Ground Zero avant la rénovation.', 409);
+      if (['running', 'paused'].includes(status.renovation?.state)) fail('Une rénovation est déjà en cours.', 409);
+      confirmation(input, 'RENOVER');
+      const x = number(value?.x, -30000000, 30000000, true), z = number(value?.z, -30000000, 30000000, true);
+      const radius = number(value?.radius, 16, 768, true);
+      return result(`renovate ${x} ${z} ${radius} confirm`, `${x} ${z} r=${radius}`);
+    }
+    if (action === 'teleport-point') {
+      if (!status.capabilities?.includes('map-teleport')) fail('Mets le plugin Ground Zero à jour pour te téléporter sur la carte.', 409);
+      const me = status.survivors?.find(p => p.name.toLowerCase() === String(username || '').toLowerCase());
+      const player = target(me?.name, status);
+      if (value?.world !== status.world) fail('Choisis un point dans Ground Zero.');
+      const x = number(value.x, -30000000, 30000000, true), z = number(value.z, -30000000, 30000000, true);
+      const y = value.y == null ? 'surface' : number(value.y, -2048, 2048, true);
+      return result(`teleport-point ${player} ${x} ${y} ${z}`, `${player} -> ${x} ${y} ${z}`);
     }
     if (action === 'teleport') {
       if (!status.capabilities?.includes('teleport')) fail('Mets le plugin Ground Zero à jour pour déplacer les survivants.', 409);

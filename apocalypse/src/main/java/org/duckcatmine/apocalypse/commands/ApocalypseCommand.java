@@ -79,6 +79,10 @@ public final class ApocalypseCommand implements TabExecutor {
             case "recipes", "recettes" -> plugin.crafting().open(player, org.duckcatmine.apocalypse.crafting.CraftingService.Station.CATALOG,
                     args.length > 1 ? args[1] : null);
             case "team", "equipe" -> plugin.teams().command(player, args);
+            case "radar", "sonar" -> {
+                if (!plugin.sessions().isSurvivor(player)) Text.error(player, "Entre d'abord dans Ground Zero.");
+                else { plugin.radar().give(player); Text.info(player, "Sonar : tiens la carte en seconde main (F). Bleu : survivants. Rouge : infectés. Points extérieurs : joueurs éloignés."); }
+            }
             case "stats" -> plugin.progress().stats(player);
             case "skills", "competences" -> plugin.progress().skills(player, args);
             case "intro" -> {
@@ -99,6 +103,7 @@ public final class ApocalypseCommand implements TabExecutor {
         Text.info(sender, "/apocalypse leave — quitter : immédiat au refuge, sinon après quelques secondes immobile (jamais avec une morsure)");
         Text.info(sender, "/apocalypse guide — règles, antidotes et pharmacie la plus proche, voitures");
         Text.info(sender, "/apocalypse status | infection | bag [open] | recipes [objet] | stats | skills | intro [skip]");
+        Text.info(sender, "/apocalypse radar — sonar en seconde main : bleu survivants, rouge infectés, anneau extérieur joueurs éloignés");
         Text.info(sender, "/apocalypse team create <nom> | invite <joueur> | accept | decline | leave | kick <joueur> | bags on|off | disband");
         Text.info(sender, "Injecter un antidote à un autre survivant mordu : accroupi, clic droit sur lui, antidote en main (2 s).");
         if (sender.hasPermission(ADMIN)) {
@@ -126,7 +131,7 @@ public final class ApocalypseCommand implements TabExecutor {
         }
         Text.info(player, "Voitures : clic droit pour monter, avancer/reculer avec tes touches habituelles, souris pour tourner, saut = frein à main,"
                 + " sprint = klaxon, Maj = descendre. Les occupants restent attaquables. Le moteur attire les infectés. Essence : jerrican.");
-        Text.info(player, "Armes : /apocalypse recipes (massues, hache, arc silencieux, pistolet, bombe artisanale, cocktail Molotov).");
+        Text.info(player, "Armes : /apocalypse recipes (massues, hache, arc silencieux, pistolet, fusil à pompe, mitraillette, bombe artisanale, cocktail Molotov).");
         Text.info(player, "Partir : /apocalypse leave — au refuge tout de suite, ailleurs après " + plugin.settings().play().leaveSeconds()
                 + " s immobile sans combattre. Ta vie t'attend pour ton retour.");
     }
@@ -276,6 +281,25 @@ public final class ApocalypseCommand implements TabExecutor {
                     if (error != null) Text.error(sender, error);
                     else { audit(actor, "admin_departure_start", ""); Text.good(sender, "Départ groupé en préparation : compte à rebours commun de 5 secondes."); }
                 }
+            }
+            case "renovate" -> {
+                try {
+                    if (args.length != 6 || !args[5].equals("confirm")) throw new IllegalArgumentException("/apocalypse admin renovate <x> <z> <rayon 16-768> confirm");
+                    int x = Integer.parseInt(args[2]), z = Integer.parseInt(args[3]), radius = Integer.parseInt(args[4]);
+                    if (Math.abs((long) x) > 30000000 || Math.abs((long) z) > 30000000) throw new IllegalArgumentException("Coordonnées invalides.");
+                    plugin.renovator().start(x, z, radius);
+                    audit(actor, "admin_renovate", x + " " + z + " r" + radius);
+                    Text.good(sender, "Rénovation lancée, progression dans Maintenance. Les ajouts et conteneurs sont conservés.");
+                } catch (IllegalArgumentException e) { Text.error(sender, e.getMessage()); }
+            }
+            case "teleport-point" -> {
+                Player source = args.length == 6 ? Bukkit.getPlayerExact(args[2]) : null;
+                try {
+                    int x = Integer.parseInt(args[3]), z = Integer.parseInt(args[5]);
+                    Integer y = args[4].equals("surface") ? null : Integer.valueOf(args[4]);
+                    String job = plugin.mapTeleports().request(source, x, y, z, actor);
+                    Text.good(sender, "DCAPO_PENDING:" + job);
+                } catch (IllegalArgumentException | IndexOutOfBoundsException e) { Text.error(sender, e.getMessage() == null ? "Coordonnées invalides." : e.getMessage()); }
             }
             case "teleport" -> {
                 Player source = args.length == 4 ? Bukkit.getPlayerExact(args[2]) : null;
@@ -491,7 +515,7 @@ public final class ApocalypseCommand implements TabExecutor {
             options.add("skip");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
             if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat",
-                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives", "teleport", "departure"));
+                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives", "teleport", "teleport-point", "renovate", "departure"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("departure")) options.addAll(List.of("start", "cancel"));
             else if ((args.length == 3 || args.length == 4) && args[1].equalsIgnoreCase("teleport"))
                 Bukkit.getOnlinePlayers().stream().filter(plugin.sessions()::isSurvivor).forEach(p -> options.add(p.getName()));

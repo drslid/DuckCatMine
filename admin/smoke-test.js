@@ -48,7 +48,8 @@ test('activation, login, session, CSRF and logout', async () => {
         if (type === 3) connection.write(rconPacket(id, 2));
         if (type === 2) {
           rconCommands.push(value);
-          const reply = value === 'apocalypse admin reload' ? '☣ DCAPO_ERROR: Configuration refusée pour ce test.'
+          const reply = value.startsWith('apocalypse admin teleport-point ') ? '☣ DCAPO_PENDING:00000000-0000-4000-8000-000000000001'
+            : value === 'apocalypse admin reload' ? '☣ DCAPO_ERROR: Configuration refusée pour ce test.'
             : value === 'dctower' ? 'Usage : dctower inspect <id> | check/place <id> <monde> <x> <z>'
             : value.startsWith('dctower inspect ') ? `DCTOWER:${JSON.stringify({ width: 3, height: 3, length: 3,
               preview: Array(16).fill('S'.repeat(16)).join('/') })}`
@@ -209,7 +210,7 @@ test('activation, login, session, CSRF and logout', async () => {
     const apocalypseDir = path.join(mcdata, 'plugins', 'DuckCatApocalypse');
     fs.mkdirSync(apocalypseDir, { recursive: true });
     fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 3, generatedAt: Date.now(), running: true,
-      capabilities:['departure','teleport'], departure:{members:['Noah'],phase:'waiting'},
+      capabilities:['departure','teleport','map-teleport','city-renovation'], departure:{members:['Noah'],phase:'waiting'},
       enabled: true, world: 'ground_zero', threat: { level: 2.5, phase: 'pressure', phaseLabel: 'pression', secondsLeft: 40, hordes: 1 },
       rules: { pvp: false, destruction: true, globalCap: 60 }, infected: { walker: 3 }, infectedTotal: 3,
       infectedPositions:[{id:'00000000-0000-4000-8000-000000000001',type:'walker',x:15,y:65,z:-5}],
@@ -261,6 +262,19 @@ test('activation, login, session, CSRF and logout', async () => {
     const gzRefused = await post('/api/apocalypse/action', {action:'reload'}, gzHeaders);
     assert.equal(gzRefused.status, 409, 'a plugin refusal must not become a success toast');
     assert.match((await gzRefused.json()).error, /Configuration refusée/);
+    const currentGroundZero = JSON.parse(fs.readFileSync(path.join(apocalypseDir,'status.json')));
+    currentGroundZero.survivors.push({name:'Alex',x:0,y:65,z:0});
+    fs.writeFileSync(path.join(apocalypseDir,'status.json'), JSON.stringify(currentGroundZero));
+    const mapTp = await post('/api/apocalypse/action',{action:'teleport-point',value:{player:'Mia',world:'ground_zero',x:10,y:64,z:15}},gzHeaders);
+    assert.equal(mapTp.status,200);
+    assert.equal((await mapTp.json()).pending,'00000000-0000-4000-8000-000000000001');
+    assert(rconCommands.includes('apocalypse admin teleport-point Alex 10 64 15'));
+    assert.equal((await post('/api/apocalypse/action',{action:'teleport-point',value:{world:'ground_zero',x:10,y:64,z:15}},{Cookie:cookie})).status,403);
+    assert.equal((await post('/api/apocalypse/action',{action:'renovate',value:{x:0,z:0,radius:128},confirmation:'RENOVER'},gzHeaders)).status,409);
+    currentGroundZero.survivors=[];
+    fs.writeFileSync(path.join(apocalypseDir,'status.json'), JSON.stringify(currentGroundZero));
+    assert.equal((await post('/api/apocalypse/action',{action:'renovate',value:{x:0,z:0,radius:128},confirmation:'RENOVER'},gzHeaders)).status,200);
+    assert(rconCommands.includes('apocalypse admin renovate 0 0 128 confirm'));
     fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 1, generatedAt: Date.now() - 120000, running: true,
       survivors: [{ name: 'Mia' }], infectedPositions:[{id:'old',type:'walker',x:1,y:65,z:1}] }));
     const stale = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();

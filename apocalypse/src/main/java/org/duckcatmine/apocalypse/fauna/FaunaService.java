@@ -256,6 +256,10 @@ public final class FaunaService implements Listener {
         if (random.nextInt(3) == 0)
             mob.getWorld().spawnParticle(Particle.DUST, mob.getEyeLocation(), 2, 0.2, 0.2, 0.2, new Particle.DustOptions(Color.fromRGB(60, 90, 35), 1.0f));
         LivingEntity target = mob.getTarget() != null && valid(mob, mob.getTarget(), archetype) ? mob.getTarget() : pick(mob, archetype);
+        if (target != null && !(target instanceof Player) && plugin.mobs().searchGoal(mob) != null) {
+            if (mob.getTarget() != null) mob.setTarget(null);
+            return; // Keep following the shared last-known survivor position instead of switching to livestock.
+        }
         if (target == null) {
             if (mob.getTarget() != null) mob.setTarget(null);
             return;
@@ -280,6 +284,7 @@ public final class FaunaService implements Listener {
 
     private boolean valid(Mob mob, LivingEntity target, ApocalypseConfig.Archetype archetype) {
         if (!target.isValid() || target.isDead() || !target.getWorld().equals(mob.getWorld())) return false;
+        if (!mob.hasLineOfSight(target)) return false;
         double range = archetype.followRange();
         if (target.getLocation().distanceSquared(mob.getLocation()) > range * range) return false;
         if (target instanceof Player player) return survivorTarget(player);
@@ -303,7 +308,7 @@ public final class FaunaService implements Listener {
         if (best != null || random.nextInt(3) != 0) return best;
         bestDistance = SPREAD_RADIUS * SPREAD_RADIUS;
         for (Entity entity : mob.getNearbyEntities(SPREAD_RADIUS, 4, SPREAD_RADIUS)) {
-            if (!(entity instanceof Animals animal) || !healthy(animal)) continue;
+            if (!(entity instanceof Animals animal) || !healthy(animal) || !mob.hasLineOfSight(animal)) continue;
             double distance = animal.getLocation().distanceSquared(at);
             if (distance < bestDistance) {
                 best = animal;

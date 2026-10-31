@@ -146,6 +146,9 @@
       les ajouts, les bases revendiquées et les conteneurs. Les nouvelles zones
       utilisent déjà les nouveaux modèles.
     </p>
+    {#if status.survivors?.length}<p class="notice">
+        Les joueurs doivent quitter Ground Zero avant de lancer une rénovation.
+      </p>{/if}
     {#if status.renovation}<p class="notice" aria-live="polite">
         {status.renovation.message}<br />{status.renovation.buildings} bâtiments ·
         {status.renovation.changed} blocs améliorés · {status.renovation

@@ -252,8 +252,7 @@
   function pickLight(event: MouseEvent) {
     const svg = event.currentTarget as SVGSVGElement,
       matrix = svg.getScreenCTM();
-    if (!map || !matrix || (event.target as Element).closest('[role="button"]'))
-      return;
+    if (!map || !matrix || (event.target as Element).closest('.dot')) return;
     const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(
       matrix.inverse(),
     );

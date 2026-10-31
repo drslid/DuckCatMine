@@ -68,6 +68,10 @@ class ApocalypseConfigTest {
         assertEquals(1.5, config.spawning().density(), 1e-9);
         assertEquals(2, config.spawning().perTick());
         assertEquals(10, config.play().leaveSeconds());
+        assertEquals(30, config.play().perception().investigateSeconds());
+        assertEquals(5, config.play().noise().walk());
+        assertEquals(12, config.play().noise().blockBreak());
+        assertTrue(config.play().noise().walk() < config.play().noise().sprint());
         assertEquals(0.15, config.play().fauna().spawnShare(), 1e-9);
         assertTrue(config.play().vehicles().enabled());
         assertTrue(config.play().vehicles().maxSpeedRoad() > config.play().vehicles().maxSpeedOffroad());

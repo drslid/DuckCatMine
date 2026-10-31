@@ -8,6 +8,8 @@ const SETTINGS = {
   density: ['decimal', .25, 5], 'per-tick': ['integer', 1, 5],
   'global-cap': ['integer', 0, 400], 'night-bonus': ['integer', 0, 16],
   'threat-per-hour': ['decimal', 0, 100], fauna: ['boolean'],
+  'search-seconds': ['decimal', 2, 120], 'walk-noise': ['decimal', 0, 64],
+  'sprint-noise': ['decimal', 0, 64], 'break-noise': ['decimal', 0, 64], 'place-noise': ['decimal', 0, 64],
   'fauna-share': ['decimal', 0, .6], 'fauna-chance': ['decimal', 0, 1],
   vehicles: ['boolean'], 'city-chance': ['decimal', 0, 1],
   'leave-seconds': ['integer', 0, 120], intro: ['boolean'], 'team-size': ['integer', 2, 16],

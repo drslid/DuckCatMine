@@ -13,6 +13,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
@@ -28,6 +29,7 @@ import org.duckcatmine.apocalypse.config.ApocalypseConfig;
 public final class NoiseService implements Listener {
     private final DuckCatApocalypse plugin;
     private final Map<UUID, Long> noisyUntil = new HashMap<>();
+    private final Map<UUID, Location> footsteps = new HashMap<>();
     private long emitted;
 
     public NoiseService(DuckCatApocalypse plugin) {
@@ -43,8 +45,15 @@ public final class NoiseService implements Listener {
         if (radius <= 0 || at.getWorld() == null || !plugin.scenario().isScenarioWorld(at.getWorld())) return;
         emitted++;
         if (source != null) noisyUntil.put(source.getUniqueId(), plugin.clock().now() + 3000);
-        plugin.mobs().hear(at, radius);
+        plugin.mobs().hear(at, radius, true);
         if (radius >= plugin.settings().play().noise().gunshot() * 0.9) plugin.threat().loudNoise();
+    }
+
+    /** Infected sounds attract idle neighbours without extending their existing search forever. */
+    public void emitInfected(Location at, double radius) {
+        if (radius <= 0 || at.getWorld() == null || !plugin.scenario().isScenarioWorld(at.getWorld())) return;
+        emitted++;
+        plugin.mobs().hear(at, radius, false);
     }
 
     /** Whether a quiet player escapes the notice of an infected that has not engaged yet. */
@@ -65,23 +74,35 @@ public final class NoiseService implements Listener {
         return Math.max(block.getLightFromBlocks(), sky);
     }
 
-    /** Once per second: running is heard. */
+    /** Once per second, compare ground positions. Camera rotation and a held sprint key are silent. */
     public void tick() {
         var world = plugin.scenario().world();
-        if (world == null || !plugin.scenario().isEnabled()) return;
-        double sprint = plugin.settings().play().noise().sprint();
+        if (world == null || !plugin.scenario().isEnabled()) { footsteps.clear(); return; }
+        var present = new java.util.HashSet<UUID>();
+        var rules = plugin.settings().play().noise();
         for (Player player : world.getPlayers()) {
-            if (player.isSprinting() && plugin.sessions().isSurvivor(player) && !plugin.scenario().inRefuge(player.getLocation()))
-                emit(player.getLocation(), sprint, player);
+            if (!plugin.sessions().isSurvivor(player) || plugin.scenario().inRefuge(player.getLocation())) continue;
+            present.add(player.getUniqueId());
+            Location at = player.getLocation(), previous = footsteps.put(player.getUniqueId(), at);
+            if (previous == null || !previous.getWorld().equals(at.getWorld())) continue;
+            double dx = at.getX()-previous.getX(), dz = at.getZ()-previous.getZ();
+            Footsteps.Sound sound = Footsteps.sound(dx*dx+dz*dz, player.isOnGround(), player.isSneaking(), player.isSprinting(), player.isInsideVehicle());
+            if (sound != Footsteps.Sound.NONE) emit(at, sound == Footsteps.Sound.SPRINT ? rules.sprint() : rules.walk(), player);
         }
+        footsteps.keySet().retainAll(present);
         noisyUntil.values().removeIf(until -> until < plugin.clock().now());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Material type = event.getBlock().getType();
-        if (type == Material.GLASS || type == Material.GLASS_PANE || Tag.IMPERMEABLE.isTagged(type) || type.name().endsWith("GLASS_PANE"))
-            emit(event.getBlock().getLocation(), plugin.settings().play().noise().glass(), event.getPlayer());
+        boolean glass = type == Material.GLASS || type == Material.GLASS_PANE || Tag.IMPERMEABLE.isTagged(type) || type.name().endsWith("GLASS_PANE");
+        emit(event.getBlock().getLocation(), glass ? plugin.settings().play().noise().glass() : plugin.settings().play().noise().blockBreak(), event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        emit(event.getBlock().getLocation(), plugin.settings().play().noise().blockPlace(), event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

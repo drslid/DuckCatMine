@@ -1,4 +1,4 @@
-survival-content-version: 3
+survival-content-version: 4
 # DuckCatApocalypse — réglages du scénario Ground Zero.
 # Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
 # au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
@@ -716,6 +716,9 @@ noise:
   gunshot: 48
   explosion: 64
   sprint: 10
+  walk: 5
+  block-break: 12
+  block-place: 8
   glass: 16
   melee: 6
   container: 5
@@ -729,7 +732,8 @@ perception:
   sneak-detection: 8
   dark-detection: 12
   dark-light-level: 4
-  investigate-seconds: 20
+  # Délai depuis la dernière vue ou le dernier bruit : ensuite la recherche et le siège cessent.
+  investigate-seconds: 30
 
 traps:
   damage: 6

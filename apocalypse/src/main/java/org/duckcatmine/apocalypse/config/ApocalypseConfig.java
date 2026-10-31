@@ -133,7 +133,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     }
 
     public record Noise(double gunshot, double explosion, double sprint, double glass, double melee, double container,
-                        double decoy, double decoySeconds, double siege, double crafting) {
+                        double decoy, double decoySeconds, double siege, double crafting, double walk, double blockBreak, double blockPlace) {
     }
 
     public record Perception(double sneakDetection, double darkDetection, int darkLightLevel, double investigateSeconds) {
@@ -387,12 +387,15 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.decimal("noise.decoy", 32, 0, 160),
                 read.decimal("noise.decoy-seconds", 10, 1, 60),
                 read.decimal("noise.siege", 12, 0, 64),
-                read.decimal("noise.crafting", 10, 0, 64));
+                read.decimal("noise.crafting", 10, 0, 64),
+                read.decimal("noise.walk", 5, 0, 64),
+                read.decimal("noise.block-break", 12, 0, 64),
+                read.decimal("noise.block-place", 8, 0, 64));
         Perception perception = new Perception(
                 read.decimal("perception.sneak-detection", 8, 2, 64),
                 read.decimal("perception.dark-detection", 12, 2, 64),
                 read.integer("perception.dark-light-level", 4, 0, 15),
-                read.decimal("perception.investigate-seconds", 20, 2, 120));
+                read.decimal("perception.investigate-seconds", 30, 2, 120));
         Traps traps = new Traps(read.decimal("traps.damage", 6, 0, 40), read.integer("traps.charges", 8, 1, 100));
         Map<String, Double> resistance = read.numbers("siege.resistance", 1, 100_000);
         for (String category : List.of("barricade", "reinforced", "glass", "soft", "wood", "stone", "metal"))

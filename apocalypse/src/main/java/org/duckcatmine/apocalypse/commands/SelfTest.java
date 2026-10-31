@@ -208,6 +208,23 @@ final class SelfTest {
             return String.format(java.util.Locale.ROOT, "portes, vitres, métal, maçonnerie attaquables, terrain naturel jamais ; menace %.2f (%s), plafond local 4 -> %d",
                     threat.level(), threat.phase().label(), threat.localCap(4));
         });
+        check(lines, "recherche au bruit", () -> {
+            Location here = street(plugin, world).clone().add(0, 100, 0);
+            Zombie mob = plugin.mobs().spawnWalker(here);
+            try {
+                Location noise = here.clone().add(4, 0, 0);
+                plugin.mobs().hear(noise, 8, true);
+                Location remembered = plugin.mobs().searchGoal(mob);
+                if (remembered == null || remembered.distanceSquared(noise) > .001) throw new IllegalStateException("bruit non mémorisé");
+                remembered.add(100,0,0);
+                if (plugin.mobs().searchGoal(mob).distanceSquared(noise) > .001) throw new IllegalStateException("position interne modifiable");
+                plugin.noise().emitInfected(here.clone().add(-4,0,0),8);
+                if (plugin.mobs().searchGoal(mob).distanceSquared(noise) > .001) throw new IllegalStateException("les coups d'un infecté remplacent sa piste");
+                plugin.mobs().hear(here.clone().add(100,0,0),2,true);
+                if (plugin.mobs().searchGoal(mob).distanceSquared(noise) > .001) throw new IllegalStateException("bruit hors portée entendu");
+                return "point sonore exact, copie isolée, bruit lointain ignoré, pas de recherche perpétuée par les infectés";
+            } finally { mob.remove(); plugin.mobs().forget(mob.getUniqueId()); }
+        });
         check(lines, "siège en situation", () -> {
             if (!plugin.siege().enabled()) return "ignoré : destruction coupée par un administrateur";
             Location base = street(plugin, world).getBlock().getLocation().add(0, 200, 0);
@@ -235,14 +252,15 @@ final class SelfTest {
                     pig.setAI(false);
                     pig.setSilent(true);
                 });
-                mob.setTarget(target);
-                if (!target.equals(mob.getTarget())) throw new IllegalStateException("cible refusée par le serveur");
+                Location lastKnown = target.getLocation();
+                mob.setTarget(null); // After losing sight, pursue the remembered point without a live target.
+                target.teleport(lastKnown.clone().add(20,0,0));
                 ApocalypseConfig.Archetype walker = plugin.settings().archetype(ApocalypseConfig.WALKER);
                 long now = plugin.clock().now() + 60_000;
                 int hits = 0;
                 String refused = null;
                 while (lower.getType() == Material.OAK_DOOR && hits < 100) {
-                    refused = plugin.siege().attempt(mob, walker, 0, now);
+                    refused = plugin.siege().attemptAt(mob, walker, lastKnown, 0, now);
                     if (refused != null) break;
                     now += 1100;
                     hits++;
@@ -252,9 +270,9 @@ final class SelfTest {
                 int expected = (int) Math.ceil(plugin.settings().play().siege().resistance().get("wood") / walker.siegePower());
                 if (hits != expected) throw new IllegalStateException(hits + " coups au lieu de " + expected);
                 lower.setType(Material.STONE, false);
-                for (int k = 0; k < 10; k++, now += 1100) plugin.siege().consider(mob, walker, 0, now);
+                for (int k = 0; k < 10; k++, now += 1100) plugin.siege().consider(mob, walker, lastKnown, 0, now);
                 if (lower.getType() != Material.STONE) throw new IllegalStateException("roche naturelle détruite");
-                return "porte en bois enfoncée par un errant en " + hits + " coups (deux moitiés, sans objet lâché), roche intacte";
+                return "dernière position connue : porte en bois enfoncée par un errant en " + hits + " coups (deux moitiés, sans objet lâché), roche intacte";
             } finally {
                 if (mob != null) {
                     mob.remove();

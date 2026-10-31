@@ -131,6 +131,8 @@ public final class ApocalypseCommand implements TabExecutor {
         }
         Text.info(player, "Voitures : clic droit pour monter, avancer/reculer avec tes touches habituelles, souris pour tourner, saut = frein à main,"
                 + " sprint = klaxon, Maj = descendre. Les occupants restent attaquables. Le moteur attire les infectés. Essence : jerrican.");
+        Text.info(player, "Discrétion : marche, course, casse et pose de blocs attirent les infectés. Accroupis-toi pour avancer sans bruit. Cache-toi et reste silencieux "
+                + (int) plugin.settings().play().perception().investigateSeconds() + " secondes pour les semer. S'ils te voient encore, ils poursuivent et peuvent enfoncer les obstacles.");
         Text.info(player, "Défense : /apocalypse recipes auto_turret — mini-arbalète automatique à poser, infectés à 8 blocs.");
         Text.info(player, "Armes : /apocalypse recipes (massues, hache, arc silencieux, pistolet, fusil à pompe, mitraillette, bombe artisanale, cocktail Molotov).");
         Text.info(player, "Partir : /apocalypse leave — au refuge tout de suite, ailleurs après " + plugin.settings().play().leaveSeconds()

@@ -110,14 +110,24 @@ public final class SiegeManager implements Listener {
         attempt(mob, archetype, lastMovedAt, now);
     }
 
+    /** Chase the last observed position rather than a hidden player's moving coordinates. */
+    public void consider(Mob mob, ApocalypseConfig.Archetype archetype, Location goal, long lastMovedAt, long now) {
+        attemptAt(mob, archetype, goal, lastMovedAt, now);
+    }
+
     /** One siege step; returns why nothing was hit (for the self-test), or null after a hit. */
     public String attempt(Mob mob, ApocalypseConfig.Archetype archetype, long lastMovedAt, long now) {
+        if (!(mob.getTarget() instanceof LivingEntity target) || !target.isValid()) return "sans cible";
+        return attemptAt(mob, archetype, target.getLocation(), lastMovedAt, now);
+    }
+
+    public String attemptAt(Mob mob, ApocalypseConfig.Archetype archetype, Location target, long lastMovedAt, long now) {
         if (!enabled() || archetype.siegePower() <= 0) return "désactivé";
         ApocalypseConfig.Siege rules = plugin.settings().play().siege();
-        if (!(mob.getTarget() instanceof LivingEntity target) || !target.isValid() || !target.getWorld().equals(mob.getWorld())) return "sans cible";
+        if (target == null || !target.getWorld().equals(mob.getWorld())) return "sans cible";
         if (now - lastMovedAt < rules.blockedSeconds() * 1000) return "pas bloqué";
         if (nextHit.getOrDefault(mob.getUniqueId(), 0L) > now) return "cadence";
-        double distance = mob.getLocation().distance(target.getLocation());
+        double distance = mob.getLocation().distance(target);
         if (distance > MAX_TARGET_DISTANCE || distance < 1.2) return "distance " + distance;
         Block obstacle = obstacle(mob, target);
         if (obstacle == null) return "aucun obstacle";
@@ -137,9 +147,9 @@ public final class SiegeManager implements Listener {
     }
 
     /** First non-passable block between the infected and its prey, at feet or head height, one step ahead. */
-    private static Block obstacle(Mob mob, LivingEntity target) {
+    private static Block obstacle(Mob mob, Location target) {
         Location from = mob.getLocation();
-        Vector direction = target.getLocation().toVector().subtract(from.toVector()).setY(0);
+        Vector direction = target.toVector().subtract(from.toVector()).setY(0);
         if (direction.lengthSquared() < 0.04) return null;
         direction.normalize();
         for (double ahead : new double[] {0.7, 1.2}) {
@@ -165,7 +175,7 @@ public final class SiegeManager implements Listener {
             default -> Sound.BLOCK_STONE_HIT;
         }, 1.0f, 0.8f + (float) Math.random() * 0.3f);
         world.spawnParticle(Particle.BLOCK, center, 6, 0.3, 0.3, 0.3, block.getBlockData());
-        plugin.noise().emit(center, plugin.settings().play().noise().siege(), null);
+        plugin.noise().emitInfected(center, plugin.settings().play().noise().siege());
         if (state.points >= state.resistance) {
             if (second != now / 1000) {
                 second = now / 1000;
@@ -197,7 +207,7 @@ public final class SiegeManager implements Listener {
             case "metal", "reinforced" -> Sound.BLOCK_ANVIL_LAND;
             default -> Sound.BLOCK_STONE_BREAK;
         }, 1.2f, 0.8f);
-        if ("glass".equals(state.category)) plugin.noise().emit(center, plugin.settings().play().noise().glass(), null);
+        if ("glass".equals(state.category)) plugin.noise().emitInfected(center, plugin.settings().play().noise().glass());
         if (data instanceof Door door) {
             Block other = block.getRelative(0, door.getHalf() == Bisected.Half.BOTTOM ? 1 : -1, 0);
             if (other.getType() == block.getType()) {

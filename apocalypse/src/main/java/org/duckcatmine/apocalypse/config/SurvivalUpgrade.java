@@ -12,7 +12,7 @@ public final class SurvivalUpgrade {
     public static boolean migrate(YamlConfiguration config, YamlConfiguration defaults) {
         config.setDefaults(defaults);
         int version = config.isSet("survival-content-version") ? config.getInt("survival-content-version") : 1;
-        if (version >= 3) return false;
+        if (version >= 4) return false;
         if (version < 2) {
             for (String id : List.of("shotgun", "smg")) {
                 String path = "recipes." + id;
@@ -36,10 +36,14 @@ public final class SurvivalUpgrade {
             config.set("places.police.loot", loot);
         }
         String recipe = "recipes.auto_turret";
-        if (!config.isSet(recipe)) defaults.getConfigurationSection(recipe).getValues(true).forEach((key, value) -> {
+        if (version < 3 && !config.isSet(recipe)) defaults.getConfigurationSection(recipe).getValues(true).forEach((key, value) -> {
             if (!(value instanceof ConfigurationSection)) config.set(recipe + "." + key, value);
         });
-        config.set("survival-content-version", 3);
+        for (String path : List.of("noise.walk", "noise.block-break", "noise.block-place"))
+            if (!config.isSet(path)) config.set(path, defaults.get(path));
+        if (!config.isSet("perception.investigate-seconds") || config.getDouble("perception.investigate-seconds") == 20)
+            config.set("perception.investigate-seconds", 30);
+        config.set("survival-content-version", 4);
         return true;
     }
 }

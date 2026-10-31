@@ -51,10 +51,8 @@ public final class MobService {
         long phaseUntil;
         long cooldownUntil;
         boolean interrupted;
-        Location lastSeen;
-        long lastSeenAt;
-        Location investigate;
-        long investigateUntil;
+        final org.duckcatmine.apocalypse.perception.HuntMemory<Location> hunt = new org.duckcatmine.apocalypse.perception.HuntMemory<>();
+        boolean navigatingSearch;
         long nextPath;
         Location lastPosition;
         long lastMovedAt;
@@ -220,8 +218,9 @@ public final class MobService {
             ApocalypseConfig.Archetype archetype = plugin.settings().archetype(state.archetype);
             if (archetype == null) continue;
             perceive(mob, state, archetype, now);
-            if (mob.getTarget() instanceof Player) plugin.siege().consider(mob, archetype, state.lastMovedAt, now);
-            else if (mob instanceof Zombie && mob.getTarget() == null && state.investigate == null) {
+            Location remembered = state.hunt.goal(now);
+            if (remembered != null && state.hunt.confirmed(now)) plugin.siege().consider(mob, archetype, remembered, state.lastMovedAt, now);
+            else if (mob instanceof Zombie && mob.getTarget() == null && remembered == null) {
                 LivingEntity prey = plugin.fauna().prey(mob);
                 if (prey != null) mob.setTarget(prey);
             }
@@ -250,14 +249,15 @@ public final class MobService {
     public void send(Entity entity, Location goal, long durationMs) {
         Tracked state = tracked.get(entity.getUniqueId());
         if (state == null) return;
-        state.investigate = goal.clone();
-        state.investigateUntil = plugin.clock().now() + durationMs;
+        state.hunt.hear(goal.clone(), plugin.clock().now(), Math.min(durationMs, searchMs()), true);
         state.nextPath = 0;
     }
 
-    /** A noise draws idle infected towards where it happened, never to the survivor's current position. */
-    public void hear(Location at, double radius) {
-        long until = plugin.clock().now() + (long) (plugin.settings().play().perception().investigateSeconds() * 1000);
+    private long searchMs() { return (long) (plugin.settings().play().perception().investigateSeconds() * 1000); }
+
+    /** A sound supplies its position, never the hidden survivor's current position. */
+    public void hear(Location at, double radius, boolean refreshActive) {
+        long now = plugin.clock().now();
         double squared = radius * radius;
         for (Map.Entry<UUID, Tracked> entry : tracked.entrySet()) {
             if (!(Bukkit.getEntity(entry.getKey()) instanceof Mob mob) || !mob.getWorld().equals(at.getWorld())) continue;
@@ -265,13 +265,19 @@ public final class MobService {
             Player target = target(mob);
             if (target != null && mob.hasLineOfSight(target)) continue;
             Tracked state = entry.getValue();
-            state.investigate = at.clone().add(random.nextGaussian() * 1.5, 0, random.nextGaussian() * 1.5);
-            state.investigateUntil = until;
-            state.nextPath = 0;
+            state.hunt.hear(at.clone(), now, searchMs(), refreshActive);
+            // Bursts of footsteps do not force a fresh, expensive path on every emission.
         }
     }
 
-    /** Investigating a noise, then searching the last known position for a bounded time (spec §9). */
+    /** Read-only snapshot for administration and the Paper self-test. */
+    public Location searchGoal(Entity entity) {
+        Tracked state = tracked.get(entity.getUniqueId());
+        Location goal = state == null ? null : state.hunt.goal(plugin.clock().now());
+        return goal == null ? null : goal.clone();
+    }
+
+    /** See -> pursue; lose sight -> investigate only the remembered place; silence -> wander again. */
     private void perceive(Mob mob, Tracked state, ApocalypseConfig.Archetype archetype, long now) {
         Location here = mob.getLocation();
         if (state.lastPosition == null || !state.lastPosition.getWorld().equals(here.getWorld()) || state.lastPosition.distanceSquared(here) > 0.36) {
@@ -279,24 +285,26 @@ public final class MobService {
             state.lastMovedAt = now;
         }
         Player target = target(mob);
-        if (target != null) {
-            if (mob.hasLineOfSight(target)) {
-                state.lastSeen = target.getLocation();
-                state.lastSeenAt = now;
-                state.investigate = null;
-            }
+        if (target != null && plugin.sessions().isSurvivor(target) && !plugin.scenario().inRefuge(target.getLocation())
+                && !plugin.protection().isProtected(target) && mob.hasLineOfSight(target)) {
+            state.hunt.see(target.getLocation(), now, searchMs());
+            state.navigatingSearch = false;
             return;
         }
-        Location goal = null;
-        if (state.investigate != null && now < state.investigateUntil && state.investigate.getWorld().equals(mob.getWorld())) {
-            if (here.distanceSquared(state.investigate) < 4) state.investigate = null;
-            else goal = state.investigate;
-        } else if (state.lastSeen != null && state.lastSeen.getWorld().equals(mob.getWorld())
-                && now - state.lastSeenAt < archetype.memorySeconds() * 1000) {
-            if (here.distanceSquared(state.lastSeen) < 4) state.lastSeen = null;
-            else goal = state.lastSeen;
+        // Vanilla must not keep following the live coordinates of an unseen player through a wall.
+        if (mob.getTarget() instanceof Player) {
+            mob.setTarget(null);
+            mob.getPathfinder().stopPathfinding();
         }
-        if (goal == null || now < state.nextPath) return;
+        Location goal = state.hunt.goal(now);
+        if (goal == null || !goal.getWorld().equals(mob.getWorld())) {
+            if (state.navigatingSearch) mob.getPathfinder().stopPathfinding();
+            state.navigatingSearch = false;
+            return;
+        }
+        state.navigatingSearch = true;
+        if (here.distanceSquared(goal) < 4 || now < state.nextPath || !goal.getWorld().isChunkLoaded(goal.getBlockX() >> 4, goal.getBlockZ() >> 4)) return;
+        if (mob.getTarget() != null) mob.setTarget(null);
         state.nextPath = now + 1000;
         mob.getPathfinder().moveTo(goal, "pursuer".equals(state.archetype) ? 1.15 : 1.0);
     }
@@ -394,7 +402,7 @@ public final class MobService {
         Location origin = howler.getLocation();
         howler.getWorld().playSound(origin, Sound.ENTITY_GHAST_SCREAM, 4f, 0.5f);
         howler.getWorld().spawnParticle(Particle.SONIC_BOOM, howler.getEyeLocation(), 1);
-        plugin.noise().emit(origin, radius, null);
+        plugin.noise().emitInfected(origin, radius);
         if (reinforcements > 0 && howler.getTarget() instanceof Player player) plugin.director().reinforce(player, reinforcements);
     }
 

@@ -57,6 +57,10 @@ public final class MobListener implements Listener {
             event.setCancelled(true);
             return;
         }
+        if (event.getEntity() instanceof org.bukkit.entity.Mob mob && !mob.hasLineOfSight(player)) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getReason() == org.bukkit.event.entity.EntityTargetEvent.TargetReason.CLOSEST_PLAYER
                 && event.getEntity() instanceof org.bukkit.entity.Mob mob && plugin.noise().concealed(player, mob)) {
             event.setCancelled(true);

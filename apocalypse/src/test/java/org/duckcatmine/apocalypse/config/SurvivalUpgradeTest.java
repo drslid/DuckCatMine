@@ -37,11 +37,22 @@ class SurvivalUpgradeTest {
         c.set("recipes.pistol.usage","Ma recette conservée");
         String loot=c.getMapList("places.police.loot").toString();
         assertTrue(SurvivalUpgrade.migrate(c,defaults()));
-        assertEquals(3,c.getInt("survival-content-version"));
+        assertEquals(4,c.getInt("survival-content-version"));
         assertEquals(2,c.getInt("places.house.rolls-min"));
         assertEquals(loot,c.getMapList("places.police.loot").toString());
         assertEquals("Ma recette conservée",c.getString("recipes.pistol.usage"));
         assertEquals("apocalypse:auto_turret",c.getString("recipes.auto_turret.result.item"));
+        ApocalypseConfig.parse(c);
+    }
+    @Test void versionThreeOnlyUpgradesStealthDefaultsAndPreservesCustomRules() throws Exception {
+        var c=defaults(); c.set("survival-content-version",3); c.set("perception.investigate-seconds",20);
+        c.set("noise.walk",null); c.set("noise.block-break",7); c.set("spawning.global-cap",42);
+        assertTrue(SurvivalUpgrade.migrate(c,defaults()));
+        assertEquals(30,c.getDouble("perception.investigate-seconds"));
+        assertEquals(5,c.getDouble("noise.walk")); assertEquals(7,c.getDouble("noise.block-break"));
+        assertEquals(42,c.getInt("spawning.global-cap"));
+        c.set("survival-content-version",3); c.set("perception.investigate-seconds",45);
+        SurvivalUpgrade.migrate(c,defaults()); assertEquals(45,c.getDouble("perception.investigate-seconds"));
         ApocalypseConfig.parse(c);
     }
 }

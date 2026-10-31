@@ -4,6 +4,14 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Discrétion et recherche — alpha.8
+
+Les infectés enquêtent sur les bruits : **marche (5 blocs), course (10), casse (12), pose (8), verre (16)**, coffres, combat, tirs et moteurs. Accroupi, les pas restent silencieux ; tourner la caméra ou maintenir Sprint sans avancer ne fait pas de bruit.
+
+Après t'avoir vu, ils poursuivent et frappent les portes, vitres, barricades et murs construits qui les bloquent. Une fois caché, ils cherchent **ta dernière position vue ou entendue**, sans suivre tes déplacements à travers les murs. **30 secondes sans nouvelle vue ni bruit**, et la recherche ainsi que le siège cessent ; ils reprennent leur errance. Rester immobile en plein champ de vision ne suffit pas. Leurs propres coups et cris n'entretiennent pas indéfiniment la poursuite.
+
+Les conteneurs, postes de fabrication, terrain naturel, refuge et bases dont tous les membres sont absents conservent leurs protections. La recherche ne charge pas de chunks et ne recalcule un chemin qu'une fois par seconde. Ground Zero → Règles → **Discrétion** permet de régler à chaud le délai et les portées. Le délai commun remplace les anciennes durées `memory-seconds` par archétype, conservées en lecture pour compatibilité.
+
 ## Mini-arbalète automatique — alpha.7
 
 Fabrique-la à l'**atelier mécanique** : **1 arbalète Minecraft, 6 ferrailles, 2 ressorts et 4 planches**. Le catalogue `/apocalypse recipes auto_turret` affiche les ingrédients et le poste de fabrication. L'objet est également disponible dans le catalogue du panneau Ground Zero.

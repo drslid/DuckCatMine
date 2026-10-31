@@ -48,7 +48,8 @@ test('activation, login, session, CSRF and logout', async () => {
         if (type === 3) connection.write(rconPacket(id, 2));
         if (type === 2) {
           rconCommands.push(value);
-          const reply = value === 'dctower' ? 'Usage : dctower inspect <id> | check/place <id> <monde> <x> <z>'
+          const reply = value === 'apocalypse admin reload' ? '☣ DCAPO_ERROR: Configuration refusée pour ce test.'
+            : value === 'dctower' ? 'Usage : dctower inspect <id> | check/place <id> <monde> <x> <z>'
             : value.startsWith('dctower inspect ') ? `DCTOWER:${JSON.stringify({ width: 3, height: 3, length: 3,
               preview: Array(16).fill('S'.repeat(16)).join('/') })}`
               : value.startsWith('dctower check ') ? 'DCTOWER:Emplacement prêt en world X 100 Z 100 sur terrain plat.'
@@ -210,7 +211,7 @@ test('activation, login, session, CSRF and logout', async () => {
     fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 1, generatedAt: Date.now(), running: true,
       enabled: true, world: 'ground_zero', threat: { level: 2.5, phase: 'pressure', phaseLabel: 'pression', secondsLeft: 40, hordes: 1 },
       rules: { pvp: false, destruction: true, globalCap: 60 }, infected: { walker: 3 }, infectedTotal: 3,
-      survivors: [{ name: 'Mia', x: 10, z: -4, points: 30, infectionSeconds: null }], teams: [] }));
+      survivors: [{ name: 'Mia', x: 10, z: -4, points: 30, infectionSeconds: null }], teams: [], items: [{id:'antidote',name:'Antidote'}] }));
     assert.equal((await fetch(`${origin}/api/apocalypse`)).status, 401);
     const apocalypse = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();
     assert.equal(apocalypse.installed, true);
@@ -231,11 +232,32 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal((await post('/api/apocalypse/action', { action: 'horde', value: 'Mia;op' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
     assert.equal((await post('/api/apocalypse/action', { action: 'map', value: 5000 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
     assert.equal((await post('/api/apocalypse/action', { action: 'world recreate confirm' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
+    assert.equal((await post('/api/apocalypse/action', {action:'preset',value:'relaxed'}, {'X-CSRF-Token':csrf})).status, 401);
+    const gzHeaders = {Cookie:cookie,'X-CSRF-Token':csrf};
+    assert.equal((await post('/api/apocalypse/action', {action:'preset',value:'relaxed'}, gzHeaders)).status, 200);
+    assert(rconCommands.includes('apocalypse admin preset relaxed'));
+    assert.equal((await post('/api/apocalypse/action', {action:'set',value:{key:'infection-seconds',value:90}}, gzHeaders)).status, 200);
+    assert(rconCommands.includes('apocalypse admin set infection-seconds 90'));
+    assert.equal((await post('/api/apocalypse/action', {action:'give',value:{player:'Mia',item:'antidote',count:2}}, gzHeaders)).status, 200);
+    assert(rconCommands.includes('apocalypse admin give Mia antidote 2'));
+    assert.equal((await post('/api/apocalypse/action', {action:'evacuate',value:'Mia'}, gzHeaders)).status, 200);
+    assert(rconCommands.includes('apocalypse admin evacuate Mia'));
+    const beforeUnsafeGroundZero = rconCommands.length;
+    assert.equal((await post('/api/apocalypse/action', {action:'lives-reset',confirmation:'RECOMMENCER'}, gzHeaders)).status, 409);
+    assert.equal((await post('/api/apocalypse/action', {action:'set',value:{key:'density\nstop',value:1}}, gzHeaders)).status, 400);
+    assert.equal((await post('/api/apocalypse/action', {action:'give',value:{player:'Mia',item:'antidote',count:65}}, gzHeaders)).status, 400);
+    assert.equal(rconCommands.length, beforeUnsafeGroundZero, 'unsafe Ground Zero operations never reach the server');
+    const gzRefused = await post('/api/apocalypse/action', {action:'reload'}, gzHeaders);
+    assert.equal(gzRefused.status, 409, 'a plugin refusal must not become a success toast');
+    assert.match((await gzRefused.json()).error, /Configuration refusée/);
     fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 1, generatedAt: Date.now() - 120000, running: true,
       survivors: [{ name: 'Mia' }] }));
     const stale = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();
     assert.equal(stale.stale, true);
     assert.deepEqual(stale.survivors, [], 'an old status never lists survivors as present');
+    const beforeStaleAction = rconCommands.length;
+    assert.equal((await post('/api/apocalypse/action', {action:'enable'}, gzHeaders)).status, 409);
+    assert.equal(rconCommands.length, beforeStaleAction);
     assert.equal((await post('/api/mobs/spawn', { mob: 'cow', world: 'world', x: 0, z: 0, count: 1 }, { Cookie: cookie })).status, 403);
     assert.equal((await post('/api/mobs/spawn', { mob: 'cow;op', world: 'world', x: 0, z: 0, count: 1 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
     assert.equal((await post('/api/mobs/spawn', { mob: 'cow', world: 'elsewhere', x: 0, z: 0, count: 1 }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);

@@ -138,12 +138,14 @@ Les constructions et coffres de l'ancien monde disparaissent avec lui. Chaque su
 
 Le plugin écrit toutes les 5 s `plugins/DuckCatApocalypse/status.json` (état, menace, règles, infectés par type, survivants présents avec leur position, équipes) ; le panneau DuckCatMine le lit en lecture seule et affiche l'onglet **Ground Zero** dès que ce fichier existe :
 
-- ouvrir ou fermer le scénario, régler la menace, activer le PvP ou la destruction de blocs, envoyer une horde vers un survivant ;
-- suivre les survivants (temps de vie, points, santé, morsure en cours avec son compte à rebours, équipe) et les infectés par type ;
-- carte : `Redessiner` lance `/apocalypse admin map`, puis les survivants apparaissent dessus, mis à jour toutes les 5 s ;
-- autotest et rechargement de la configuration.
+- **Carte** : une seule carte, positions toutes les 5 s, sélection d'un survivant pour voir sa santé, sa morsure, ses points et son équipe. Le catalogue visuel donne les objets Ground Zero avec une quantité ; une horde ou une évacuation demandent confirmation. Le journal, les équipes et le classement sont repliables.
+- **Règles** : préréglages Détendu, Normal et Cauchemar ; menace, PvP, destruction et les 19 réglages du catalogue, groupés par thème et modifiables à chaud. Les morsures et sacs déjà en cours gardent leurs échéances.
+- **Maintenance** : diagnostic, autotest, rechargement, rendu de carte avec coupe en hauteur facultative, actualisation des rues autour du refuge et accès aux sauvegardes. Commandes avancées de création, association et recréation d'un monde absent. La recréation devient disponible après mise à l'écart de l'ancien dossier, serveur arrêté.
+- **Nouvelle partie** : termine les vies et expire les sacs, avec confirmation saisie et refus tant qu'un survivant est présent. Le terrain et les inventaires classiques sont conservés.
 
-Chaque action passe par une liste fermée de commandes `/apocalypse admin …` envoyées par RCON et tracées dans le journal du panneau. Un survivant listé dans `status.json` est aussi protégé des dons, soins et événements du panneau, même sans le pont de DuckCatWelcome. Un `status.json` de plus de 30 s est affiché comme « serveur arrêté » et ne liste plus personne.
+Chaque action passe par une liste fermée de commandes `/apocalypse admin …`, avec authentification, CSRF, contrôle des types, bornes et confirmations côté API, puis trace dans le journal du panneau. Le plugin vérifie de nouveau le joueur et le monde au moment d'agir. Les refus du jeu apparaissent comme des erreurs dans le site. Les dons administrateurs utilisent le catalogue dédié ; les dons et modifications d'inventaire ordinaires restent protégés pour les survivants. Un `status.json` de plus de 30 s désactive les actions. Le suivi lit le fichier partagé et ne déclenche aucune commande RCON ; l'écran Ground Zero est chargé à la demande.
+
+Sur téléphone, le chat reste accessible dans la barre de navigation avec sa pastille. La bulle flottante est masquée dans Ground Zero pour laisser les actions entièrement visibles. Les champs mobiles utilisent une police de 16 px.
 
 ## Configuration
 
@@ -192,7 +194,9 @@ Non réalisé sans pack : visages, teintes de peau, femmes et hommes distincts, 
 mvn -B -f apocalypse/pom.xml verify   # Java 25 ; ou l'image maven:3.9.11-eclipse-temurin-25
 ```
 
-43 tests : règles d'infection et d'antidote, horloge, butin garanti, configuration (chances de morsure, secteurs, lieux, références inconnues), plan de la ville (déterminisme, lots, repères, relief), sac, plan de reprise, codage des profils, base SQLite réelle (contraintes, transactions abandonnées, instantané).
+67 tests Java : infection et antidote, horloge, butin, configuration et réglages à chaud, plan de la ville, physique des véhicules, progression, sacs, reprise, profils et SQLite réel. La régression de sortie après un décès vérifie que le profil classique reste intact et qu'une vie terminée ne devient pas un profil de retour.
+
+Les tests Node `admin/apocalypse.test.js` et `admin/smoke-test.js` vérifient les commandes du panneau, les bornes des 19 réglages, l'authentification, le CSRF, les confirmations, les états périmés et les refus du plugin. Les tests HTTP utilisent un serveur RCON simulé. La vérification de l'interface utilise la démo fictive ; un essai sur téléphone physique reste distinct d'une vérification de largeur dans Chromium.
 
 `/apocalypse admin selftest` vérifie sur le serveur réel, sans joueur, les API dont dépend le scénario : objets et composants de l'antidote, sérialisation d'un inventaire avec emplacements vides, écriture en base, règles du monde, errant protégé du soleil, chaque archétype (santé, armure, vitesse réelle) et chaque apparence, conteneurs générés conformes au plan de la ville, tirage d'une fouille. Il génère au besoin quelques îlots autour du refuge (une ou deux secondes la première fois).
 

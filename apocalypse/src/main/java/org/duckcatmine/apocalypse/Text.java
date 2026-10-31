@@ -23,7 +23,7 @@ public final class Text {
     }
 
     public static void error(CommandSender to, String message) {
-        send(to, message, NamedTextColor.RED);
+        send(to, to instanceof org.bukkit.entity.Player ? message : "DCAPO_ERROR: " + message, NamedTextColor.RED);
     }
 
     private static void send(CommandSender to, String message, NamedTextColor color) {

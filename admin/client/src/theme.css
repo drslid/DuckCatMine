@@ -1833,6 +1833,11 @@ canvas {
   z-index: 80;
   padding: 24px;
 }
+
+/* The persistent mobile Chat tab already carries unread badges. Keep contextual actions unobstructed. */
+@media (max-width: 850px) {
+  .ground-zero-active .chat-launcher { display: none; }
+}
 .modal {
   background: var(--surface);
   border: 1px solid #4d5b49;

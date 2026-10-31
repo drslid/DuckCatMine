@@ -43,6 +43,9 @@ class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
+const { makeApocalypseCommands, failure: apocalypseFailure } = require('./apocalypse');
+const { command: apocalypseCommand } = makeApocalypseCommands(HttpError);
+
 fs.mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
 fs.mkdirSync(JOBS_DIR, { recursive: true, mode: 0o700 });
 fs.mkdirSync(CUSTOM_ITEMS_DIR, { recursive: true, mode: 0o700 });
@@ -328,33 +331,6 @@ function apocalypseStatus() {
   try { mapRenderedAt = fs.statSync(path.join(MC_DATA_DIR, APOCALYPSE_DIR, 'map.png')).mtimeMs; } catch {}
   return { ...status, installed: true, stale: !fresh, ageSeconds: Math.round(age / 1000), mapRenderedAt,
     survivors: fresh && Array.isArray(status.survivors) ? status.survivors : [] };
-}
-
-function apocalypseCommand(input) {
-  const action = String(input.action || '');
-  const value = input.value;
-  if (['enable', 'disable', 'selftest', 'reload'].includes(action)) return { command: `apocalypse admin ${action}`, detail: '' };
-  if (action === 'pvp' || action === 'destruction') {
-    if (typeof value !== 'boolean') throw new HttpError(400, 'Valeur oui/non attendue.');
-    return { command: `apocalypse admin ${action} ${value ? 'on' : 'off'}`, detail: value ? 'on' : 'off' };
-  }
-  if (action === 'threat') {
-    const level = Number(value);
-    if (!Number.isFinite(level) || level < 1 || level > 50) throw new HttpError(400, 'Menace entre 1 et 50.');
-    const text = (Math.round(level * 10) / 10).toFixed(1);
-    return { command: `apocalypse admin threat ${text}`, detail: text };
-  }
-  if (action === 'horde') {
-    const player = String(value || '');
-    if (!/^[A-Za-z0-9_]{3,16}$/.test(player)) throw new HttpError(400, 'Pseudo invalide.');
-    return { command: `apocalypse admin horde ${player}`, detail: player };
-  }
-  if (action === 'map') {
-    const radius = Number(value);
-    if (![320, 640, 960, 1280].includes(radius)) throw new HttpError(400, 'Taille de carte invalide.');
-    return { command: `apocalypse admin map ${radius}`, detail: String(radius) };
-  }
-  throw new HttpError(400, 'Action inconnue.');
 }
 
 function scenarioSurvivor(player) {
@@ -1296,11 +1272,15 @@ async function serve(req, res) {
     const session = requireSession(req);
     requireCsrf(req, session);
     const input = await body(req);
-    const { command, detail } = apocalypseCommand(input);
+    const { command, detail } = apocalypseCommand(input, apocalypseStatus());
     const result = await rcon(command, 60000);
-    if (/unknown command|incorrect argument|réservé aux administrateurs/i.test(result)) throw new HttpError(409, result.slice(0, 300));
+    const refused = apocalypseFailure(result);
+    if (refused) {
+      audit(`apocalypse_${input.action}_refused`, session.username, `${detail} ${refused}`.slice(0, 500));
+      throw new HttpError(409, refused.slice(0, 1000));
+    }
     audit(`apocalypse_${input.action}`, session.username, detail);
-    return json(res, 200, { result: result.replace(/☣\s*/g, '').trim().slice(0, 4000) });
+    return json(res, 200, { result: result.replace(/☣\s*/g, '').trim().slice(0, 8000) });
   }
   if (req.method === 'POST' && url.pathname === '/api/events') {
     const session = requireSession(req);

@@ -310,6 +310,7 @@ public final class StatusWriter {
             JsonObject entry = new JsonObject();
             entry.addProperty("id", id);
             entry.addProperty("name", plugin.items().label(id));
+            entry.addProperty("icon", plugin.items().icon(id));
             items.add(entry);
         }
         root.add("items", items);

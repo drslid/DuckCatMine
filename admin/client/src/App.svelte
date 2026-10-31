@@ -424,6 +424,7 @@
   </main>
 {:else}<div
     class="app-shell"
+    class:ground-zero-active={section === 'apocalypse'}
     class:chat-active={section === 'chat'}
     use:chatViewport
   >
@@ -711,6 +712,7 @@
           />
         {:else if section === 'apocalypse' && Apocalypse}<Apocalypse
             {toast}
+            openMaintenance={() => navigate('settings', 'backups')}
             openPlayer={(name) => {
               selectedPlayer = name;
               navigate('players');

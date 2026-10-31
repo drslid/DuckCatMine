@@ -173,6 +173,12 @@ public final class ItemRegistry {
         return definition == null ? null : definition.name();
     }
 
+    /** Vanilla visual used by the panel; no ItemStack allocation on each status refresh. */
+    public String icon(String id) {
+        Definition definition = definitions.get(id);
+        return definition == null ? null : definition.model() == null ? definition.base().getKey().toString() : definition.model();
+    }
+
     public ItemStack create(String id, int amount) {
         Definition definition = definitions.get(id);
         if (definition == null) return null;

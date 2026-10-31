@@ -1,4 +1,5 @@
 // This adapter runs entirely in the browser. It never contacts a game server.
+import { gzSettings, gzCatalog, gzPresets, gzItems } from './ground-zero-demo';
 const meta = {
   diamond: ['Diamant', 'other'],
   elytra: ['Élytres', 'tools'],
@@ -199,14 +200,25 @@ const demoCatalog = [
 ];
 const apocalypseRules = { pvp: false, destruction: true, globalCap: 60 };
 let apocalypseThreat = 3.4;
+let apocalypseEnabled = true;
+const evacuated = new Set<string>();
+const gzEvents = [
+  { at: Date.now() - 80000, kind: 'join', text: 'Sam a rejoint Ground Zero' },
+  {
+    at: Date.now() - 180000,
+    kind: 'horde',
+    text: 'Une horde approche du centre-ville',
+  },
+];
 function demoApocalypse() {
   return {
     installed: true,
     stale: false,
     ageSeconds: 2,
-    version: 1,
+    version: 2,
+    generatedAt: Date.now(),
     running: true,
-    enabled: true,
+    enabled: apocalypseEnabled,
     world: 'ground_zero',
     epoch: 2,
     database: true,
@@ -269,12 +281,23 @@ function demoApocalypse() {
         points: 0,
         lifeSeconds: 120,
       },
-    ],
+    ].filter((s) => apocalypseEnabled && !evacuated.has(s.name)),
     teams: [{ name: 'Corbeaux', members: ['Alex', 'Sam'] }],
     classicProfilesHeld: 0,
     refuge: { x: 0, z: 0, radius: 12 },
     borderSize: 3072,
-    mapRenderedAt: null,
+    map: { minX: -320, minZ: -320, size: 640 },
+    mapRenderedAt: Date.now() - 3600000,
+    settings: gzSettings,
+    settingsCatalog: gzCatalog,
+    presets: gzPresets,
+    items: gzItems,
+    events: gzEvents,
+    leaderboard: [
+      { name: 'Alex', points: 340 },
+      { name: 'Sam', points: 95 },
+      { name: 'Mia', points: 0 },
+    ],
   };
 }
 export async function request(url: string, method = 'GET', data: any = {}) {
@@ -338,6 +361,37 @@ export async function request(url: string, method = 'GET', data: any = {}) {
   if (u.pathname === '/api/apocalypse')
     return structuredClone(demoApocalypse());
   if (u.pathname === '/api/apocalypse/action') {
+    if (data.action === 'enable') apocalypseEnabled = true;
+    if (data.action === 'disable') apocalypseEnabled = false;
+    if (data.action === 'set') gzSettings[data.value.key] = data.value.value;
+    if (data.action === 'preset')
+      Object.assign(gzSettings, gzPresets[data.value].values);
+    if (data.action === 'evacuate') evacuated.add(data.value);
+    if (data.action === 'give') {
+      gzEvents.unshift({
+        at: Date.now(),
+        kind: 'admin',
+        text: `Alex a donné ${data.value.count} × ${gzItems.find((i) => i.id === data.value.item)?.name} à ${data.value.player} (démo)`,
+      });
+      return { result: 'Démonstration : don simulé, aucun serveur contacté.' };
+    }
+    if (data.action === 'lives-reset') {
+      if (demoApocalypse().survivors.length)
+        throw new Error(
+          'Fais d’abord sortir tous les survivants de Ground Zero.',
+        );
+      evacuated.clear();
+    }
+    if (data.action.startsWith('world-'))
+      throw new Error(
+        'Le monde de démonstration est déjà associé. Cette opération est simulée uniquement sur un monde absent.',
+      );
+    apocalypseRules.globalCap = gzSettings['global-cap'];
+    if (data.action === 'status' || data.action === 'settings')
+      return {
+        result:
+          'Monde : ground_zero | base : OK\nInventaires classiques gardés : 0\nDémonstration : aucune action sur un serveur réel.',
+      };
     if (data.action === 'pvp') apocalypseRules.pvp = !!data.value;
     if (data.action === 'destruction')
       apocalypseRules.destruction = !!data.value;
@@ -522,24 +576,4 @@ export async function request(url: string, method = 'GET', data: any = {}) {
     return { status: 'done', ok: true, message: 'Opération simulée terminée.' };
   return { ok: true, result: 'Action simulée.' };
 }
-export function image(id: string) {
-  const name = id.replace('minecraft:', '');
-  const egg = name.endsWith('_egg');
-  const green = name.includes('emerald');
-  const stone = name.includes('stone') || name.includes('iron');
-  const color = green
-    ? '#6bc58d'
-    : stone
-      ? '#a9b9be'
-      : name.includes('diamond')
-        ? '#7fd6db'
-        : name.includes('apple')
-          ? '#dbaa64'
-          : '#bd9b65';
-  const art = egg
-    ? `<path d="M10 3h12l7 12v11l-6 6H9l-6-6V15z" fill="${color}"/><path d="M10 9h6v6h-6zM20 19h6v6h-6z" fill="#758a62"/>`
-    : name.includes('diamond') || green
-      ? `<path d="M8 3h18l7 10-16 20L1 13z" fill="${color}"/><path d="M8 3 1 13h32M8 3l9 30 9-30" fill="none" stroke="#e6f7ec" stroke-width="2"/>`
-      : `<path d="m2 10 15-8 15 8v17l-15 8-15-8z" fill="${color}"/><path d="m2 10 15 8 15-8M17 18v17" fill="none" stroke="#493e34" stroke-width="2"/>`;
-  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 36">${art}</svg>`)}`;
-}
+export { image } from './demo-image';

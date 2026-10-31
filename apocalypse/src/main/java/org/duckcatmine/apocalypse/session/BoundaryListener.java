@@ -55,6 +55,7 @@ public final class BoundaryListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event) {
+        if (plugin.vehicles().isSeatMovement(event.getPlayer(), event.getFrom(), event.getTo())) return;
         guard(event, event.getPlayer(), event.getFrom().getWorld(), event.getTo().getWorld());
     }
 

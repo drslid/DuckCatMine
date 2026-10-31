@@ -35,10 +35,22 @@ function makeApocalypseCommands(HttpError) {
     const action = input.action, value = input.value;
     // Validate the action before the availability check, so unknown tokens never reach RCON.
     const simple = ['status', 'settings', 'enable', 'disable', 'selftest', 'reload'];
-    const known = [...simple, 'pvp', 'destruction', 'threat', 'horde', 'map', 'set', 'preset', 'give', 'evacuate', 'upgrade', 'lives-reset', 'world-create', 'world-bind', 'world-recreate'];
+    const known = [...simple, 'pvp', 'destruction', 'threat', 'horde', 'map', 'set', 'preset', 'give', 'evacuate', 'upgrade', 'lives-reset', 'world-create', 'world-bind', 'world-recreate', 'teleport', 'departure-start', 'departure-cancel'];
     if (!known.includes(action)) fail('Action inconnue.');
     if (!status?.installed || status.stale) fail('Ground Zero ne répond pas. Attends la fin du démarrage.', 409);
     const result = (suffix, detail = '') => ({ command: `apocalypse admin ${suffix}`, detail });
+    if (action.startsWith('departure-')) {
+      if (!status.capabilities?.includes('departure')) fail('Mets le plugin Ground Zero à jour pour gérer les départs groupés.', 409);
+      if (action === 'departure-start' && (!status.departure?.members?.length || status.departure.phase !== 'waiting'))
+        fail('Aucun groupe en attente de départ.', 409);
+      return result(`departure ${action === 'departure-start' ? 'start' : 'cancel'}`, 'départ groupé');
+    }
+    if (action === 'teleport') {
+      if (!status.capabilities?.includes('teleport')) fail('Mets le plugin Ground Zero à jour pour déplacer les survivants.', 409);
+      const player = target(value?.player, status), beside = target(value?.target, status);
+      if (player === beside) fail('Choisis un autre survivant.');
+      return result(`teleport ${player} ${beside}`, `${player} -> ${beside}`);
+    }
     if (simple.includes(action)) return result(action);
     if (action === 'pvp' || action === 'destruction') {
       if (typeof value !== 'boolean') fail('Valeur oui/non attendue.');
@@ -58,6 +70,7 @@ function makeApocalypseCommands(HttpError) {
       return result(`map ${radius}${slice == null ? '' : ` ${slice}`}`, `${radius}${slice == null ? '' : ` y=${slice}`}`);
     }
     if (action === 'set') {
+      if (typeof value?.key !== 'string') fail('Réglage inconnu.');
       const setting = SETTINGS[value?.key];
       if (!Object.hasOwn(SETTINGS, value?.key) || !setting) fail('Réglage inconnu.');
       let text;

@@ -208,10 +208,11 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal((await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json()).installed, false);
     const apocalypseDir = path.join(mcdata, 'plugins', 'DuckCatApocalypse');
     fs.mkdirSync(apocalypseDir, { recursive: true });
-    fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 1, generatedAt: Date.now(), running: true,
+    fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 3, generatedAt: Date.now(), running: true,
+      capabilities:['departure','teleport'], departure:{members:['Noah'],phase:'waiting'},
       enabled: true, world: 'ground_zero', threat: { level: 2.5, phase: 'pressure', phaseLabel: 'pression', secondsLeft: 40, hordes: 1 },
       rules: { pvp: false, destruction: true, globalCap: 60 }, infected: { walker: 3 }, infectedTotal: 3,
-      survivors: [{ name: 'Mia', x: 10, z: -4, points: 30, infectionSeconds: null }], teams: [], items: [{id:'antidote',name:'Antidote'}] }));
+      survivors: [{ name: 'Mia', x: 10, z: -4, points: 30, infectionSeconds: null }, {name:'Sam',x:13,z:-4}], teams: [], items: [{id:'antidote',name:'Antidote'}] }));
     assert.equal((await fetch(`${origin}/api/apocalypse`)).status, 401);
     const apocalypse = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();
     assert.equal(apocalypse.installed, true);
@@ -234,6 +235,14 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal((await post('/api/apocalypse/action', { action: 'world recreate confirm' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 400);
     assert.equal((await post('/api/apocalypse/action', {action:'preset',value:'relaxed'}, {'X-CSRF-Token':csrf})).status, 401);
     const gzHeaders = {Cookie:cookie,'X-CSRF-Token':csrf};
+    assert.equal((await post('/api/apocalypse/action', {action:'teleport',value:{player:'Mia',target:'Sam'}}, gzHeaders)).status,200);
+    assert(rconCommands.includes('apocalypse admin teleport Mia Sam'));
+    assert.equal((await post('/api/apocalypse/action', {action:'departure-start'}, gzHeaders)).status,200);
+    assert(rconCommands.includes('apocalypse admin departure start'));
+    const beforeBadRendezvous = rconCommands.length;
+    assert.equal((await post('/api/apocalypse/action', {action:'teleport',value:{player:'Mia',target:'Mia'}}, gzHeaders)).status,400);
+    assert.equal((await post('/api/apocalypse/action', {action:'teleport',value:{player:'Mia',target:'Offline'}}, gzHeaders)).status,409);
+    assert.equal(rconCommands.length,beforeBadRendezvous);
     assert.equal((await post('/api/apocalypse/action', {action:'preset',value:'relaxed'}, gzHeaders)).status, 200);
     assert(rconCommands.includes('apocalypse admin preset relaxed'));
     assert.equal((await post('/api/apocalypse/action', {action:'set',value:{key:'infection-seconds',value:90}}, gzHeaders)).status, 200);

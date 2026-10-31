@@ -236,6 +236,28 @@ final class SelfTest {
                 plugin.mobs().forget(cow.getUniqueId());
             }
         });
+        check(lines, "arrivée groupée et téléportation sûre", () -> {
+            Location center = street(plugin, world).getBlock().getLocation().add(0, 200, 0);
+            List<org.bukkit.block.BlockState> before = new ArrayList<>();
+            try {
+                for (int dx = -5; dx <= 5; dx++) for (int dz = -5; dz <= 5; dz++) {
+                    Block block = center.clone().add(dx,-1,dz).getBlock();
+                    if (!block.getType().isAir()) throw new IllegalStateException("Zone de test occupée");
+                    before.add(block.getState()); block.setType(Material.STONE,false);
+                }
+                center.clone().add(-2,-1,-2).getBlock().setType(Material.MAGMA_BLOCK,false);
+                var reserved = new java.util.HashSet<String>();
+                Location first = org.duckcatmine.apocalypse.spawn.SafeArrival.near(center,reserved);
+                Location second = org.duckcatmine.apocalypse.spawn.SafeArrival.near(center,reserved);
+                if (first == null || second == null || first.distanceSquared(second) < 1
+                        || first.getBlock().getRelative(0,-1,0).getType() != Material.STONE)
+                    throw new IllegalStateException("Arrivées superposées ou sol dangereux accepté");
+                for (var block : before) block.getBlock().setType(Material.MAGMA_BLOCK,false);
+                if (org.duckcatmine.apocalypse.spawn.SafeArrival.near(center,new java.util.HashSet<>()) != null)
+                    throw new IllegalStateException("Destination dangereuse acceptée");
+                return "positions distinctes, magma refusé, aucun repli forcé, terrain restauré";
+            } finally { for (var block : before) block.update(true,false); }
+        });
         check(lines, "voiture", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 200, 0)));
         check(lines, "bombe artisanale", () -> {
             Location center = street(plugin, world).getBlock().getLocation().add(8.5, 205, 0.5);

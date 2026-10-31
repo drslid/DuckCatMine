@@ -84,6 +84,8 @@ public final class SessionService {
         return transitioning.contains(player.getUniqueId());
     }
 
+    public boolean isJoining(Player player) { return pendingJoins.contains(player.getUniqueId()); }
+
     /** Teleport performed by the scenario itself; the boundary guard lets it through. */
     public boolean teleport(Player player, Location target) {
         transitioning.add(player.getUniqueId());
@@ -129,13 +131,20 @@ public final class SessionService {
         plugin.drops().pick(scenario.world()).whenComplete((drop, error) -> {
             if (!plugin.isEnabled()) return;
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                pendingJoins.remove(id);
-                if (player.isOnline()) enter(player, drop);
+                if (!pendingJoins.remove(id) || !player.isOnline()) return;
+                if (error != null) Text.error(player, "Emplacement de départ indisponible : réessaie.");
+                else enter(player, drop, false);
             });
         });
     }
 
-    private void enter(Player player, Location drop) {
+    /** Explicit group choice relocates a saved life too, preserving its inventory and progression. */
+    public void joinTogether(Player player, Location drop) {
+        if (!player.isOnline() || isJoining(player) || !plugin.database().healthy()) return;
+        enter(player, drop, true);
+    }
+
+    private void enter(Player player, Location drop, boolean together) {
         ScenarioService scenario = plugin.scenario();
         if (!scenario.isEnabled() || scenario.world() == null || scenario.isScenarioWorld(player.getWorld())
                 || profile(player) != Profile.CLASSIC || player.isDead()) return;
@@ -175,11 +184,12 @@ public final class SessionService {
             return;
         }
         ProfileSnapshot survivor = entry.survivor() == null ? null : ProfileSnapshot.decode(entry.survivor());
-        boolean intro = survivor == null && plugin.intro().enabled() && !plugin.intro().seen(id);
+        boolean intro = !together && survivor == null && plugin.intro().enabled() && !plugin.intro().seen(id);
         Location target = survivor == null ? null : ProfileCodec.location(survivor);
         if (survivor == null && drop != null && scenario.isScenarioWorld(drop.getWorld())) target = drop;
         else if (target == null || !scenario.isScenarioWorld(target.getWorld()) || epoch(player) != scenario.epoch()) target = scenario.refugeSpawn();
         if (intro) target = scenario.refugeSpawn();
+        if (together && drop != null && scenario.isScenarioWorld(drop.getWorld())) target = drop;
         if (!teleport(player, target)) {
             rollbackSwap(id, entry.seq(), CLASSIC_KIND);
             Text.error(player, "Téléportation refusée : rien n'a changé.");

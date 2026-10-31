@@ -40,6 +40,14 @@ final class VehiclePhysics {
         return (float) (left ? -rate : rate);
     }
 
+    /** Follow the mouse through the shortest angle, with bounded turning and no pivot at rest. */
+    static float steerToward(double speed, float yaw, float lookYaw) {
+        if (!Float.isFinite(yaw) || !Float.isFinite(lookYaw) || !Double.isFinite(speed)) return 0;
+        float delta = ((lookYaw - yaw) % 360 + 540) % 360 - 180;
+        float limit = Math.abs(steer(speed, true, false));
+        return Math.max(-limit, Math.min(limit, delta));
+    }
+
     static int kmh(double speed) {
         return (int) Math.round(Math.abs(speed) * 72);
     }

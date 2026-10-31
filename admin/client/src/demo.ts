@@ -210,12 +210,25 @@ const gzEvents = [
     text: 'Une horde approche du centre-ville',
   },
 ];
+let gzDeparture = {
+  members: ['Noah', 'Lea'],
+  phase: 'waiting',
+  target: 'point commun dans la ville',
+};
+let gzDepartureEnd = 0;
+const gzRelocated = new Map<string, { x: number; z: number }>();
 function demoApocalypse() {
+  if (gzDepartureEnd && Date.now() >= gzDepartureEnd) {
+    gzDeparture = { ...gzDeparture, members: [], phase: 'waiting' };
+    gzDepartureEnd = 0;
+  }
   return {
     installed: true,
     stale: false,
     ageSeconds: 2,
-    version: 2,
+    version: 3,
+    capabilities: ['departure', 'teleport', 'mouse-driving'],
+    departure: gzDeparture,
     generatedAt: Date.now(),
     running: true,
     enabled: apocalypseEnabled,
@@ -281,7 +294,9 @@ function demoApocalypse() {
         points: 0,
         lifeSeconds: 120,
       },
-    ].filter((s) => apocalypseEnabled && !evacuated.has(s.name)),
+    ]
+      .map((s) => ({ ...s, ...gzRelocated.get(s.name) }))
+      .filter((s) => apocalypseEnabled && !evacuated.has(s.name)),
     teams: [{ name: 'Corbeaux', members: ['Alex', 'Sam'] }],
     classicProfilesHeld: 0,
     refuge: { x: 0, z: 0, radius: 12 },
@@ -361,6 +376,27 @@ export async function request(url: string, method = 'GET', data: any = {}) {
   if (u.pathname === '/api/apocalypse')
     return structuredClone(demoApocalypse());
   if (u.pathname === '/api/apocalypse/action') {
+    if (data.action === 'departure-start') {
+      gzDeparture.phase = 'countdown';
+      gzDepartureEnd = Date.now() + 5000;
+      return { result: 'Démonstration : départ groupé dans 5 secondes.' };
+    }
+    if (data.action === 'departure-cancel') {
+      gzDeparture.members = [];
+      gzDeparture.phase = 'waiting';
+      gzDepartureEnd = 0;
+    }
+    if (data.action === 'teleport') {
+      const at = demoApocalypse().survivors.find(
+        (s) => s.name === data.value.target,
+      );
+      if (!at || at.name === data.value.player)
+        throw new Error('Choisis un autre survivant présent.');
+      gzRelocated.set(data.value.player, { x: at.x + 2, z: at.z });
+      return {
+        result: `Démonstration : ${data.value.player} a rejoint ${at.name}.`,
+      };
+    }
     if (data.action === 'enable') apocalypseEnabled = true;
     if (data.action === 'disable') apocalypseEnabled = false;
     if (data.action === 'set') gzSettings[data.value.key] = data.value.value;

@@ -26,6 +26,7 @@
     confirmText = $state(''),
     report = $state<string[]>([]);
   let context = $state<HTMLElement>();
+  let destination = $state('');
   let loading = false,
     disposed = false,
     refreshAfter = 0;
@@ -72,6 +73,11 @@
   };
   let survivors = $derived<any[]>(status?.survivors || []);
   let survivor = $derived(survivors.find((s) => s.name === selected));
+  let destinations = $derived(survivors.filter((s) => s.name !== selected));
+  $effect(() => {
+    if (!destinations.some((s) => s.name === destination))
+      destination = destinations[0]?.name || '';
+  });
   let map = $derived(status?.map);
   let items = $derived<any[]>(
     (status?.items || []).filter((item: any) =>
@@ -190,6 +196,27 @@
   function itemIcon(item: any) {
     return iconUrl(item.icon || `minecraft:${oldIcons[item.id] || 'paper'}`);
   }
+  function chooseOnMap(event: MouseEvent) {
+    const svg = (event.currentTarget as SVGGElement).ownerSVGElement;
+    const matrix = svg?.getScreenCTM();
+    if (!matrix || !map) return;
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
+      matrix.inverse(),
+    );
+    const closest = survivors
+      .filter((s) => onMap(s.x, s.z))
+      .reduce(
+        (best, s) => {
+          const distance =
+            (s.x - map.minX - point.x) ** 2 + (s.z - map.minZ - point.y) ** 2;
+          return !best || distance < best.distance
+            ? { name: s.name, distance }
+            : best;
+        },
+        null as { name: string; distance: number } | null,
+      );
+    if (closest) choose(closest.name);
+  }
 </script>
 
 <div class="section-heading gz-heading">
@@ -288,6 +315,53 @@
         · {phases[status.threat?.phase] || '—'}</span
       >
     </div>
+    {#if status.capabilities?.includes('departure')}
+      <article class="card departure-card">
+        <div>
+          <h2><Icon name="users" size={18} />Départ ensemble</h2>
+          <p class="muted small">
+            {status.departure?.members?.length
+              ? status.departure.members.join(' · ')
+              : 'Dans le jeu : /apocalypse join → Attendre le groupe.'}
+          </p>
+          {#if status.departure?.members?.length}<p class="muted small">
+              {status.departure.target} · {status.departure.phase === 'waiting'
+                ? 'En attente'
+                : status.departure.phase === 'preparing'
+                  ? 'Préparation du point de départ…'
+                  : 'Compte à rebours commun en cours'}
+            </p>{/if}
+        </div>
+        {#if status.departure?.members?.length}<div class="inline">
+            <button
+              class="primary"
+              disabled={!!busy ||
+                status.stale ||
+                status.departure.phase !== 'waiting'}
+              onclick={() =>
+                ask({
+                  action: 'departure-start',
+                  title: 'Lancer le groupe',
+                  description: `Départ de ${status.departure.members.join(', ')} après un compte à rebours commun de 5 secondes. Les inventaires habituels sont conservés à part.`,
+                })}><Icon name="arrow" size={16} />Départ · 5 s</button
+            >
+            <button
+              class="secondary"
+              disabled={!!busy || status.stale}
+              onclick={() =>
+                ask({
+                  action: 'departure-cancel',
+                  title: 'Annuler le départ',
+                  description:
+                    'Retirer les participants de la salle d’attente, sans modifier leurs inventaires.',
+                })}>Annuler</button
+            >
+          </div>{/if}
+      </article>
+    {:else}<p class="muted small">
+        Départ groupé et téléportation entre survivants : disponibles après
+        activation du nouveau plugin lors d’une relance sauvegardée.
+      </p>{/if}
     <div class="gz-workspace">
       <article class="card map-card">
         <div class="card-heading">
@@ -380,7 +454,7 @@
                 role="button"
                 tabindex="0"
                 aria-label={`Sélectionner ${s.name}`}
-                onclick={() => choose(s.name)}
+                onclick={chooseOnMap}
                 onkeydown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -540,6 +614,40 @@
             >
           </form>
           <div class="survivor-actions">
+            {#if status.capabilities?.includes('teleport')}
+              <form
+                class="rendezvous"
+                onsubmit={(e) => {
+                  e.preventDefault();
+                  ask({
+                    action: 'teleport',
+                    value: { player: survivor.name, target: destination },
+                    title: 'Rejoindre un survivant',
+                    description: `Déplacer ${survivor.name} à un emplacement sûr près de ${destination}. L’inventaire, les points et les morsures sont conservés. Le déplacement sera tracé.`,
+                  });
+                }}
+              >
+                <label
+                  >Déplacer {survivor.name} près de<select
+                    aria-label="Survivant à rejoindre"
+                    bind:value={destination}
+                    disabled={!destinations.length || !!busy || status.stale}
+                  >
+                    {#each destinations as target}<option value={target.name}
+                        >{target.name}</option
+                      >{/each}
+                  </select></label
+                >
+                <button
+                  class="secondary"
+                  disabled={!destination || !!busy || status.stale}
+                  ><Icon name="pin" size={16} />Rejoindre ce joueur</button
+                >
+                {#if !destinations.length}<small class="muted"
+                    >Un autre survivant doit être présent dans Ground Zero.</small
+                  >{/if}
+              </form>
+            {/if}
             <button
               class="secondary"
               disabled={!!busy || status.stale || survivor.inRefuge}
@@ -683,6 +791,47 @@
   </div>{/if}
 
 <style>
+  .departure-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 0 0 14px;
+  }
+  .departure-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+  }
+  .departure-card p {
+    margin: 5px 0 0;
+    overflow-wrap: anywhere;
+  }
+  .rendezvous {
+    display: grid;
+    gap: 9px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rendezvous label {
+    display: grid;
+    gap: 7px;
+    overflow-wrap: anywhere;
+  }
+  .rendezvous select {
+    width: 100%;
+    min-width: 0;
+  }
+  @media (max-width: 600px) {
+    .departure-card {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    .rendezvous select {
+      font-size: 16px;
+    }
+  }
   .gz-heading {
     gap: 12px;
     flex-wrap: wrap;

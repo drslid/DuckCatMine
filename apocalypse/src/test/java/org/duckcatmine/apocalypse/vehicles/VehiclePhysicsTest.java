@@ -55,6 +55,17 @@ class VehiclePhysicsTest {
     }
 
     @Test
+    void mouseSteeringFollowsTheShortestAngleWithoutSnappingOrPivotingAtRest() {
+        assertEquals(0, VehiclePhysics.steerToward(0, 0, 90));
+        assertEquals(2f, VehiclePhysics.steerToward(.5, 179, -179), .001f);
+        assertEquals(-2f, VehiclePhysics.steerToward(.5, -179, 179), .001f);
+        assertEquals(.5f, VehiclePhysics.steerToward(.5, 12, 12.5f), .001f);
+        assertTrue(VehiclePhysics.steerToward(.5,0,90) <= VehiclePhysics.TURN_DEGREES);
+        assertTrue(VehiclePhysics.steerToward(-.2,0,90) > 0);
+        assertEquals(0,VehiclePhysics.steerToward(.5,0,Float.NaN));
+    }
+
+    @Test
     void stateSurvivesARoundTrip() {
         Vehicle car = new Vehicle(java.util.UUID.randomUUID(), null, VehicleModel.SEDAN, org.bukkit.Material.RED_CONCRETE,
                 10.5, 65, -3, 90f, 12.34, 77.5);

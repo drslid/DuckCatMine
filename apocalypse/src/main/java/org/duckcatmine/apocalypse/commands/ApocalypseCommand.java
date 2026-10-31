@@ -50,10 +50,25 @@ public final class ApocalypseCommand implements TabExecutor {
         }
         switch (sub) {
             case "join" -> {
-                if (args.length > 1 && !args[1].equalsIgnoreCase(plugin.settings().scenario().id())) Text.error(player, "Scénario inconnu : " + args[1] + ".");
-                else plugin.sessions().join(player);
+                if (args.length > 1 && args[1].equalsIgnoreCase("solo")) {
+                    if (plugin.departures().queued(player)) Text.error(player, "Quitte d'abord le groupe avec /apocalypse leave.");
+                    else plugin.sessions().join(player);
+                } else if (args.length > 1 && !args[1].equalsIgnoreCase(plugin.settings().scenario().id())) Text.error(player, "Scénario inconnu : " + args[1] + ".");
+                else plugin.departures().open(player);
             }
-            case "leave" -> plugin.sessions().requestLeave(player);
+            case "group", "groupe" -> {
+                Player target = args.length > 1 ? Bukkit.getPlayerExact(args[1]) : null;
+                if (args.length > 1 && target == null) Text.error(player, "Ce joueur n'est pas connecté.");
+                else plugin.departures().join(player, target);
+            }
+            case "start" -> {
+                if (!plugin.departures().queued(player)) Text.error(player, "Rejoins d'abord le groupe avec /apocalypse group.");
+                else { String error = plugin.departures().start(player.getName()); if (error != null) Text.error(player, error); }
+            }
+            case "leave" -> {
+                if (plugin.departures().queued(player)) plugin.departures().leave(player);
+                else plugin.sessions().requestLeave(player);
+            }
             case "guide" -> guide(player);
             case "status" -> status(player);
             case "infection" -> infection(player);
@@ -79,7 +94,8 @@ public final class ApocalypseCommand implements TabExecutor {
     }
 
     private void help(CommandSender sender) {
-        Text.info(sender, "/apocalypse join ground_zero — entrer (ton inventaire habituel est mis de côté)");
+        Text.info(sender, "/apocalypse join — choisir solo ou départ groupé (inventaire habituel conservé à part)");
+        Text.info(sender, "/apocalypse group [survivant] — attendre le groupe ; /apocalypse start — départ commun dans 5 s ; /apocalypse join solo — partir seul");
         Text.info(sender, "/apocalypse leave — quitter : immédiat au refuge, sinon après quelques secondes immobile (jamais avec une morsure)");
         Text.info(sender, "/apocalypse guide — règles, antidotes et pharmacie la plus proche, voitures");
         Text.info(sender, "/apocalypse status | infection | bag [open] | recipes [objet] | stats | skills | intro [skip]");
@@ -88,6 +104,7 @@ public final class ApocalypseCommand implements TabExecutor {
         if (sender.hasPermission(ADMIN)) {
             Text.info(sender, "/apocalypse admin status | enable | disable | reload | selftest | map [rayon] | threat [valeur] | destruction on|off | horde <joueur> | pvp on|off | world create | world bind <monde> confirm | give <joueur> <objet> [n]");
             Text.info(sender, "/apocalypse admin settings | set <réglage> <valeur> | preset relaxed|normal|nightmare | evacuate <joueur> | lives reset confirm");
+            Text.info(sender, "/apocalypse admin teleport <joueur> <survivant> — déplacer à côté ; departure start|cancel — départ groupé");
         }
     }
 
@@ -107,8 +124,8 @@ public final class ApocalypseCommand implements TabExecutor {
                         + direction(place.x() - x, place.z() - z) + " (x " + place.x() + ", z " + place.z() + ").");
             }
         }
-        Text.info(player, "Voitures : clic droit sur une portière pour monter, touches de déplacement pour conduire, saut = frein à main,"
-                + " sprint = klaxon, Maj = descendre. Le moteur attire les infectés. Essence : jerrican (siphonner accroupi, puis faire le plein).");
+        Text.info(player, "Voitures : clic droit pour monter, avancer/reculer avec tes touches habituelles, souris pour tourner, saut = frein à main,"
+                + " sprint = klaxon, Maj = descendre. Les occupants restent attaquables. Le moteur attire les infectés. Essence : jerrican.");
         Text.info(player, "Armes : /apocalypse recipes (massues, hache, arc silencieux, pistolet, bombe artisanale, cocktail Molotov).");
         Text.info(player, "Partir : /apocalypse leave — au refuge tout de suite, ailleurs après " + plugin.settings().play().leaveSeconds()
                 + " s immobile sans combattre. Ta vie t'attend pour ton retour.");
@@ -244,6 +261,42 @@ public final class ApocalypseCommand implements TabExecutor {
                 } else {
                     Text.error(sender, "Sortie impossible (voir les journaux du serveur).");
                 }
+            }
+            case "departure" -> {
+                if (args.length != 3 || !List.of("start", "cancel").contains(args[2])) {
+                    Text.error(sender, "/apocalypse admin departure start|cancel");
+                    return;
+                }
+                if (args[2].equals("cancel")) {
+                    plugin.departures().cancel("administration");
+                    audit(actor, "admin_departure_cancel", "");
+                    Text.good(sender, "Départ groupé annulé, inventaires inchangés.");
+                } else {
+                    String error = plugin.departures().start(actor);
+                    if (error != null) Text.error(sender, error);
+                    else { audit(actor, "admin_departure_start", ""); Text.good(sender, "Départ groupé en préparation : compte à rebours commun de 5 secondes."); }
+                }
+            }
+            case "teleport" -> {
+                Player source = args.length == 4 ? Bukkit.getPlayerExact(args[2]) : null;
+                Player target = args.length == 4 ? Bukkit.getPlayerExact(args[3]) : null;
+                if (source == null || target == null || source.equals(target) || source.isDead() || target.isDead()
+                        || !plugin.sessions().isSurvivor(source) || !plugin.sessions().isSurvivor(target)
+                        || plugin.intro().playing(source) || plugin.intro().playing(target)
+                        || plugin.sessions().isTransitioning(source) || plugin.sessions().isTransitioning(target)) {
+                    Text.error(sender, "Choisis deux survivants différents, présents dans Ground Zero et hors introduction.");
+                    return;
+                }
+                var destination = org.duckcatmine.apocalypse.spawn.SafeArrival.near(target.getLocation(), new java.util.HashSet<>());
+                if (destination == null) { Text.error(sender, "Aucun emplacement sûr à côté de ce survivant. Aucun joueur déplacé."); return; }
+                plugin.vehicles().dismountForTeleport(source);
+                plugin.sessions().cancelLeave(source, "déplacement administrateur");
+                if (!plugin.sessions().teleport(source, destination)) { Text.error(sender, "Téléportation refusée."); return; }
+                audit(actor, "admin_teleport", source.getName() + " -> " + target.getName());
+                plugin.events().add("admin", source.getName() + " déplacé près de " + target.getName() + " par " + actor);
+                plugin.status().tick();
+                Text.info(source, "Déplacement administrateur : tu as rejoint " + target.getName() + ".");
+                Text.good(sender, source.getName() + " a rejoint " + target.getName() + " (tracé).");
             }
             case "lives" -> {
                 if (args.length != 4 || !args[2].equalsIgnoreCase("reset") || !args[3].equals("confirm")) {
@@ -413,10 +466,13 @@ public final class ApocalypseCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
-            options.addAll(List.of("join", "leave", "guide", "status", "infection", "bag", "recipes", "team", "stats", "skills", "intro", "help"));
+            options.addAll(List.of("join", "group", "start", "leave", "guide", "status", "infection", "bag", "recipes", "team", "stats", "skills", "intro", "help"));
             if (sender.hasPermission(ADMIN)) options.add("admin");
         } else if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             options.add(plugin.settings().scenario().id());
+            options.add("solo");
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("group") || args[0].equalsIgnoreCase("groupe"))) {
+            Bukkit.getOnlinePlayers().stream().filter(plugin.sessions()::isSurvivor).forEach(p -> options.add(p.getName()));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("bag")) {
             options.add("open");
         } else if (args.length == 2 && args[0].equalsIgnoreCase("team")) {
@@ -435,7 +491,10 @@ public final class ApocalypseCommand implements TabExecutor {
             options.add("skip");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
             if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat",
-                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives"));
+                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives", "teleport", "departure"));
+            else if (args.length == 3 && args[1].equalsIgnoreCase("departure")) options.addAll(List.of("start", "cancel"));
+            else if ((args.length == 3 || args.length == 4) && args[1].equalsIgnoreCase("teleport"))
+                Bukkit.getOnlinePlayers().stream().filter(plugin.sessions()::isSurvivor).forEach(p -> options.add(p.getName()));
             else if (args.length == 3 && args[1].equalsIgnoreCase("set"))
                 org.duckcatmine.apocalypse.config.SettingsService.CATALOG.forEach(setting -> options.add(setting.key()));
             else if (args.length == 3 && args[1].equalsIgnoreCase("preset")) options.addAll(org.duckcatmine.apocalypse.config.SettingsService.PRESETS.keySet());

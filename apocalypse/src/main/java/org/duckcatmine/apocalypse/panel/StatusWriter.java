@@ -35,7 +35,7 @@ import org.duckcatmine.apocalypse.scenario.city.Sector;
  * atomically (temporary file then rename).
  */
 public final class StatusWriter {
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
     private static final long PROFILES_EVERY_MS = 60_000;
 
     private final DuckCatApocalypse plugin;
@@ -104,6 +104,8 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving")));
+        root.add("departure", gson.toJsonTree(plugin.departures().snapshot()));
         root.addProperty("generatedAt", System.currentTimeMillis());
         root.addProperty("running", true);
         var scenario = plugin.scenario();

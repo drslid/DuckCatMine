@@ -5,6 +5,7 @@ const { makeApocalypseCommands, failure, SETTINGS } = require('./apocalypse');
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const { command } = makeApocalypseCommands(HttpError);
 const status = () => ({ installed: true, stale: false, world: 'ground_zero',
+  capabilities:['departure','teleport'], departure:{members:['Noah'],phase:'waiting'},
   survivors: [{ name: 'Alex', inRefuge: false }, { name: 'Sam', inRefuge: true }],
   items: [{ id: 'antidote' }, { id: 'pistol' }], });
 const build = (action, value, extra = {}, state = status()) => command({ action, value, ...extra }, state);
@@ -80,4 +81,17 @@ test('refusals from both current and legacy plugins never appear as success', ()
   assert.match(failure('☣ Le monde ground_zero existe encore : arrête le serveur.'), /existe/);
   assert.match(failure('☣ ÉCHEC objets : erreur'), /ÉCHEC/);
   assert.equal(failure('☣ OK objets\n☣ Autotest réussi.'), null);
+});
+
+test('rendezvous and shared departures require current supported state and two distinct survivors', () => {
+  assert.equal(build('teleport',{player:'Alex',target:'Sam'}).command,'apocalypse admin teleport Alex Sam');
+  assert.equal(build('departure-start').command,'apocalypse admin departure start');
+  assert.equal(build('departure-cancel').command,'apocalypse admin departure cancel');
+  refused(() => build('teleport',{player:'Alex',target:'Alex'}));
+  refused(() => build('teleport',{player:'Alex',target:'Offline'}),409);
+  refused(() => build('teleport',{player:'Alex',target:'Sam\nstop'}));
+  refused(() => build('teleport',{player:'Alex',target:'Sam'},{},{...status(),capabilities:[]}),409);
+  refused(() => build('departure-start',null,{},{...status(),departure:{members:[],phase:'waiting'}}),409);
+  refused(() => build('departure-start',null,{},{...status(),departure:{members:['Noah'],phase:'countdown'}}),409);
+  refused(() => build('set',{key:{toString:null},value:1}));
 });

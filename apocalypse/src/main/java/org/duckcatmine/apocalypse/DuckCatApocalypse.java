@@ -54,6 +54,7 @@ import org.duckcatmine.apocalypse.session.BoundaryListener;
 import org.duckcatmine.apocalypse.session.SessionService;
 import org.duckcatmine.apocalypse.siege.SiegeManager;
 import org.duckcatmine.apocalypse.spawn.DropService;
+import org.duckcatmine.apocalypse.spawn.DepartureService;
 import org.duckcatmine.apocalypse.teams.TeamService;
 import org.duckcatmine.apocalypse.threat.ThreatDirector;
 import org.duckcatmine.apocalypse.vehicles.VehicleService;
@@ -82,6 +83,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private ThrowableService throwables;
     private VehicleService vehicles;
     private DropService drops;
+    private DepartureService departures;
     private SiegeManager siege;
     private ThreatDirector threat;
     private FaunaService fauna;
@@ -147,6 +149,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             throwables = new ThrowableService(this);
             vehicles = new VehicleService(this);
             drops = new DropService(this);
+            departures = new DepartureService(this);
             siege = new SiegeManager(this);
             threat = new ThreatDirector(this);
             fauna = new FaunaService(this);
@@ -193,6 +196,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(teams, this);
         events.registerEvents(progress, this);
         events.registerEvents(intro, this);
+        events.registerEvents(departures, this);
         fauna.resumeLoaded();
         throwables.start();
         vehicles.start();
@@ -312,6 +316,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         }
         if (bags != null) bags.hideAll();
         if (throwables != null) throwables.stop();
+        if (departures != null) departures.stop();
         if (vehicles != null) vehicles.stop();
         if (status != null) status.writeStopped();
         if (siege != null) siege.clear();
@@ -417,6 +422,9 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public VehicleService vehicles() {
         return vehicles;
     }
+
+    public DepartureService departures() { return departures; }
+    public StatusWriter status() { return status; }
 
     public DropService drops() {
         return drops;

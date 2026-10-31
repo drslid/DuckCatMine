@@ -79,6 +79,7 @@ public final class VehicleService implements Listener {
     private final Set<UUID> active = new LinkedHashSet<>();
     private final Map<UUID, UUID> seatToCar = new HashMap<>();
     private final Map<UUID, UUID> riderToCar = new HashMap<>();
+    private final Map<UUID, Location> seatMoves = new HashMap<>();
     private final LinkedHashSet<Long> pending = new LinkedHashSet<>();
     private final Set<Long> fresh = new HashSet<>();
     private final Map<UUID, Long> lastClick = new HashMap<>();
@@ -141,6 +142,28 @@ public final class VehicleService implements Listener {
 
     public boolean isRiding(Player player) {
         return riderToCar.containsKey(player.getUniqueId());
+    }
+
+    /** Only synchronous passenger moves of a registered seat, in the same world and next to its new position. */
+    public boolean isSeatMovement(Player player, Location from, Location to) {
+        Location expected = seatMoves.get(player.getUniqueId());
+        // Paper may temporarily detach a passenger while dispatching its teleport event.
+        return expected != null && riderToCar.containsKey(player.getUniqueId())
+                && from.getWorld().equals(to.getWorld()) && expected.getWorld().equals(to.getWorld())
+                && expected.distanceSquared(to) < 4;
+    }
+
+    /** An explicit admin move must not be overwritten by the ordinary next-tick dismount beside the old car. */
+    public void dismountForTeleport(Player player) {
+        UUID id = riderToCar.get(player.getUniqueId());
+        Vehicle vehicle = id == null ? null : vehicles.get(id);
+        int seat = vehicle == null ? -1 : vehicle.seatOf(player.getUniqueId());
+        if (seat < 0) { if (player.isInsideVehicle()) player.leaveVehicle(); return; }
+        Entity chair = vehicle.seats[seat] == null ? null : Bukkit.getEntity(vehicle.seats[seat]);
+        clearSeat(vehicle, seat);
+        player.leaveVehicle();
+        if (chair != null) chair.remove();
+        if (seat == 0 && vehicle.engineOn) stopEngine(vehicle);
     }
 
     // ------------------------------------------------------------------ registry
@@ -455,7 +478,13 @@ public final class VehicleService implements Listener {
         if (door != null) door.teleport(at);
         for (int seat = 0; seat < Vehicle.SEATS; seat++) {
             Entity chair = vehicle.seats[seat] == null ? null : Bukkit.getEntity(vehicle.seats[seat]);
-            if (chair != null) chair.teleport(seatLocation(vehicle, seat), TeleportFlag.EntityState.RETAIN_PASSENGERS);
+            if (chair != null) {
+                Player player = rider(vehicle, seat);
+                Location target = seatLocation(vehicle, seat);
+                if (player != null) seatMoves.put(player.getUniqueId(), target);
+                try { chair.teleport(target, TeleportFlag.EntityState.RETAIN_PASSENGERS); }
+                finally { if (player != null) seatMoves.remove(player.getUniqueId()); }
+            }
         }
     }
 
@@ -466,7 +495,10 @@ public final class VehicleService implements Listener {
     }
 
     private Location seatLocation(Vehicle vehicle, int seat) {
-        return local(vehicle, SEATS[seat][0], SEAT_HEIGHT, SEATS[seat][1]);
+        Location location = local(vehicle, SEATS[seat][0], SEAT_HEIGHT, SEATS[seat][1]);
+        // Keep the invisible mount's rotation fixed: changing it would rotate the player's camera every tick.
+        location.setYaw(0);
+        return location;
     }
 
     // ------------------------------------------------------------------ getting in and out
@@ -521,6 +553,7 @@ public final class VehicleService implements Listener {
             d.setPersistent(false);
             d.setTeleportDuration(2);
         });
+        if (seat == 0) player.setRotation(vehicle.yaw, player.getLocation().getPitch());
         if (!chair.addPassenger(player)) {
             chair.remove();
             if (!vehicle.occupied()) park(vehicle);
@@ -533,7 +566,7 @@ public final class VehicleService implements Listener {
         active.add(vehicle.id);
         vehicle.world.playSound(chair.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.9f, 1.4f);
         if (seat == 0) {
-            Text.info(player, "Au volant. Avancer, reculer et tourner : touches de déplacement. Saut : frein à main. Sprint : klaxon."
+            Text.info(player, "Au volant. Avancer/reculer : tes touches habituelles. Direction : souris (ou gauche/droite). Saut : frein à main. Sprint : klaxon."
                     + " Maj : descendre. Le moteur s'entend de loin.");
             if (!plugin.settings().play().vehicles().enabled()) Text.warn(player, "Les voitures sont immobilisées sur ce serveur.");
             else if (vehicle.health <= 0) Text.warn(player, "Moteur hors d'usage : clic droit avec de la ferraille pour le réparer.");
@@ -609,15 +642,6 @@ public final class VehicleService implements Listener {
             }
         }
         return null;
-    }
-
-    /** Infected cannot reach someone inside a moving car. */
-    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onRiderHurt(EntityDamageByEntityEvent event) {
-        UUID carId = riderToCar.get(event.getEntity().getUniqueId());
-        if (carId == null || event.getDamager() instanceof Player) return;
-        Vehicle vehicle = vehicles.get(carId);
-        if (vehicle != null && Math.abs(vehicle.speed) > 0.15) event.setCancelled(true);
     }
 
     // ------------------------------------------------------------------ fuel, repairs, wrecks
@@ -756,7 +780,10 @@ public final class VehicleService implements Listener {
         boolean street = layout == null || layout.isStreet((int) Math.floor(vehicle.x), (int) Math.floor(vehicle.z));
         double max = street ? rules.maxSpeedRoad() : rules.maxSpeedOffroad();
         double speed = VehiclePhysics.speed(vehicle.speed, forward, backward, handbrake, vehicle.engineOn, max);
-        float yaw = vehicle.yaw + VehiclePhysics.steer(speed, left, right);
+        float steering = driver != null && left == right
+                ? VehiclePhysics.steerToward(speed, vehicle.yaw, driver.getLocation().getYaw())
+                : VehiclePhysics.steer(speed, left, right);
+        float yaw = vehicle.yaw + steering;
         double rad = Math.toRadians(yaw), fx = -Math.sin(rad), fz = Math.cos(rad);
         double nx = vehicle.x + fx * speed, nz = vehicle.z + fz * speed;
         double ground = vehicle.y;
@@ -810,6 +837,8 @@ public final class VehicleService implements Listener {
         World world = base.getWorld();
         List<Block> built = new ArrayList<>();
         Vehicle vehicle = null;
+        ItemDisplay testSeat = null;
+        ArmorStand passenger = null;
         try {
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -3; dz <= 16; dz++) {
@@ -833,6 +862,11 @@ public final class VehicleService implements Listener {
             int barriers = vehicle.barriers.size();
             if (barriers < 12) throw new IllegalStateException("voiture garée peu solide : " + barriers + " blocs barrière");
             unpark(vehicle);
+            testSeat = world.spawn(seatLocation(vehicle,0),ItemDisplay.class);
+            passenger = world.spawn(seatLocation(vehicle,0),ArmorStand.class, entity -> { entity.setGravity(false); entity.setVisible(false); });
+            passenger.setRotation(63f,17f);
+            if (!testSeat.addPassenger(passenger)) throw new IllegalStateException("Passager de test refusé");
+            vehicle.seats[0] = testSeat.getUniqueId();
             double startZ = vehicle.z, top = 0;
             int ticks = 0;
             while (ticks < 200 && (ticks < 5 || vehicle.speed > 0)) {
@@ -845,9 +879,13 @@ public final class VehicleService implements Listener {
             if (vehicle.z > base.getZ() + 16 - 2.0) throw new IllegalStateException("a traversé le mur (z " + vehicle.z + ")");
             if (vehicle.health >= 100) throw new IllegalStateException("choc sans dégât");
             if (vehicle.fuel >= 10) throw new IllegalStateException("aucune essence consommée");
-            return String.format(java.util.Locale.ROOT, "%d pièces, %d blocs barrière garée, %.0f blocs parcourus jusqu'à %d km/h, arrêtée par le mur (état %.0f %%, %.2f L consommés)",
+            if (!testSeat.getPassengers().contains(passenger) || Math.abs(passenger.getLocation().getYaw()-63f) > .01
+                    || Math.abs(passenger.getLocation().getPitch()-17f) > .01) throw new IllegalStateException("Direction du passager écrasée pendant le déplacement");
+            return String.format(java.util.Locale.ROOT, "%d pièces, %d blocs barrière garée, %.0f blocs parcourus jusqu'à %d km/h, arrêtée par le mur (état %.0f %%, %.2f L consommés), regard du passager conservé",
                     parts, barriers, travelled, VehiclePhysics.kmh(top), vehicle.health, 10 - vehicle.fuel);
         } finally {
+            if (passenger != null) passenger.remove();
+            if (testSeat != null) testSeat.remove();
             if (vehicle != null) remove(vehicle);
             for (Block block : built) block.setType(Material.AIR, false);
         }

@@ -180,6 +180,7 @@ Non réalisé sans pack : visages, teintes de peau, femmes et hommes distincts, 
 - Base SQLite `plugins/DuckCatApocalypse/apocalypse.db` (pilote fourni par Paper), un seul fil d'écriture.
 - Chaque transition d'un joueur (entrée, sortie, mort, retrait d'un objet du sac) est journalisée avant d'agir en jeu ; le fichier joueur enregistre ensuite le numéro de la dernière opération appliquée. À la reconnexion, une opération interrompue est confirmée, annulée ou rejouée selon ce numéro : jamais d'objet perdu en silence ni dupliqué.
 - Une vie ne peut finir qu'une fois (contrainte en base), une seule infection active par vie, un objet ne quitte le sac qu'une fois.
+- Une mort en attente est finalisée avant une sortie ou une correction de frontière. Une seconde notification de réapparition ne réinitialise pas à nouveau l'inventaire. La base refuse d'enregistrer un profil de retour pour une vie terminée, une ancienne vie ou un autre joueur ; la transaction annulée conserve le profil classique.
 - L'horloge du scénario est enregistrée toutes les 5 s : après un arrêt brutal, au plus 5 s sont rendues aux joueurs.
 - Les sauvegardes DuckCatMine archivent l'instantané `backup/apocalypse-snapshot.db` pris pendant leur `save-all`, pas la base vive. Après une restauration, l'instantané devient la base. Si le monde et la base ne correspondent pas, le scénario se suspend.
 - Ne supprime jamais `apocalypse.db` à la main.

@@ -179,9 +179,44 @@ public final class DeathService implements Listener {
         return null;
     }
 
+    /**
+     * Respawn/world-change callbacks may run before the normal post-respawn handler. Do not let
+     * their boundary correction save the already dead life and consume the classic inventory.
+     */
+    public boolean finishPendingDeath(Player player) {
+        if (player.isDead()) return false;
+        if (plugin.sessions().profile(player) != SessionService.Profile.APOCALYPSE) return true;
+        UUID id = player.getUniqueId();
+        try {
+            for (PlayerOp op : plugin.database().call(c -> Store.pendingOps(c, id))) {
+                if (op.type() != OpType.DEATH && op.type() != OpType.OFFLINE_DEATH) continue;
+                if (plugin.sessions().appliedSeq(player) < op.seq()) reapply(player, op);
+                if (plugin.sessions().appliedSeq(player) < op.seq()) return false;
+                plugin.database().call(c -> {
+                    Store.setOpState(c, id, op.seq(), OpState.DONE);
+                    return null;
+                });
+                awaitingRespawn.remove(id);
+            }
+            return true;
+        } catch (PersistenceException e) {
+            plugin.getLogger().log(Level.SEVERE, "Finalisation de la mort de " + player.getName() + " différée avant changement de profil", e);
+            return false;
+        }
+    }
+
     /** A new life with the same identity; the run id is derived from the death operation, so a replay is idempotent. */
     private void startNewLife(Player player, long seq) {
         UUID id = player.getUniqueId();
+        // A boundary correction may already have completed this death earlier in the same respawn.
+        // A later callback must not clear the new inventory or give a second starting kit.
+        if (plugin.sessions().appliedSeq(player) >= seq) {
+            plugin.database().call(c -> {
+                Store.setOpState(c, id, seq, OpState.DONE);
+                return null;
+            });
+            return;
+        }
         long now = plugin.clock().now();
         long applied = plugin.sessions().appliedSeq(player);
         String name = player.getName();

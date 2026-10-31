@@ -142,6 +142,17 @@ public final class Store {
                 + " op_seq = excluded.op_seq", player.toString(), kind, runId, data, now, opSeq);
     }
 
+    /** A completed death must never become a resumable survivor snapshot during a profile swap. */
+    public static void putLivingSurvivorProfile(Connection c, UUID player, String runId, byte[] data, long now, long opSeq) throws SQLException {
+        PlayerRow owner = player(c, player);
+        RunRow life = runId == null ? null : run(c, runId);
+        if (owner == null || life == null || !life.alive() || !player.equals(life.player())
+                || !runId.equals(owner.currentRun())) {
+            throw new SQLException("Profil de survie non enregistré : la vie courante n'est pas vivante ou ne correspond pas au joueur.");
+        }
+        putProfile(c, player, "APOCALYPSE", runId, data, now, opSeq);
+    }
+
     public static byte[] profile(Connection c, UUID player, String kind) throws SQLException {
         try (PreparedStatement s = c.prepareStatement("SELECT data FROM profiles WHERE uuid = ? AND kind = ?")) {
             s.setString(1, player.toString());

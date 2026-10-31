@@ -301,6 +301,62 @@ class StoreTest {
     }
 
     @Test
+    void aLivingCurrentLifeCanBeSavedForReturn() {
+        String run = life();
+        db.call(c -> {
+            Store.putLivingSurvivorProfile(c, alex, run, new byte[]{2, 3}, 2_000, 4);
+            return null;
+        });
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{2, 3}, db.call(c -> Store.profile(c, alex, "APOCALYPSE")));
+    }
+
+    @Test
+    void aPendingDeathCannotBeSavedByALaterLeave() {
+        String run = life();
+        db.call(c -> {
+            Store.putProfile(c, alex, "CLASSIC", null, new byte[]{7, 8, 9}, 1_000, 20);
+            Store.insertOp(c, alex, 21, OpType.DEATH, "death-before-respawn", 5_000);
+            return null;
+        });
+        die(run, "death-before-respawn");
+        assertThrows(PersistenceException.class, () -> db.call(c -> {
+            Store.insertOp(c, alex, 22, OpType.LEAVE, null, 6_000);
+            Store.putLivingSurvivorProfile(c, alex, run, new byte[]{1}, 6_000, 22);
+            Store.deleteProfileBefore(c, alex, "CLASSIC", 22);
+            return null;
+        }));
+        assertNull(db.call(c -> Store.profile(c, alex, "APOCALYPSE")), "the dead inventory cannot block the next entry");
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{7, 8, 9}, db.call(c -> Store.profile(c, alex, "CLASSIC")),
+                "the classic inventory remains safe when the whole leave transaction is refused");
+        assertEquals(List.of(21L), db.call(c -> Store.pendingOps(c, alex)).stream().map(PlayerOp::seq).toList());
+    }
+
+    @Test
+    void survivorSnapshotsMustMatchTheOwnerAndCurrentLife() {
+        String previous = life();
+        String current = life();
+        assertThrows(PersistenceException.class, () -> db.call(c -> {
+            Store.putLivingSurvivorProfile(c, alex, previous, new byte[]{1}, 2_000, 2);
+            return null;
+        }));
+        UUID other = UUID.randomUUID();
+        db.call(c -> {
+            Store.ensurePlayer(c, other, "Sam", 0);
+            return null;
+        });
+        assertThrows(PersistenceException.class, () -> db.call(c -> {
+            Store.putLivingSurvivorProfile(c, other, current, new byte[]{1}, 2_000, 2);
+            return null;
+        }));
+        assertThrows(PersistenceException.class, () -> db.call(c -> {
+            Store.putLivingSurvivorProfile(c, alex, null, new byte[]{1}, 2_000, 2);
+            return null;
+        }));
+        assertNull(db.call(c -> Store.profile(c, alex, "APOCALYPSE")));
+        assertNull(db.call(c -> Store.profile(c, other, "APOCALYPSE")));
+    }
+
+    @Test
     void snapshotIsConsistentAndPromotedWhenTheLiveBaseIsMissing() throws Exception {
         String run = life();
         Path live = dir.resolve("apocalypse.db");

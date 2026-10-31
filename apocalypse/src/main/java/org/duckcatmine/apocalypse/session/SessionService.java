@@ -323,6 +323,12 @@ public final class SessionService {
             return false;
         }
         if (player.isDead()) return false;
+        // A world change can happen during respawn, before PlayerPostRespawnEvent. Finish the
+        // recorded death first, while the classic inventory is still safely held in the database.
+        if (!plugin.deaths().finishPendingDeath(player)) {
+            Text.error(player, "Ta mort doit encore être finalisée : sortie différée pour protéger tes inventaires.");
+            return false;
+        }
         if (!forced) {
             if (!plugin.scenario().isScenarioWorld(player.getWorld())) return false;
             if (plugin.infections().isInfected(id)) {
@@ -347,7 +353,7 @@ public final class SessionService {
                 Store.ensurePlayer(c, id, name, applied);
                 long seq = Store.nextSeq(c, id);
                 Store.insertOp(c, id, seq, OpType.LEAVE, null, now);
-                Store.putProfile(c, id, SURVIVOR_KIND, run, survivor.encode(), now, seq);
+                Store.putLivingSurvivorProfile(c, id, run, survivor.encode(), now, seq);
                 return new Exit(seq, Store.profile(c, id, CLASSIC_KIND));
             });
         } catch (PersistenceException e) {
@@ -495,6 +501,7 @@ public final class SessionService {
             }
             return;
         }
+        if (!plugin.deaths().finishPendingDeath(player)) return;
         if (!inside) {
             leave(player, true, false);
             return;

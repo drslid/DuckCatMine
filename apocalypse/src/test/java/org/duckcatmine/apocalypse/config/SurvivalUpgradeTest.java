@@ -31,4 +31,17 @@ class SurvivalUpgradeTest {
         assertTrue(c.isSet("recipes.shotgun.result.item"));
         ApocalypseConfig.parse(c);
     }
+    @Test void versionTwoOnlyAddsTurretRecipeAndKeepsLootAndCustomRecipes() throws Exception {
+        var c=defaults(); c.set("survival-content-version",2); c.set("recipes.auto_turret",null);
+        c.set("places.house.rolls-min",2); c.set("places.house.rolls-max",4);
+        c.set("recipes.pistol.usage","Ma recette conservée");
+        String loot=c.getMapList("places.police.loot").toString();
+        assertTrue(SurvivalUpgrade.migrate(c,defaults()));
+        assertEquals(3,c.getInt("survival-content-version"));
+        assertEquals(2,c.getInt("places.house.rolls-min"));
+        assertEquals(loot,c.getMapList("places.police.loot").toString());
+        assertEquals("Ma recette conservée",c.getString("recipes.pistol.usage"));
+        assertEquals("apocalypse:auto_turret",c.getString("recipes.auto_turret.result.item"));
+        ApocalypseConfig.parse(c);
+    }
 }

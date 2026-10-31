@@ -80,6 +80,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private PlacedBlocks placed;
     private CraftingService crafting;
     private FirearmService firearms;
+    private org.duckcatmine.apocalypse.combat.TurretService turrets;
     private org.duckcatmine.apocalypse.radar.RadarService radar;
     private ThrowableService throwables;
     private VehicleService vehicles;
@@ -150,6 +151,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             placed = new PlacedBlocks(this);
             crafting = new CraftingService(this);
             firearms = new FirearmService(this);
+            turrets = new org.duckcatmine.apocalypse.combat.TurretService(this);
             throwables = new ThrowableService(this);
             vehicles = new VehicleService(this);
             drops = new DropService(this);
@@ -197,6 +199,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(placed, this);
         events.registerEvents(crafting, this);
         events.registerEvents(firearms, this);
+        events.registerEvents(turrets, this);
+        placed.resumeLoaded();
         events.registerEvents(radar, this);
         radar.restore();
         events.registerEvents(throwables, this);
@@ -264,7 +268,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             var defaults = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8));
             if (!org.duckcatmine.apocalypse.config.SurvivalUpgrade.migrate(raw, defaults)) return;
             ApocalypseConfig.parse(raw);
-            var aside = getDataFolder().toPath().resolve("config.before-survival-v2-" + System.currentTimeMillis() + ".yml");
+            var aside = getDataFolder().toPath().resolve("config.before-content-" + System.currentTimeMillis() + ".yml");
             java.nio.file.Files.copy(file.toPath(), aside);
             raw.save(file);
             getLogger().info("Butin et recettes améliorés ; autres réglages conservés. Copie : " + aside.getFileName());
@@ -281,6 +285,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             infections.tick();
             mobs.tick();
             firearms.tick();
+            turrets.tick();
             sessions.tickLeaves();
             if (ticks % TICKS_PER_SECOND == 0) {
                 noise.tick();
@@ -328,6 +333,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (turrets != null) turrets.close();
         if (ticker != null) ticker.cancel();
         if (database == null) return;
         if (sessions != null && safePositions != null) {
@@ -441,6 +447,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public org.duckcatmine.apocalypse.spawn.MapTeleportService mapTeleports() { return mapTeleports; }
 
     public org.duckcatmine.apocalypse.radar.RadarService radar() { return radar; }
+
+    public org.duckcatmine.apocalypse.combat.TurretService turrets() { return turrets; }
 
     public FirearmService firearms() {
         return firearms;

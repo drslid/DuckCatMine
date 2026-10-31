@@ -131,6 +131,7 @@ public final class ApocalypseCommand implements TabExecutor {
         }
         Text.info(player, "Voitures : clic droit pour monter, avancer/reculer avec tes touches habituelles, souris pour tourner, saut = frein à main,"
                 + " sprint = klaxon, Maj = descendre. Les occupants restent attaquables. Le moteur attire les infectés. Essence : jerrican.");
+        Text.info(player, "Défense : /apocalypse recipes auto_turret — mini-arbalète automatique à poser, infectés à 8 blocs.");
         Text.info(player, "Armes : /apocalypse recipes (massues, hache, arc silencieux, pistolet, fusil à pompe, mitraillette, bombe artisanale, cocktail Molotov).");
         Text.info(player, "Partir : /apocalypse leave — au refuge tout de suite, ailleurs après " + plugin.settings().play().leaveSeconds()
                 + " s immobile sans combattre. Ta vie t'attend pour ton retour.");
@@ -172,6 +173,10 @@ public final class ApocalypseCommand implements TabExecutor {
         String actor = sender instanceof Player player ? player.getName() : "console";
         switch (action) {
             case "status" -> adminStatus(sender);
+            case "turret-selftest" -> {
+                try { Text.good(sender, "DCAPO_TEST:" + TurretSelfTest.start(plugin)); }
+                catch (IllegalArgumentException e) { Text.error(sender,e.getMessage()); }
+            }
             case "enable", "disable" -> {
                 String error = plugin.scenario().setEnabled(action.equals("enable"), actor);
                 if (error != null) Text.error(sender, error);

@@ -4,6 +4,16 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Mini-arbalète automatique — alpha.7
+
+Fabrique-la à l'**atelier mécanique** : **1 arbalète Minecraft, 6 ferrailles, 2 ressorts et 4 planches**. Le catalogue `/apocalypse recipes auto_turret` affiche les ingrédients et le poste de fabrication. L'objet est également disponible dans le catalogue du panneau Ground Zero.
+
+Pose-la sur un sol solide, hors du refuge, avec un bloc libre au-dessus. Son arbalète visible s'oriente vers l'infecté le plus proche à **8 blocs**, avec un véritable carreau toutes les **1,25 seconde**, sans munitions à recharger. Les murs bloquent les tirs. Les joueurs et les animaux sains ne sont jamais blessés par ses carreaux. Un tir inflige 4 points de dégâts avant armure.
+
+**Clic droit à main vide** pour activer ou mettre en pause. Le propriétaire, son équipe ou un administrateur peuvent la casser pour récupérer l'objet ; la pause et le propriétaire sont conservés au rechargement du chunk et après relance. Quatre bases maximum par zone de 16 × 16 blocs. Ciblage borné par lots et aucun chargement de chunk pour surveiller les alentours.
+
+Le test Paper asynchrone `/apocalypse admin turret-selftest` est réservé à un scénario vide : tirs réels, mur, cible hors portée, animal sain, pause et réindexation sans doublon. Il restaure son terrain et publie son résultat dans `turret-selftest.json`.
+
 ## Mise à jour survie — alpha.6
 
 - **Carte → touche le sol → Me téléporter ici** : le compte web déplace son personnage après confirmation et vérification du sol. Chargement asynchrone ; inventaire, vie et progression conservés.

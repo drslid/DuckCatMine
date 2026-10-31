@@ -26,7 +26,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     public static final Set<String> WEAPONS = Set.of("club", "blade", "spear", "heavy_club", "fire_axe");
     /** Never handed out at the start of a life, whatever the configuration says. */
     public static final Set<String> RARE_ITEMS = Set.of("apocalypse:antidote", "apocalypse:serum", "apocalypse:inhibitor",
-            "apocalypse:shotgun", "apocalypse:smg", "apocalypse:syringe", "apocalypse:gun_parts", "apocalypse:pistol", "apocalypse:ammo", "apocalypse:casings",
+            "apocalypse:auto_turret", "apocalypse:shotgun", "apocalypse:smg", "apocalypse:syringe", "apocalypse:gun_parts", "apocalypse:pistol", "apocalypse:ammo", "apocalypse:casings",
             "apocalypse:propellant", "apocalypse:spring", "apocalypse:pipe_bomb");
 
     /** Gameplay rules added after the core survival loop. {@code leaveSeconds}: countdown to leave outside the refuge. */

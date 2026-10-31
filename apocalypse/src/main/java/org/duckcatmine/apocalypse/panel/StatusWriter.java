@@ -105,7 +105,7 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
-        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation")));
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets")));
         root.add("renovation", gson.toJsonTree(plugin.renovator().snapshot()));
         root.add("teleports", gson.toJsonTree(plugin.mapTeleports().snapshot()));
         root.add("departure", gson.toJsonTree(plugin.departures().snapshot()));
@@ -158,6 +158,7 @@ public final class StatusWriter {
         root.addProperty("incubatingAnimals", plugin.fauna().incubatingCount());
         root.addProperty("activeInfections", plugin.infections().count());
         root.addProperty("activeBags", plugin.bags().count());
+        root.addProperty("activeTurrets", plugin.turrets().count());
         root.addProperty("damagedBlocks", plugin.siege().damagedBlocks());
 
         JsonArray survivors = new JsonArray();

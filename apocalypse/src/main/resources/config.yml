@@ -1,4 +1,4 @@
-survival-content-version: 2
+survival-content-version: 3
 # DuckCatApocalypse — réglages du scénario Ground Zero.
 # Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
 # au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
@@ -593,6 +593,12 @@ recipes:
     ingredients: {"apocalypse:gun_parts": 2, "apocalypse:scrap": 4, "apocalypse:spring": 1, "apocalypse:tape": 2}
     noise: medium
     usage: Clic droit pour tirer, sans munitions. Répare avant la fin de la barre d’usure.
+  auto_turret:
+    station: workshop
+    result: {item: apocalypse:auto_turret}
+    ingredients: {"minecraft:crossbow": 1, "apocalypse:scrap": 6, "apocalypse:spring": 2, "#planks": 4}
+    noise: medium
+    usage: Infectés à 8 blocs, un tir / 1,25 s, sans munitions. Clic droit main vide pour mettre en pause.
   shotgun:
     station: workshop
     result: {item: apocalypse:shotgun}

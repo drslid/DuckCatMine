@@ -82,10 +82,13 @@ public final class PlacedBlocks implements Listener {
 
     public void put(Block block, Placed placed) {
         block.getChunk().getPersistentDataContainer().set(key(block), PersistentDataType.STRING, placed.encode());
+        if (ItemRegistry.AUTO_TURRET.equals(placed.kind())) plugin.turrets().track(block, placed);
+        else plugin.turrets().untrack(block);
         if (ItemRegistry.BEACON.equals(placed.kind())) claims.put(claimKey(block), claim(block, placed));
     }
 
     public void remove(Block block) {
+        plugin.turrets().untrack(block);
         block.getChunk().getPersistentDataContainer().remove(key(block));
         claims.remove(claimKey(block));
     }
@@ -121,16 +124,26 @@ public final class PlacedBlocks implements Listener {
         index(event.getChunk(), false);
     }
 
+    /** Loaded before listeners were installed: reindex persistent bases at startup too. */
+    public void resumeLoaded() {
+        var world = plugin.scenario().world();
+        if (world != null) for (Chunk chunk : world.getLoadedChunks()) index(chunk, true);
+    }
+
     private void index(Chunk chunk, boolean add) {
         PersistentDataContainer data = chunk.getPersistentDataContainer();
         for (NamespacedKey key : data.getKeys()) {
             if (!key.getNamespace().equals(plugin.getName().toLowerCase(java.util.Locale.ROOT)) || !key.getKey().startsWith("pb_")) continue;
             String value = data.get(key, PersistentDataType.STRING);
-            if (value == null || !value.startsWith(ItemRegistry.BEACON + ";")) continue;
+            if (value == null) continue;
+            Placed placed = Placed.decode(value);
+            if (!ItemRegistry.BEACON.equals(placed.kind()) && !ItemRegistry.AUTO_TURRET.equals(placed.kind())) continue;
             String[] position = key.getKey().substring(3).split("_");
             Block block = chunk.getBlock(Integer.parseInt(position[0]), Integer.parseInt(position[1]), Integer.parseInt(position[2]));
-            if (add) claims.put(claimKey(block), claim(block, Placed.decode(value)));
-            else claims.remove(claimKey(block));
+            if (ItemRegistry.BEACON.equals(placed.kind())) {
+                if (add) claims.put(claimKey(block), claim(block, placed)); else claims.remove(claimKey(block));
+            } else if (add) plugin.turrets().track(block, placed);
+            else plugin.turrets().untrack(block);
         }
     }
 
@@ -145,6 +158,10 @@ public final class PlacedBlocks implements Listener {
             Text.warn(player, "Impossible ici : seulement dans Ground Zero, hors du refuge.");
             return;
         }
+        if (ItemRegistry.AUTO_TURRET.equals(id)) {
+            String problem = plugin.turrets().placementProblem(block);
+            if (problem != null) { event.setCancelled(true); Text.warn(player, problem); return; }
+        }
         if (ItemRegistry.SPIKE_TRAP.equals(id) && !block.getRelative(BlockFace.DOWN).isSolid()) {
             event.setCancelled(true);
             Text.warn(player, "Le piège doit être posé sur un sol solide.");
@@ -157,6 +174,7 @@ public final class PlacedBlocks implements Listener {
         }
         Integer charges = event.getItemInHand().getPersistentDataContainer().get(plugin.keys().charges, PersistentDataType.INTEGER);
         put(block, new Placed(id, player.getUniqueId(), charges == null ? 0 : charges));
+        if (ItemRegistry.AUTO_TURRET.equals(id)) Text.good(player,"Mini-arbalète posée : infectés à 8 blocs. Clic droit main vide pour mettre en pause.");
         if (ItemRegistry.BEACON.equals(id))
             Text.good(player, "Base revendiquée (rayon " + CLAIM_RADIUS + ") : aucun siège ici quand toi et ton équipe êtes absents.");
     }
@@ -165,7 +183,12 @@ public final class PlacedBlocks implements Listener {
     public void onBreak(BlockBreakEvent event) {
         Placed placed = get(event.getBlock());
         if (placed == null) return;
+        if (ItemRegistry.AUTO_TURRET.equals(placed.kind()) && !plugin.turrets().canManage(event.getPlayer(), placed.owner())) {
+            event.setCancelled(true); Text.warn(event.getPlayer(), "Seuls le propriétaire, son équipe ou un administrateur peuvent récupérer cette mini-arbalète."); return;
+        }
         event.setDropItems(false);
+        // Wait for all protection listeners before returning an automatic turret to its owner.
+        if (ItemRegistry.AUTO_TURRET.equals(placed.kind())) return;
         ItemStack item = plugin.items().create(placed.kind(), 1);
         if (item != null && ItemRegistry.SPIKE_TRAP.equals(placed.kind())) {
             if (placed.data() <= 0) item = null;

@@ -73,13 +73,14 @@ public final class ItemRegistry {
     public static final String BARRICADE_REINFORCED = "barricade_reinforced";
     public static final String SPIKE_TRAP = "spike_trap";
     public static final String BEACON = "beacon";
+    public static final String AUTO_TURRET = "auto_turret";
     public static final String PIPE_BOMB = "pipe_bomb";
     public static final String MOLOTOV = "molotov";
     public static final String BOW = "bow";
     public static final String ARROW = "arrow";
     public static final String JERRYCAN = "jerrycan";
     /** Items that become a tracked block when placed (station, defence or claim). */
-    public static final Set<String> PLACEABLE = Set.of(WORKSHOP, MEDICAL_STATION, BARRICADE, BARRICADE_REINFORCED, SPIKE_TRAP, BEACON);
+    public static final Set<String> PLACEABLE = Set.of(WORKSHOP, MEDICAL_STATION, BARRICADE, BARRICADE_REINFORCED, SPIKE_TRAP, BEACON, AUTO_TURRET);
 
     private final Keys keys;
     private final Map<String, Definition> definitions = new LinkedHashMap<>();
@@ -148,6 +149,9 @@ public final class ItemRegistry {
                 Material.WAXED_WEATHERED_COPPER_GRATE, null, 16, List.of("Résiste longtemps aux coups des infectés.")));
         definitions.put(SPIKE_TRAP, new Definition("Piège à pointes", NamedTextColor.WHITE, Material.POINTED_DRIPSTONE, null, 8,
                 List.of("Blesse les infectés qui marchent dessus.", "Charges limitées ; jamais dans le refuge.")));
+        definitions.put(AUTO_TURRET, new Definition("Mini-arbalète automatique", NamedTextColor.AQUA, Material.DISPENSER, "minecraft:crossbow", 1,
+                List.of("À poser sur un sol solide, hors du refuge.", "Infectés à 8 blocs · un tir / 1,25 s · sans munitions.",
+                        "Clic droit main vide : activer / mettre en pause.", "Casse-la pour la récupérer (propriétaire ou équipe).")));
         definitions.put(BEACON, new Definition("Balise de base", NamedTextColor.AQUA, Material.LODESTONE, null, 1,
                 List.of("Revendique ta base (rayon 12) pour toi et ton équipe.", "Pas de siège quand vous êtes tous absents.")));
         definitions.put(PIPE_BOMB, new Definition("Bombe artisanale", NamedTextColor.RED, Material.SNOWBALL, "minecraft:tnt", 4,

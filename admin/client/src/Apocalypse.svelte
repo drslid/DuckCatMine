@@ -5,14 +5,17 @@
   import Icon from './Icon.svelte';
   import GroundZeroRules from './GroundZeroRules.svelte';
   import GroundZeroMaintenance from './GroundZeroMaintenance.svelte';
+  import GroundZeroMap from './GroundZeroMap.svelte';
   let {
     toast,
     openPlayer,
     openMaintenance = () => {},
+    policy = 'idle',
   }: {
     toast: (message: string, error?: boolean) => void;
     openPlayer: (name: string) => void;
     openMaintenance?: () => void;
+    policy?: string;
   } = $props();
   let status = $state<any>(null),
     tab = $state('map'),
@@ -27,6 +30,7 @@
     report = $state<string[]>([]);
   let context = $state<HTMLElement>();
   let destination = $state('');
+  let lightMap = $state(false);
   let loading = false,
     disposed = false,
     refreshAfter = 0;
@@ -378,7 +382,21 @@
             ><Icon name="settings" size={18} /></button
           >
         </div>
-        {#if map && status.mapRenderedAt}
+        {#if status.blueMap?.available && !demo}<div class="map-view-switch">
+            <button class="quiet" onclick={() => (lightMap = !lightMap)}
+              ><Icon name="map" size={15} />{lightMap
+                ? 'Ouvrir la carte 3D'
+                : 'Vue légère'}</button
+            >
+            <span class="muted small"
+              >{policy === 'idle'
+                ? 'Terrain actualisé hors partie · joueurs en direct'
+                : 'Terrain et joueurs en direct'}</span
+            >
+          </div>{/if}
+        {#if status.blueMap?.available && !lightMap && !demo}
+          <GroundZeroMap {status} {selected} onSelect={choose} />
+        {:else if map && status.mapRenderedAt}
           <svg
             class="gz-map"
             viewBox={`0 0 ${map.size} ${map.size}`}
@@ -791,6 +809,14 @@
   </div>{/if}
 
 <style>
+  .map-view-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
   .departure-card {
     display: flex;
     align-items: center;

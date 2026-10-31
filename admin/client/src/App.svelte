@@ -712,6 +712,7 @@
           />
         {:else if section === 'apocalypse' && Apocalypse}<Apocalypse
             {toast}
+            policy={status.mapPolicy}
             openMaintenance={() => navigate('settings', 'backups')}
             openPlayer={(name) => {
               selectedPlayer = name;

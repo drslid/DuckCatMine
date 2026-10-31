@@ -172,7 +172,7 @@ Use Node.js **24** for the site and UI, Python 3.12+ for worker tests. Maven bui
 
 ```bash
 # Panel/API checks
-cd admin && npm ci && node --test runtime.test.js plugins.test.js apocalypse.test.js && node smoke-test.js
+cd admin && npm ci && node --test runtime.test.js plugins.test.js apocalypse.test.js map-picker.test.js && node smoke-test.js
 python3 -m pip install PyYAML==6.0.2
 python3 -m unittest worker_test plugin_manager_test
 

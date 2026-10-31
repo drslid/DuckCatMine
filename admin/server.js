@@ -330,7 +330,8 @@ function apocalypseStatus() {
   let mapRenderedAt = null;
   try { mapRenderedAt = fs.statSync(path.join(MC_DATA_DIR, APOCALYPSE_DIR, 'map.png')).mtimeMs; } catch {}
   return { ...status, installed: true, stale: !fresh, ageSeconds: Math.round(age / 1000), mapRenderedAt,
-    survivors: fresh && Array.isArray(status.survivors) ? status.survivors : [] };
+    survivors: fresh && Array.isArray(status.survivors) ? status.survivors : [],
+    infectedPositions: fresh && Array.isArray(status.infectedPositions) ? status.infectedPositions.slice(0,512) : [] };
 }
 
 function scenarioSurvivor(player) {

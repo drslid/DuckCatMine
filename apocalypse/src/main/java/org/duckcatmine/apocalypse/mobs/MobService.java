@@ -1,6 +1,8 @@
 package org.duckcatmine.apocalypse.mobs;
 
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
@@ -12,6 +14,7 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
@@ -35,6 +38,8 @@ import org.duckcatmine.apocalypse.config.ApocalypseConfig;
  * off; special archetypes get telegraphed abilities with a recovery window (spec §8).
  */
 public final class MobService {
+    public static final int MAP_LIMIT = 512;
+    public record MapPosition(String id, String type, int x, int y, int z) {}
     private static final EquipmentSlot[] SLOTS = {EquipmentSlot.HAND, EquipmentSlot.OFF_HAND, EquipmentSlot.HEAD,
             EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
 
@@ -93,6 +98,21 @@ public final class MobService {
         Map<String, Integer> counts = new HashMap<>();
         for (Tracked mob : tracked.values()) counts.merge(mob.archetype, 1, Integer::sum);
         return counts;
+    }
+
+    /** Main-thread snapshot of already tracked, loaded creatures. Never loads chunks or scans a world. */
+    public List<MapPosition> mapPositions(World world, int limit) {
+        int cap = Math.min(MAP_LIMIT, Math.max(0, limit));
+        if (world == null || cap == 0) return List.of();
+        List<MapPosition> points = new ArrayList<>();
+        for (Map.Entry<UUID, Tracked> entry : tracked.entrySet()) {
+            Entity entity = Bukkit.getEntity(entry.getKey());
+            if (!(entity instanceof LivingEntity living) || !living.isValid() || living.isDead() || !world.equals(living.getWorld())) continue;
+            Location at = living.getLocation();
+            points.add(new MapPosition(entry.getKey().toString(), entry.getValue().archetype, at.getBlockX(), at.getBlockY(), at.getBlockZ()));
+            if (points.size() >= cap) break;
+        }
+        return points;
     }
 
     public Zombie spawn(String archetypeId, Appearance appearance, Location location) {

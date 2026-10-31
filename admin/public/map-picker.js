@@ -8,7 +8,9 @@
   if (scenarioMap && window.document?.head) {
     const style = window.document.createElement('style');
     // BlueMap's HTML renderer is a pointer-transparent overlay by default.
-    style.textContent = '.bm-marker-player{pointer-events:auto!important;cursor:pointer;touch-action:manipulation}';
+    style.textContent = '.bm-marker-player{pointer-events:auto!important;cursor:pointer;touch-action:manipulation}'
+      + '.dc-infected-dot{display:block;width:8px;height:8px;background:#f57f73;border:1.5px solid #17241c;border-radius:50%;box-shadow:0 0 0 1px #f57f7355;pointer-events:auto}'
+      + '.dc-infected-elite{background:#f4b65f;width:10px;height:10px}.dc-infected-boss{background:#c49af8;width:12px;height:12px;border-radius:3px}';
     window.document.head.appendChild(style);
   }
   // BlueMap versions can consume marker clicks before publishing a 3D interaction event.
@@ -30,9 +32,59 @@
     pin = null;
     report('clear');
   };
+  let infectedLayer = null;
+  const infectedMarkers = new Map();
+  const escapeLabel = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const redraw = () => { if (typeof window.bluemap.mapViewer.redraw === 'function') window.bluemap.mapViewer.redraw(); };
+  const infectedVisibility = () => {
+    if (infectedLayer) infectedLayer.visible = infectedMarkers.size > 0 && window.bluemap.mapViewer.map?.data?.id === scenarioMap;
+  };
+  const updateInfected = data => {
+    if (!scenarioMap || data.world !== scenarioMap) return;
+    if (data.visible !== true) {
+      const changed = infectedMarkers.size > 0;
+      for (const {marker} of infectedMarkers.values()) infectedLayer.remove(marker);
+      infectedMarkers.clear(); infectedVisibility();
+      if (changed) redraw();
+      return;
+    }
+    const points = Array.isArray(data.points) ? data.points.slice(0,512) : [];
+    const active = new Set();
+    let changed = false;
+    for (const p of points) {
+      if (!p || typeof p.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(p.id) || typeof p.type !== 'string'
+          || !/^[a-z][a-z0-9_-]{0,47}$/.test(p.type) || ![p.x,p.y,p.z].every(n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 30000000)) continue;
+      active.add(p.id);
+      const label = typeof data.labels?.[p.type] === 'string' ? data.labels[p.type].slice(0,80) : p.type;
+      let entry = infectedMarkers.get(p.id);
+      if (!entry || entry.label !== label || entry.type !== p.type) {
+        if (!infectedLayer) {
+          infectedLayer = new window.BlueMap.MarkerSet('duckcatmine-infected');
+          infectedLayer.data.toggleable = false;
+          window.bluemap.mapViewer.markers.add(infectedLayer);
+        }
+        const marker = entry?.marker || new window.BlueMap.HtmlMarker('dc-infected-' + p.id);
+        const kind = p.type === 'abomination' ? 'dc-infected-boss' : ['howler','breaker','runner','pursuer'].includes(p.type) ? 'dc-infected-elite' : '';
+        marker.updateFromData({position:{x:p.x,y:p.y+1.5,z:p.z},label,listed:false,sorting:-20,anchor:{x:.5,y:.5},classes:[],
+          html:`<span class="dc-infected-dot ${kind}" role="img" aria-label="${escapeLabel(label)}" title="${escapeLabel(label)}"></span>`});
+        if (!entry) infectedLayer.add(marker);
+        infectedMarkers.set(p.id,{marker,label,type:p.type});
+        changed = true;
+      } else if (entry.marker.position.x !== p.x || entry.marker.position.y !== p.y+1.5 || entry.marker.position.z !== p.z) {
+        entry.marker.position.set(p.x,p.y+1.5,p.z);
+        changed = true;
+      }
+    }
+    for (const [id,entry] of infectedMarkers) if (!active.has(id)) {
+      infectedLayer.remove(entry.marker); infectedMarkers.delete(id); changed = true;
+    }
+    infectedVisibility();
+    if (changed) redraw();
+  };
   window.addEventListener('message', (event) => {
     if (event.source !== window.parent || event.origin !== parentOrigin || event.data?.source !== 'duckcatmine-map-picker') return;
     const data = event.data;
+    if (data.type === 'infected') updateInfected(data);
     if (data.type === 'clear') clear();
     if (data.type === 'focus' && /^[a-z0-9_-]{1,48}$/i.test(data.world || '')
         && (!scenarioMap || data.world === scenarioMap)
@@ -45,6 +97,7 @@
     }
   });
   const ready = () => {
+    infectedVisibility();
     const world = window.bluemap.mapViewer.map?.data?.id;
     if (scenarioMap && world !== scenarioMap) {
       window.bluemap.switchMap(scenarioMap).catch(() => report('error'));

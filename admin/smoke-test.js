@@ -212,11 +212,13 @@ test('activation, login, session, CSRF and logout', async () => {
       capabilities:['departure','teleport'], departure:{members:['Noah'],phase:'waiting'},
       enabled: true, world: 'ground_zero', threat: { level: 2.5, phase: 'pressure', phaseLabel: 'pression', secondsLeft: 40, hordes: 1 },
       rules: { pvp: false, destruction: true, globalCap: 60 }, infected: { walker: 3 }, infectedTotal: 3,
+      infectedPositions:[{id:'00000000-0000-4000-8000-000000000001',type:'walker',x:15,y:65,z:-5}],
       survivors: [{ name: 'Mia', x: 10, z: -4, points: 30, infectionSeconds: null }, {name:'Sam',x:13,z:-4}], teams: [], items: [{id:'antidote',name:'Antidote'}] }));
     assert.equal((await fetch(`${origin}/api/apocalypse`)).status, 401);
     const apocalypse = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();
     assert.equal(apocalypse.installed, true);
     assert.equal(apocalypse.stale, false);
+    assert.equal(apocalypse.infectedPositions[0].type,'walker');
     assert.equal(apocalypse.survivors[0].name, 'Mia');
     assert.equal((await fetch(`${origin}/api/apocalypse/map.png`, { headers: { Cookie: cookie } })).status, 404);
     const beforeSurvivorGive = rconCommands.length;
@@ -260,10 +262,11 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal(gzRefused.status, 409, 'a plugin refusal must not become a success toast');
     assert.match((await gzRefused.json()).error, /Configuration refusée/);
     fs.writeFileSync(path.join(apocalypseDir, 'status.json'), JSON.stringify({ version: 1, generatedAt: Date.now() - 120000, running: true,
-      survivors: [{ name: 'Mia' }] }));
+      survivors: [{ name: 'Mia' }], infectedPositions:[{id:'old',type:'walker',x:1,y:65,z:1}] }));
     const stale = await (await fetch(`${origin}/api/apocalypse`, { headers: { Cookie: cookie } })).json();
     assert.equal(stale.stale, true);
     assert.deepEqual(stale.survivors, [], 'an old status never lists survivors as present');
+    assert.deepEqual(stale.infectedPositions, [], 'an old status never leaves ghost infected on the map');
     const beforeStaleAction = rconCommands.length;
     assert.equal((await post('/api/apocalypse/action', {action:'enable'}, gzHeaders)).status, 409);
     assert.equal(rconCommands.length, beforeStaleAction);

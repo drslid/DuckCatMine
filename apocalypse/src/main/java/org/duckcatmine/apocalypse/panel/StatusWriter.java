@@ -83,6 +83,7 @@ public final class StatusWriter {
             JsonObject status = snapshot();
             status.addProperty("running", false);
             status.add("survivors", new JsonArray());
+            status.add("infectedPositions", new JsonArray());
             write(gson.toJson(status));
         } catch (IOException | RuntimeException e) {
             plugin.getLogger().warning("status.json final non écrit : " + e.getMessage());
@@ -104,7 +105,7 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
-        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving")));
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map")));
         root.add("departure", gson.toJsonTree(plugin.departures().snapshot()));
         root.addProperty("generatedAt", System.currentTimeMillis());
         root.addProperty("running", true);
@@ -151,6 +152,7 @@ public final class StatusWriter {
         root.add("infected", infected);
         root.add("archetypeLabels", labels);
         root.addProperty("infectedTotal", total);
+        root.add("infectedPositions", gson.toJsonTree(plugin.mobs().mapPositions(world, org.duckcatmine.apocalypse.mobs.MobService.MAP_LIMIT)));
         root.addProperty("incubatingAnimals", plugin.fauna().incubatingCount());
         root.addProperty("activeInfections", plugin.infections().count());
         root.addProperty("activeBags", plugin.bags().count());

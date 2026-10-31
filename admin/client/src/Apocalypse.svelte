@@ -31,6 +31,19 @@
   let context = $state<HTMLElement>();
   let destination = $state('');
   let lightMap = $state(false);
+  let showInfected = $state(true);
+  let infectedPositions = $derived<any[]>(
+    status?.stale ? [] : status?.infectedPositions || [],
+  );
+  function toggleInfected() {
+    showInfected = !showInfected;
+    try {
+      localStorage.setItem(
+        'duckcatmine.groundzero.infected',
+        String(showInfected),
+      );
+    } catch {}
+  }
   let loading = false,
     disposed = false,
     refreshAfter = 0;
@@ -110,6 +123,10 @@
     }
   }
   onMount(() => {
+    try {
+      showInfected =
+        localStorage.getItem('duckcatmine.groundzero.infected') !== 'false';
+    } catch {}
     disposed = false;
     load();
     const timer = setInterval(() => {
@@ -382,20 +399,40 @@
             ><Icon name="settings" size={18} /></button
           >
         </div>
-        {#if status.blueMap?.available && !demo}<div class="map-view-switch">
-            <button class="quiet" onclick={() => (lightMap = !lightMap)}
-              ><Icon name="map" size={15} />{lightMap
-                ? 'Ouvrir la carte 3D'
-                : 'Vue légère'}</button
+        <div class="map-view-switch">
+          <div class="inline">
+            <button
+              class="secondary infected-toggle"
+              class:visible-infected={showInfected}
+              role="switch"
+              aria-checked={showInfected}
+              aria-label="Afficher les infectés sur la carte"
+              disabled={!status.capabilities?.includes('infected-map')}
+              onclick={toggleInfected}
+              title={status.capabilities?.includes('infected-map')
+                ? 'Infectés actifs des zones chargées, actualisés toutes les 5 secondes. Survole un point pour son type.'
+                : 'Une mise à jour du plugin est nécessaire pour localiser les infectés.'}
+              ><Icon name="skull" size={15} />Infectés {status.capabilities?.includes(
+                'infected-map',
+              )
+                ? `· ${infectedPositions.length}`
+                : '· à activer'}</button
             >
-            <span class="muted small"
-              >{policy === 'idle'
-                ? 'Terrain actualisé hors partie · joueurs en direct'
-                : 'Terrain et joueurs en direct'}</span
-            >
-          </div>{/if}
+            {#if status.blueMap?.available && !demo}
+              <button class="quiet" onclick={() => (lightMap = !lightMap)}
+                ><Icon name="map" size={15} />{lightMap
+                  ? 'Ouvrir la carte 3D'
+                  : 'Vue légère'}</button
+              >{/if}
+          </div>
+          <span class="muted small"
+            >{policy === 'idle'
+              ? 'Terrain actualisé hors partie · joueurs en direct'
+              : 'Terrain et joueurs en direct'}</span
+          >
+        </div>
         {#if status.blueMap?.available && !lightMap && !demo}
-          <GroundZeroMap {status} {selected} onSelect={choose} />
+          <GroundZeroMap {status} {selected} {showInfected} onSelect={choose} />
         {:else if map && status.mapRenderedAt}
           <svg
             class="gz-map"
@@ -463,6 +500,19 @@
                 cy={status.refuge.z - map.minZ}
                 r={Math.max(status.refuge.radius, map.size / 100)}
               />{/if}
+            {#if showInfected}<g
+                class="infected-dots"
+                aria-label="Infectés actifs sur la carte"
+              >
+                {#each infectedPositions.filter( (p) => onMap(p.x, p.z) ) as p (p.id)}<circle
+                    cx={p.x - map.minX}
+                    cy={p.z - map.minZ}
+                    r={map.size / 180}
+                    fill={p.type === 'abomination' ? '#c49af8' : '#f57f73'}
+                    ><title>{status.archetypeLabels?.[p.type] || p.type}</title
+                    ></circle
+                  >{/each}
+              </g>{/if}
             {#each survivors.filter((s) => onMap(s.x, s.z)) as s (s.name)}
               <g
                 class="dot"
@@ -809,6 +859,17 @@
   </div>{/if}
 
 <style>
+  .infected-toggle :global(svg) {
+    color: #f57f73;
+  }
+  .infected-toggle.visible-infected {
+    border-color: #f57f7377;
+  }
+  .infected-dots {
+    pointer-events: none;
+    stroke: #17241c;
+    stroke-width: 1.5;
+  }
   .map-view-switch {
     display: flex;
     align-items: center;

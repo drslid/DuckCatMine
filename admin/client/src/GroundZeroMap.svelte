@@ -5,10 +5,12 @@
     status,
     selected = '',
     onSelect,
+    showInfected = true,
   }: {
     status: any;
     selected?: string;
     onSelect: (name: string) => void;
+    showInfected?: boolean;
   } = $props();
   let frame = $state<HTMLIFrameElement>();
   let ready = $state(false),
@@ -42,6 +44,19 @@
           },
     );
   }
+  $effect(() => {
+    if (ready) {
+      const visible =
+        showInfected &&
+        !status.stale &&
+        !!status.capabilities?.includes('infected-map');
+      send('infected', {
+        visible,
+        points: visible ? status.infectedPositions || [] : [],
+        labels: visible ? status.archetypeLabels || {} : {},
+      });
+    }
+  });
   // Status updates only change markers/details. They must never replace the iframe or reset its camera.
   function waitForMap() {
     clearTimeout(waitTimer);

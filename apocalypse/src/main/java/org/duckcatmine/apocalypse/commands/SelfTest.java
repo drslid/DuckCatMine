@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import org.bukkit.GameRules;
 import org.bukkit.Location;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -106,6 +107,28 @@ final class SelfTest {
             } finally {
                 walker.remove();
                 plugin.mobs().forget(walker.getUniqueId());
+            }
+        });
+        check(lines, "positions des infectés pour la carte", () -> {
+            Location at = street(plugin, world);
+            Zombie first = plugin.mobs().spawnWalker(at), second = plugin.mobs().spawnWalker(at.clone().add(2, 0, 0));
+            try {
+                var points = plugin.mobs().mapPositions(world, 512);
+                var position = points.stream().filter(p -> p.id().equals(first.getUniqueId().toString())).findFirst().orElseThrow();
+                if (!position.type().equals(ApocalypseConfig.WALKER) || position.x() != at.getBlockX() || position.z() != at.getBlockZ())
+                    throw new IllegalStateException("coordonnées ou type perdus");
+                if (plugin.mobs().mapPositions(world, 1).size() != 1 || !plugin.mobs().mapPositions(world, 0).isEmpty())
+                    throw new IllegalStateException("limite de publication ignorée");
+                World classic = Bukkit.getWorlds().getFirst();
+                if (!classic.equals(world) && plugin.mobs().mapPositions(classic, 512).stream().anyMatch(p -> p.id().equals(first.getUniqueId().toString())))
+                    throw new IllegalStateException("infecté publié dans un autre monde");
+                first.remove();
+                if (plugin.mobs().mapPositions(world, 512).stream().anyMatch(p -> p.id().equals(first.getUniqueId().toString())))
+                    throw new IllegalStateException("infecté retiré encore publié");
+                return "positions et types conservés, limite respectée, autres mondes et entités retirées exclus";
+            } finally {
+                first.remove(); second.remove();
+                plugin.mobs().forget(first.getUniqueId()); plugin.mobs().forget(second.getUniqueId());
             }
         });
         check(lines, "archétypes", () -> {

@@ -50,6 +50,14 @@ public final class RadarService implements Listener {
     @EventHandler public void onMap(MapInitializeEvent event) { if (event.getMap().getId() == mapId) bind(event.getMap()); }
     @EventHandler public void onQuit(PlayerQuitEvent event) { renderer.states.remove(event.getPlayer().getUniqueId()); }
 
+    /** Maps can have been loaded with the world before listeners were registered. Rebind them on startup too. */
+    public void restore() {
+        if (mapId >= 0) {
+            MapView existing = Bukkit.getMap(mapId);
+            if (existing != null) bind(existing);
+        }
+    }
+
     public void configure(ItemStack item) {
         if (view == null && plugin.scenario().world() != null) {
             MapView old = mapId < 0 ? null : Bukkit.getMap(mapId);
@@ -63,7 +71,10 @@ public final class RadarService implements Listener {
 
     public void give(Player player) {
         if (!plugin.sessions().isSurvivor(player)) return;
-        for (ItemStack item : player.getInventory().getContents()) if (plugin.items().is(item, ItemRegistry.RADAR)) return;
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack item = player.getInventory().getItem(slot);
+            if (plugin.items().is(item, ItemRegistry.RADAR)) { configure(item); player.getInventory().setItem(slot,item); return; }
+        }
         ItemStack radar = plugin.items().create(ItemRegistry.RADAR, 1);
         if (player.getInventory().getItemInOffHand().isEmpty()) player.getInventory().setItemInOffHand(radar);
         else player.getInventory().addItem(radar).values().forEach(rest -> player.getWorld().dropItemNaturally(player.getLocation(), rest));

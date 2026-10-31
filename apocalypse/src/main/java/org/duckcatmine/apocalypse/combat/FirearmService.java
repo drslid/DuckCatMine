@@ -78,15 +78,15 @@ public final class FirearmService implements Listener {
     }
 
     private void autoTick() {
-        automatic.removeIf(id -> {
+        for (UUID id : Set.copyOf(automatic)) {
             Player player = plugin.getServer().getPlayer(id);
             Gun gun = player == null ? null : held(player);
             if (gun == null || !gun.automatic() || !player.hasActiveItem() || player.getActiveItemHand() != EquipmentSlot.HAND
                     || !plugin.items().is(player.getActiveItem(), ItemRegistry.SMG)
-                    || !plugin.sessions().isSurvivor(player) || player.isDead() || plugin.scenario().inRefuge(player.getLocation())) return true;
+                    || !plugin.sessions().isSurvivor(player) || player.isDead() || plugin.scenario().inRefuge(player.getLocation())) { automatic.remove(id); continue; }
             fire(player);
-            return held(player) == null;
-        });
+            if (held(player) == null) automatic.remove(id);
+        }
         if (automatic.isEmpty() && firing != null) { firing.cancel(); firing = null; }
     }
 

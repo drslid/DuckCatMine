@@ -198,6 +198,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(crafting, this);
         events.registerEvents(firearms, this);
         events.registerEvents(radar, this);
+        radar.restore();
         events.registerEvents(throwables, this);
         events.registerEvents(vehicles, this);
         events.registerEvents(siege, this);

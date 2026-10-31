@@ -4,7 +4,7 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
-## Mise à jour survie — alpha.5
+## Mise à jour survie — alpha.6
 
 - **Carte → touche le sol → Me téléporter ici** : le compte web déplace son personnage après confirmation et vérification du sol. Chargement asynchrone ; inventaire, vie et progression conservés.
 - **Un départ équipé** : chaque nouvelle vie reçoit une arme de mêlée aléatoire, 4–6 aliments, 2 bandages, 8 torches, une pioche et des provisions aléatoires. Une reconnexion ne redonne pas le kit. Les vies existantes reçoivent ce kit une seule fois.
@@ -13,6 +13,8 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 - **Sonar personnel** : carte en seconde main (F), cercle de 10 blocs orienté selon le regard. Survivants en bleu, infectés et joueurs mordus proches en rouge ; joueurs lointains sur l'anneau extérieur bleu. `/apocalypse radar` récupère une carte perdue. Sur le panneau, sélectionne un survivant pour son sonar (positions toutes les 5 secondes).
 - **Maisons et magasins** : pièces meublées, cuisines, salles de bain, escaliers d'immeuble et rayons contenant du stock à prendre au clic droit. Les nouvelles zones utilisent ces modèles dès leur génération.
 - **Rénovation de l'existant** : Ground Zero → Maintenance. Zone limitée et scénario vide ; préparation asynchrone des chunks déjà générés seulement. Pause tant qu'un joueur est dans ce monde. Seuls les blocs encore identiques au modèle d'origine sont remplacés ; conteneurs, ajouts et bases revendiquées conservés. Un ancien coffre peut donc rester à son emplacement d'origine.
+
+La conversion des anciens tronçons de rue utilise une file bornée qui accepte les chargements de chunks déclenchés pendant une conversion, sans invalider son parcours.
 
 La migration copie `config.yml`, ajoute les recettes et conserve les autres réglages personnalisés. Les tests Paper vérifient le kit, le radar contextuel, les plans dans quatre orientations, les rayons, les tirs bloqués par un mur, les arrivées sûres et la conservation d'un ajout et du contenu d'un coffre. La sensation de tir automatique et le rendu de la carte en seconde main restent à confirmer avec un client Minecraft.
 

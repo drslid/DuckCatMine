@@ -275,16 +275,12 @@ public final class VehicleService implements Listener {
             pending.clear();
             return;
         }
-        int budget = 2;
-        Iterator<Long> keys = pending.iterator();
-        while (budget > 0 && keys.hasNext()) {
-            long key = keys.next();
-            keys.remove();
+        org.duckcatmine.apocalypse.core.PendingWork.drain(pending, 2, 8, key -> {
             boolean isNew = fresh.remove(key);
-            int cx = (int) (key >> 32), cz = (int) key;
-            if (!world.isChunkLoaded(cx, cz)) continue;
-            if (upgrade(world, world.getChunkAt(cx, cz), isNew)) budget--;
-        }
+            int cx = (int) (key >> 32), cz = (int) (long) key;
+            if (!world.isChunkLoaded(cx, cz)) return false;
+            return upgrade(world, world.getChunkAt(cx, cz), isNew);
+        });
     }
 
     /** Loads and upgrades every chunk of a square at once (admin command); returns chunks upgraded and cars present after. */

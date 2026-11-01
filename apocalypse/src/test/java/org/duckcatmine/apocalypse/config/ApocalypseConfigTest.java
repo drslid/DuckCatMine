@@ -65,8 +65,8 @@ class ApocalypseConfigTest {
     void newTunablesHaveSafeDefaults() throws Exception {
         ApocalypseConfig config = ApocalypseConfig.parse(bundled());
         assertEquals(1.0, config.infection().biteMultiplier(), 1e-9);
-        assertEquals(1.5, config.spawning().density(), 1e-9);
-        assertEquals(2, config.spawning().perTick());
+        assertEquals(2.5, config.spawning().density(), 1e-9);
+        assertEquals(3, config.spawning().perTick());
         assertEquals(10, config.play().leaveSeconds());
         assertEquals(30, config.play().perception().investigateSeconds());
         assertEquals(5, config.play().noise().walk());
@@ -79,6 +79,14 @@ class ApocalypseConfigTest {
         for (String recipe : java.util.List.of("pipe_bomb", "molotov", "fire_axe", "bow", "arrows", "jerrycan"))
             assertTrue(config.play().recipes().containsKey(recipe), recipe + " can be crafted");
         assertTrue(config.play().weapons().get("fire_axe").damage() > config.play().weapons().get("heavy_club").damage());
+    }
+    @Test void spawnRingAndCleanupStayInsideTheRequestedLimits() throws Exception {
+        var yaml=bundled();var config=ApocalypseConfig.parse(yaml);
+        assertTrue(config.spawning().minDistance()>100&&config.spawning().maxDistance()<200);
+        assertEquals(200,config.spawning().despawnDistance());assertTrue(config.spawning().indoorChance()>0);
+        yaml.set("spawning.min-distance",100);assertThrows(ConfigException.class,()->ApocalypseConfig.parse(yaml));
+        yaml.set("spawning.min-distance",110);yaml.set("spawning.max-distance",200);assertThrows(ConfigException.class,()->ApocalypseConfig.parse(yaml));
+        yaml.set("spawning.max-distance",190);yaml.set("spawning.despawn-distance",201);assertThrows(ConfigException.class,()->ApocalypseConfig.parse(yaml));
     }
 
     @Test

@@ -4,6 +4,20 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Bestiaire articulé et rencontres — alpha.13
+
+**Ground Zero → Bestiaire** permet de choisir chaque infecté, voir sa silhouette et modifier sa vie, ses dégâts, sa vitesse, son armure, sa taille, sa force contre les murs, son risque de morsure, sa fréquence et ses capacités spéciales. Les attributs changent sur les créatures déjà présentes, sans les soigner : la proportion de vie restante est conservée. Fréquence et plafond concernent les prochaines apparitions ; une fréquence de 0 désactive les apparitions du type.
+
+Les sept mutants possèdent six parties articulées, tournent de face selon leur mouvement réel et adaptent la cadence de marche/course à leur déplacement. Les préparations d’attaque animent aussi le corps et les bras. Le rendu est borné à 16 créatures / 96 pièces près des joueurs et s’arrête sans spectateur. Le pack original complet reste inférieur à 170 Ko.
+
+Les apparitions ont lieu **à plus de 100 et moins de 200 blocs**, avec un réglage par défaut de 110–190 blocs et vérification de la distance à tous les joueurs. Les infectés sont retirés si aucun joueur du monde n’est à 200 blocs ou moins, même si les apparitions sont désactivées. Trois groupes d’approche et 36 chunks maximum ; au plus un groupe intérieur en attente. Le plafond par défaut passe à 120, densité 2,5, trois renforts par passage. Les plafonds personnalisés sont préservés.
+
+Certains **bâtiments abandonnés générés** peuvent abriter des infectés : 35 % des bâtiments sont éligibles, et 30 % des préparations cherchent un intérieur. Une visite laisse une marque persistante dans le chunk ; les pièces visitées et les bases revendiquées ne sont pas repeuplées. Les quartiers de `renovation-exclusions.json` sont aussi protégés. Les hôpitaux et les maisons construites par les joueurs sont exclus. Un fichier de protection invalide suspend les rencontres intérieures.
+
+Les armes à feu donnent un recul de visée différent : faible sur la mitraillette, modéré au pistolet, fort au fusil à pompe et au lance-roquettes. S’accroupir le réduit. Rotation relative de caméra, sans déplacement ni retour forcé de la souris ; aucun recul ni usure supplémentaire quand le tir est refusé.
+
+La migration de contenu 7 sauvegarde la configuration, applique l’anneau 110–190 / nettoyage 200 et relève les anciens plafonds standard. L’autotest Paper vérifie les six articulations, les quatre orientations, une vraie modification d’attributs à chaud, la conservation de vie et le verrouillage d’une pièce visitée. Le rendu visuel complet et le ressenti du recul doivent aussi être essayés avec un client 26.3.
+
 ## Arsenal en 3D et lance-roquettes — alpha.12
 
 Le pistolet, le fusil à pompe et la mitraillette ont des modèles originaux reconnaissables en main, dans l’inventaire et au sol, avec leurs sons et leurs aperçus dans le panneau. Les armes déjà possédées reçoivent leur nouvelle apparence sans changer leur identité ni leur usure. Le pack facultatif commun passe à environ **150 Ko**, sans mod.
@@ -32,7 +46,7 @@ Toutes les hauteurs sont couvertes, bornes incluses. Les bâtiments dont l’app
 
 **Repère le danger avant le contact.** Sonar de **100 blocs** dans Minecraft et sur le site. Accroupi + clic droit : zoom 50 / 100 blocs. Points bleus extérieurs : direction des joueurs éloignés. Actualisation native toutes les 500 ms, web toutes les 5 s ; aucun chargement de chunk par le radar.
 
-**Ils arrivent de loin.** Chaque apparition automatique, animal infecté, renfort et membre d’une horde reste à **150 blocs horizontalement de tous les joueurs** au minimum. Préparation asynchrone, deux groupes d’approche et 36 chunks simultanés au maximum ; journal d’appartenance et nettoyage à l’arrêt. Les infectés approchent le lieu initial sans suivre les coordonnées d’un joueur caché. L’approche expire après deux minutes ; les plafonds incluent les réservations. Les hordes annoncent une préparation, pas un nombre déjà apparu.
+**Ils arrivent de loin.** Chaque apparition automatique, animal infecté, renfort et membre d’une horde reste à **plus de 100 blocs horizontalement de tous les joueurs** et à moins de 200 blocs d’au moins un joueur. Préparation asynchrone, trois groupes d’approche et 36 chunks simultanés au maximum ; journal d’appartenance et nettoyage à l’arrêt. Les infectés approchent le lieu initial sans suivre les coordonnées d’un joueur caché. L’approche expire après deux minutes ; les plafonds incluent les réservations. Les hordes annoncent une préparation, pas un nombre déjà apparu.
 
 | Infecté | Comment réagir |
 |---|---|
@@ -45,7 +59,7 @@ Toutes les hauteurs sont couvertes, bornes incluses. Les bâtiments dont l’app
 
 Acide et nuages respectent le refuge, les protections d’arrivée, les joueurs hors scénario, les modes créatif/spectateur et les murs. Aucun bloc, inventaire ou animal sain n’est abîmé. Plafonds de 12 projectiles et 12 zones actives ; dégâts toxiques limités à une application par joueur et par seconde.
 
-**Pack original facultatif (~150 Ko).** Six modèles et six sons, sans mod. L’installation HTTPS prépare son URL portable. Le client peut refuser ; les créatures restent natives avec les mêmes statistiques. Si un joueur présent n’a pas chargé le pack, l’apparence native est conservée pour tous. Au plus 16 modèles de trois pièces sont animés près des joueurs. Les autres packs du serveur restent chargés.
+**Pack original facultatif (~150 Ko).** Sept modèles et onze sons, sans mod. L’installation HTTPS prépare son URL portable. Le client peut refuser ; les créatures restent natives avec les mêmes statistiques. Si un joueur présent n’a pas chargé le pack, l’apparence native est conservée pour tous. Au plus 16 modèles de six pièces sont animés près des joueurs. Les autres packs du serveur restent chargés.
 
 `/apocalypse admin horror-selftest` vérifie les vrais crachats, murs, sauts, rigs et locations de chunks dans un scénario vide. Résultat : `horror-selftest.json`. Le rendu final et l’acceptation du pack demandent aussi une vérification avec un client Minecraft.
 
@@ -53,9 +67,9 @@ La migration vers le contenu 5 sauvegarde `config.yml`, relève les distances, d
 
 ## Apparitions extérieures — alpha.10
 
-Les apparitions automatiques restent **dehors** : les intérieurs des bâtiments sont exclus, même après une modification de leur toit. Un toit ajouté par les joueurs bloque aussi les apparitions dessous et sur le toit dans le monde généré Ground Zero. Le même filtre s'applique aux apparitions ordinaires, animaux infectés du directeur, renforts des hurleurs et à chaque membre d'une horde. Les infectés déjà présents peuvent toujours entrer en marchant ou en enfonçant les obstacles.
+Le filtre des apparitions extérieures reste strict : les intérieurs des bâtiments sont exclus, même après une modification de leur toit. Un toit ajouté par les joueurs bloque aussi les apparitions dessous et sur le toit dans le monde généré Ground Zero. Le même filtre s'applique aux apparitions ordinaires, animaux infectés du directeur, renforts des hurleurs et à chaque membre d'une horde. Les infectés déjà présents peuvent toujours entrer en marchant ou en enfonçant les obstacles.
 
-L'ancien réglage `spawning.indoor-chance` est conservé en lecture pour compatibilité et ne réactive plus les apparitions intérieures. Contrôles bornés aux chunks chargés et aux essais existants, sans recherche de pièces ni balayage de bâtiments en arrière-plan.
+Depuis alpha.13, `spawning.indoor-chance` active séparément les rencontres limitées aux bâtiments abandonnés ; le filtre extérieur continue de protéger les toits et les constructions personnelles. Contrôles bornés aux chunks chargés et aux essais existants, sans recherche de pièces ni balayage de bâtiments en arrière-plan.
 
 ## Coffres de loot utilisables — alpha.9
 

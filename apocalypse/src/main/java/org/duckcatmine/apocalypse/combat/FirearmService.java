@@ -126,6 +126,7 @@ public final class FirearmService implements Listener {
         player.getWorld().spawnParticle(Particle.SMOKE, eye.clone().add(eye.getDirection().multiply(.8)), 3, .05, .05, .05, .01);
         player.getWorld().playSound(eye, Sound.ENTITY_FIREWORK_ROCKET_BLAST, stats.pellets() > 1 ? 1.8f : 1.1f, stats.pellets() > 1 ? .5f : 1.4f);
         plugin.horrorModels().sound(eye,stats.id(),.9f);
+        recoil(player,stats.id());
         if (damage + 1 >= max) {
             player.clearActiveItem();
             player.getInventory().setItemInMainHand(null);
@@ -166,11 +167,17 @@ public final class FirearmService implements Listener {
         if(left<=0){Text.warn(player,"Lance-roquettes épuisé : ses 10 tirs ont été utilisés.");nextShot.put(player.getUniqueId(),now+1500);return;}
         if(!plugin.rockets().launch(player)){Text.warn(player,"Trop de roquettes en vol ou zone non disponible. Réessaie dans un instant.");nextShot.put(player.getUniqueId(),now+300);return;}
         nextShot.put(player.getUniqueId(),now+2000);
+        recoil(player,ItemRegistry.ROCKET_LAUNCHER);
         weapon.editPersistentDataContainer(data->data.set(plugin.keys().charges,PersistentDataType.INTEGER,left-1));
         weapon.setData(DataComponentTypes.MAX_DAMAGE,10);weapon.setData(DataComponentTypes.DAMAGE,10-left+1);
         if(left==1){player.getInventory().setItemInMainHand(null);player.playSound(player.getLocation(),Sound.ENTITY_ITEM_BREAK,1,1);Text.warn(player,"Les 10 roquettes sont épuisées.");}
         else player.getInventory().setItemInMainHand(weapon);
         plugin.noise().emit(player.getLocation(),plugin.settings().play().noise().explosion(),player);plugin.protection().endByAction(player);
+    }
+    public static void recoil(Player player,String weapon){
+        var kick=Recoil.shot(weapon,player.getPitch(),player.isSneaking(),java.util.concurrent.ThreadLocalRandom.current().nextDouble(-1,1));
+        player.setRotation(io.papermc.paper.math.Angle.relative(kick.yaw()),io.papermc.paper.math.Angle.relative(kick.pitch()));
+        player.swingMainHand();
     }
     private void refreshInventory(org.bukkit.inventory.Inventory inventory){
         for(int slot=0;slot<inventory.getSize();slot++){

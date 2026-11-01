@@ -70,11 +70,40 @@ final class HorrorSelfTest {
             details.add("Rampant : collision native sous un bloc ("+String.format(Locale.ROOT,"%.2f",crawler.getHeight())+").");
             if(p.settings().archetype("breaker").siegePower()!=28)throw new IllegalStateException("Force de siège du briseur incorrecte pour la configuration de test");
             for(String kind:HorrorModels.KINDS){Zombie mob=fixture(kind,new Location(w,408,y,400));mob.setAI(false);mob.setGravity(false);p.horrorModels().verifyRig(mob,kind);}
-            details.add("Six rigs : trois pièces attachées, apparence native restaurée, équipement conservé.");
+            details.add("Sept rigs : six articulations, quatre orientations sans double rotation, apparence native restaurée et équipement conservé.");
+            liveTuning();indoorEncounter();
             // A pre-existing manual force flag must survive two overlapping leases.
             manual=w.getChunkAt(50,50);if(!manual.isForceLoaded()){manual.setForceLoaded(true);forced.add(manual);}
             waits=0;
             if(!leases.acquire(w,50,50,l->{first=l;if(l==null){finish(false,"Première location indisponible");return;}later(this::secondLease,5);}))throw new IllegalStateException("Budget de chunks indisponible");
+        }
+        void liveTuning(){
+            var before=p.settings().archetype("walker");Zombie mob=p.mobs().spawnWalker(new Location(w,409,y,400));entities.add(mob);mob.setAI(false);mob.setGravity(false);mob.setHealth(before.health()/2);
+            try{
+                if(!p.tuning().set("mob-walker-health","40","autotest").isEmpty())throw new IllegalStateException("Réglage de vie refusé");
+                if(Math.abs(mob.getHealth()-20)>.01)throw new IllegalStateException("La vie restante a été réinitialisée");
+                if(!p.tuning().set("mob-walker-damage","7","autotest").isEmpty()||mob.getAttribute(org.bukkit.attribute.Attribute.ATTACK_DAMAGE).getBaseValue()!=7)throw new IllegalStateException("Force non appliquée au zombie vivant");
+                if(!p.tuning().set("mob-walker-speed","0.3","autotest").isEmpty()||Math.abs(mob.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED).getBaseValue()-.3)>.001)throw new IllegalStateException("Vitesse non appliquée au zombie vivant");
+                details.add("Bestiaire à chaud : vie conservée à 50 %, force et vitesse appliquées à un vrai zombie déjà présent.");
+            }finally{
+                p.tuning().set("mob-walker-health",Double.toString(before.health()),"autotest");p.tuning().set("mob-walker-damage",Double.toString(before.damage()),"autotest");p.tuning().set("mob-walker-speed",Double.toString(before.speed()),"autotest");mob.remove();p.mobs().forget(mob.getUniqueId());
+            }
+        }
+        void indoorEncounter(){
+            org.duckcatmine.apocalypse.scenario.city.CityLayout.InteriorSite site=null;
+            for(int z=395;z<=399&&site==null;z++){
+                var candidate=new org.duckcatmine.apocalypse.scenario.city.CityLayout.InteriorSite("house_small",404,z,412,z+8,y-1);
+                if(candidate.infested(w.getSeed()))site=candidate;
+            }
+            if(site==null)throw new IllegalStateException("Fixture intérieure non trouvée");
+            var indoor=p.director().indoor();int x=408,z=site.minZ()+4;
+            if(indoor.spot(w,x,z,site)!=null)throw new IllegalStateException("Intérieur accepté sans plafond");
+            put(w.getBlockAt(x,y+3,z),Material.BRICKS);
+            if(indoor.spot(w,x,z,site)==null||!indoor.allowed(w,site))throw new IllegalStateException("Pièce abandonnée admissible refusée");
+            Chunk chunk=w.getChunkAt(x>>4,z>>4);NamespacedKey key=new NamespacedKey(p,"interior_clear_"+site.key());
+            try{indoor.mark(w,site,chunk);if(indoor.allowed(w,site))throw new IllegalStateException("Réapparition dans une pièce sécurisée");}
+            finally{chunk.getPersistentDataContainer().remove(key);}
+            details.add("Pièce abandonnée : plafond et espace libres vérifiés, marque persistante interdisant les réapparitions.");
         }
         void secondLease(){
             if(leases.count()!=9)throw new IllegalStateException("Nombre de chunks incorrect : "+leases.count());

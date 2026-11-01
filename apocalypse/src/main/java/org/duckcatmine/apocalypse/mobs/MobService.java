@@ -167,6 +167,21 @@ public final class MobService {
         AttributeInstance instance = entity.getAttribute(attribute);
         if (instance != null) instance.setBaseValue(value);
     }
+    /** Live tuning preserves the creature's remaining health fraction and current combat state. */
+    public void applySettings(ApocalypseConfig previous){
+        for(var entry:tracked.entrySet()){
+            if(!(Bukkit.getEntity(entry.getKey()) instanceof Mob mob)||mob.isDead())continue;
+            var a=plugin.settings().archetype(entry.getValue().archetype);if(a==null)continue;
+            double fraction=mob.getHealth()/mob.getAttribute(Attribute.MAX_HEALTH).getValue();
+            base(mob,Attribute.MAX_HEALTH,a.health());mob.setHealth(Math.max(.01,Math.min(a.health(),a.health()*fraction)));
+            base(mob,Attribute.ATTACK_DAMAGE,a.damage());base(mob,Attribute.MOVEMENT_SPEED,a.speed());
+            base(mob,Attribute.ARMOR,a.armor());base(mob,Attribute.KNOCKBACK_RESISTANCE,a.knockbackResistance());base(mob,Attribute.FOLLOW_RANGE,a.followRange());
+            var old=previous.archetype(entry.getValue().archetype);
+            // Keep size variations in costumes when changing combat attributes.
+            double costume=old==null?1:mob.getAttribute(Attribute.SCALE).getBaseValue()/old.scale();
+            base(mob,Attribute.SCALE,Math.max(.4,Math.min(2,a.scale()*costume)));
+        }
+    }
 
     public int countNear(Location center, double radius) {
         int count = 0;
@@ -323,6 +338,7 @@ public final class MobService {
         Tracked state = tracked.get(entity.getUniqueId());
         return state == null ? 0 : state.lastMovedAt;
     }
+    public boolean windingUp(Entity entity){Tracked state=tracked.get(entity.getUniqueId());return state!=null&&state.phase==Phase.WIND_UP;}
 
     /** A hit interrupts a howler's scream while it is being prepared. */
     public void damaged(Entity entity) {

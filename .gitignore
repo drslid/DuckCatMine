@@ -20,3 +20,4 @@ _client-*.jar
 *.tar.gz
 .install-*
 resource-pack/dist/
+admin/public/packs/preview.json

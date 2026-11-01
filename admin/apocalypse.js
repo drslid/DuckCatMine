@@ -13,7 +13,21 @@ const SETTINGS = {
   'fauna-share': ['decimal', 0, .6], 'fauna-chance': ['decimal', 0, 1],
   vehicles: ['boolean'], 'city-chance': ['decimal', 0, 1],
   'leave-seconds': ['integer', 0, 120], intro: ['boolean'], 'team-size': ['integer', 2, 16],
+  'indoor-chance': ['decimal', 0, 1],
 };
+const MOB_KINDS=['walker','pursuer','runner','howler','breaker','abomination','spitter','jumper','crawler','stalker','bloated','infected_wolf','infected_livestock'];
+for(const id of MOB_KINDS){
+  for(const [field,min,max] of [['health',1,1024],['damage',0,100],['speed',.05,.6],['armor',0,20],['scale',.4,2],['siege-power',0,500],['bite-chance',0,1]])SETTINGS[`mob-${id}-${field}`]=['decimal',min,max];
+  SETTINGS[`mob-${id}-max-alive`]=['integer',0,50];
+  if(!id.startsWith('infected_'))SETTINGS[`mob-${id}-spawn-weight`]=['decimal',0,5];
+}
+for(const [id,field,min,max] of [
+  ['spitter','acid-damage',0,20],['spitter','acid-range',4,32],['spitter','acid-cooldown-seconds',1,60],
+  ['jumper','jump-range',4,24],['jumper','jump-cooldown-seconds',1,60],
+  ...['runner','stalker'].flatMap(id=>[[id,'sprint-speed',.1,.6],[id,'sprint-seconds',.5,10],[id,'cooldown-seconds',1,60]]),
+  ['bloated','gas-radius',.5,4],['bloated','gas-damage',0,10],['bloated','gas-seconds',1,8],
+  ['abomination','slam-damage',0,50],['abomination','slam-radius',1,8],['abomination','slam-cooldown-seconds',2,60]
+])SETTINGS[`mob-${id}-${field}`]=['decimal',min,max];
 
 function makeApocalypseCommands(HttpError) {
   const fail = (message, status = 400) => { throw new HttpError(status, message); };

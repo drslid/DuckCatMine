@@ -301,6 +301,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             if (ticks % TICKS_PER_SECOND == 0) {
                 noise.tick();
                 director.approachTick();
+                if(scenario.world()!=null)director.indoor().observe(scenario.world());
                 siege.tick();
                 threat.tick();
                 fauna.tick();
@@ -334,7 +335,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
             List<String> errors = new ArrayList<>(items.validate(parsed));
             if (!errors.isEmpty()) return errors;
             configProblem = null;
-            settings = parsed;
+            var previous=settings;settings = parsed;
+            if(mobs!=null)mobs.applySettings(previous);
             items.reload(parsed);
             reloadConfig();
             return List.of();

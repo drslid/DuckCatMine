@@ -1,4 +1,4 @@
-survival-content-version: 6
+survival-content-version: 7
 # DuckCatApocalypse — réglages du scénario Ground Zero.
 # Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
 # au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
@@ -55,19 +55,19 @@ search:
 spawning:
   enabled: true
   interval-seconds: 3
-  global-cap: 60
+  global-cap: 120
   # Distance horizontale à TOUS les joueurs, vérifiée juste avant chaque apparition.
-  min-distance: 150
-  max-distance: 180
-  despawn-distance: 288
+  min-distance: 110
+  max-distance: 190
+  despawn-distance: 200
   # Infectés en plus autour de chaque survivant pendant la nuit.
   night-bonus: 2
-  # Ancien réglage conservé pour compatibilité : les apparitions sont désormais toujours extérieures.
-  indoor-chance: 0.0
+  # Rencontres dans certains bâtiments abandonnés. Jamais dans les pièces visitées, ni dans les bases protégées.
+  indoor-chance: 0.3
   # Densité : multiplie le plafond local de chaque secteur (1 = valeurs des secteurs, 2 = deux fois plus d'infectés).
-  density: 1.5
+  density: 2.5
   # Nouveaux infectés au plus par survivant et par passage, tant que le plafond local n'est pas atteint.
-  per-tick: 2
+  per-tick: 3
 
 # Plafond local autour de chaque survivant et mélange des archétypes (poids relatifs) par secteur.
 sectors:
@@ -101,6 +101,11 @@ sectors:
 # bite-chance : probabilité qu'un coup reçu soit une morsure (environ 1 sur 3 en moyenne).
 archetypes:
   walker:
+    abilities:
+      spawn-weight: 1
+    max-alive: 0
+    scale: 1
+    armor: 0
     name: Errant
     health: 20
     damage: 3.0
@@ -123,6 +128,11 @@ archetypes:
       - {item: apocalypse:casings, weight: 8, amount: 2}
       - {item: apocalypse:antidote, weight: 2}
   pursuer:
+    abilities:
+      spawn-weight: 1
+    max-alive: 0
+    scale: 1
+    armor: 0
     name: Poursuivant
     health: 20
     damage: 3.5
@@ -146,6 +156,9 @@ archetypes:
       - {item: apocalypse:casings, weight: 15, amount: 3}
       - {item: apocalypse:antidote, weight: 3}
   runner:
+    max-alive: 0
+    scale: 1
+    armor: 0
     name: Sprinteur
     health: 16
     damage: 3.0
@@ -159,6 +172,7 @@ archetypes:
     min-threat: 1
     appearances: [runner, citizen_short, child]
     abilities:
+      spawn-weight: 1
       # Rafale annoncée par un cri bref, puis récupération essoufflée.
       sprint-speed: 0.34
       sprint-seconds: 2.5
@@ -176,6 +190,9 @@ archetypes:
       - {item: apocalypse:syringe, weight: 8}
       - {item: apocalypse:antidote, weight: 2}
   howler:
+    max-alive: 0
+    scale: 1
+    armor: 0
     name: Hurleur
     health: 18
     damage: 2.5
@@ -188,6 +205,7 @@ archetypes:
     min-threat: 2
     appearances: [howler]
     abilities:
+      spawn-weight: 1
       # Cri préparé (interrompu par un coup) qui attire les infectés proches vers le hurleur.
       charge-seconds: 2
       radius: 32
@@ -204,6 +222,10 @@ archetypes:
       - {item: apocalypse:serum, weight: 15}
       - {item: apocalypse:antidote, weight: 10}
   breaker:
+    abilities:
+      spawn-weight: 1
+    max-alive: 0
+    scale: 1
     name: Briseur
     health: 60
     damage: 6.0
@@ -243,6 +265,7 @@ archetypes:
     min-threat: 4
     appearances: [abomination]
     abilities:
+      spawn-weight: 1
       # Frappe au sol annoncée : élan visible, dégâts de zone (pas une morsure), longue récupération.
       slam-wind-up-seconds: 1.5
       slam-radius: 4
@@ -257,6 +280,8 @@ archetypes:
       - {item: apocalypse:gun_parts, weight: 30, amount: 2}
       - {item: apocalypse:syringe, weight: 20, amount: 2}
   spitter:
+    scale: 1
+    armor: 0
     name: Cracheur d’acide
     health: 26
     damage: 3
@@ -268,6 +293,7 @@ archetypes:
     max-alive: 3
     appearances: [drifter]
     abilities:
+      spawn-weight: 1
       acid-range: 20
       acid-damage: 4
       acid-windup-seconds: 0.8
@@ -279,6 +305,8 @@ archetypes:
       - {item: apocalypse:bandage, weight: 80}
       - {item: apocalypse:antidote, weight: 20}
   jumper:
+    scale: 1
+    armor: 0
     name: Bondisseur
     health: 22
     damage: 4
@@ -290,6 +318,7 @@ archetypes:
     max-alive: 3
     appearances: [runner]
     abilities:
+      spawn-weight: 1
       jump-range: 14
       jump-windup-seconds: 0.6
       jump-cooldown-seconds: 7
@@ -300,6 +329,9 @@ archetypes:
       - {item: apocalypse:bandage, weight: 90}
       - {item: apocalypse:antidote, weight: 10}
   crawler:
+    abilities:
+      spawn-weight: 1
+    armor: 0
     name: Rampant
     health: 14
     damage: 3
@@ -315,6 +347,7 @@ archetypes:
       - {item: apocalypse:cloth, weight: 70}
       - {item: apocalypse:scrap, weight: 30}
   stalker:
+    armor: 0
     name: Traqueur décharné
     health: 24
     damage: 4
@@ -327,6 +360,7 @@ archetypes:
     max-alive: 2
     appearances: [citizen_tall]
     abilities:
+      spawn-weight: 1
       sprint-speed: 0.32
       sprint-seconds: 1.5
       sprint-range: 12
@@ -340,6 +374,7 @@ archetypes:
       - {item: apocalypse:bandage, weight: 85}
       - {item: apocalypse:antidote, weight: 15}
   bloated:
+    armor: 0
     name: Boursouflé
     health: 45
     damage: 4
@@ -353,6 +388,7 @@ archetypes:
     max-alive: 2
     appearances: [heavy_worker]
     abilities:
+      spawn-weight: 1
       gas-radius: 3
       gas-seconds: 4
       gas-damage: 3
@@ -364,6 +400,9 @@ archetypes:
       - {item: apocalypse:antidote, weight: 20}
   # Animaux contaminés et faune générée à distance : mêmes règles de morsure et de butin.
   infected_wolf:
+    max-alive: 0
+    scale: 1
+    armor: 0
     name: Loup infecté
     health: 16
     damage: 4.0
@@ -381,6 +420,9 @@ archetypes:
       - {item: apocalypse:syringe, weight: 30}
       - {item: apocalypse:inhibitor, weight: 10}
   infected_livestock:
+    max-alive: 0
+    scale: 1
+    armor: 0
     name: Bête infectée
     health: 18
     damage: 3.5

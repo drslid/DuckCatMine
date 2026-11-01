@@ -105,7 +105,7 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
-        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage", "outdoor-spawns", "renovation-v3", "radar-100", "distant-spawns", "horror-v1")));
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage", "renovation-v3", "radar-100", "distant-spawns", "horror-v1", "horror-v2", "indoor-encounters", "infected-tuning", "weapon-recoil")));
         root.addProperty("radarRange",org.duckcatmine.apocalypse.radar.RadarMath.RANGE);
         root.addProperty("weaponModels",true);
         root.addProperty("renovationBlocked",plugin.renovator().blockedByPlayers());
@@ -162,6 +162,9 @@ public final class StatusWriter {
         root.addProperty("approachChunks",plugin.director().approachChunks());
         root.add("resourcePack",gson.toJsonTree(Map.of("available",plugin.horrorModels().available(),"readyPlayers",plugin.horrorModels().readyCount(),"activeModels",plugin.horrorModels().modelCount())));
         rules.addProperty("minSpawnDistance",plugin.settings().spawning().minDistance());
+        rules.addProperty("maxSpawnDistance",plugin.settings().spawning().maxDistance());
+        rules.addProperty("despawnDistance",200);
+        root.add("archetypes",gson.toJsonTree(plugin.settings().archetypes().values().stream().map(a->Map.of("id",a.id(),"name",a.name())).toList()));
         root.add("infectedPositions", gson.toJsonTree(plugin.mobs().mapPositions(world, org.duckcatmine.apocalypse.mobs.MobService.MAP_LIMIT)));
         root.addProperty("incubatingAnimals", plugin.fauna().incubatingCount());
         root.addProperty("activeInfections", plugin.infections().count());

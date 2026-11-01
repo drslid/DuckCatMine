@@ -4,6 +4,7 @@
   import { modal } from './modal';
   import Icon from './Icon.svelte';
   import GroundZeroRules from './GroundZeroRules.svelte';
+  import GroundZeroBestiary from './GroundZeroBestiary.svelte';
   import GroundZeroMaintenance from './GroundZeroMaintenance.svelte';
   import GroundZeroMap from './GroundZeroMap.svelte';
   import GroundZeroRadar from './GroundZeroRadar.svelte';
@@ -346,7 +347,7 @@
       {status.problem || status.configProblem}
     </p>{/if}
   <div class="segments gz-tabs" aria-label="Administration Ground Zero">
-    {#each [{ id: 'map', label: 'Carte', icon: 'map' }, { id: 'rules', label: 'Règles', icon: 'settings' }, { id: 'maintenance', label: 'Maintenance', icon: 'shield' }] as section}
+    {#each [{ id: 'map', label: 'Carte', icon: 'map' }, { id: 'rules', label: 'Règles', icon: 'settings' }, { id: 'bestiary', label: 'Bestiaire', icon: 'skull' }, { id: 'maintenance', label: 'Maintenance', icon: 'shield' }] as section}
       <button
         class:active={tab === section.id}
         aria-pressed={tab === section.id}
@@ -357,6 +358,7 @@
   </div>
 
   {#if tab === 'rules'}<GroundZeroRules {status} {busy} {act} {ask} />
+  {:else if tab === 'bestiary'}<GroundZeroBestiary {status} {busy} {act}/>
   {:else if tab === 'maintenance'}<GroundZeroMaintenance
       {status}
       {busy}
@@ -1424,16 +1426,17 @@
   @media (max-width: 550px) {
     .gz-tabs {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       width: 100%;
     }
     .gz-tabs button {
       padding: 9px 6px;
-      font-size: 11px;
+      font-size: 10px;
+      flex-direction: column;
       gap: 5px;
     }
     .gz-tabs :global(svg) {
-      width: 15px;
+      width: 14px;
     }
     .gz-summary {
       gap: 9px 15px;

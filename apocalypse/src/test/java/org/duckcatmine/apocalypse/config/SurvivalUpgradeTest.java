@@ -37,7 +37,7 @@ class SurvivalUpgradeTest {
         c.set("recipes.pistol.usage","Ma recette conservée");
         String loot=c.getMapList("places.police.loot").toString();
         assertTrue(SurvivalUpgrade.migrate(c,defaults()));
-        assertEquals(6,c.getInt("survival-content-version"));
+        assertEquals(7,c.getInt("survival-content-version"));
         assertEquals(2,c.getInt("places.house.rolls-min"));
         assertEquals(loot,c.getMapList("places.police.loot").toString());
         assertEquals("Ma recette conservée",c.getString("recipes.pistol.usage"));
@@ -62,8 +62,8 @@ class SurvivalUpgradeTest {
         c.set("sectors.lab.mix.jumper",0);c.set("spawning.global-cap",42);
         assertTrue(SurvivalUpgrade.migrate(c,defaults()));
         var parsed=ApocalypseConfig.parse(c);
-        assertEquals(150,parsed.spawning().minDistance());assertEquals(180,parsed.spawning().maxDistance());
-        assertEquals(288,parsed.spawning().despawnDistance());assertEquals(28,parsed.archetype("breaker").siegePower());
+        assertEquals(110,parsed.spawning().minDistance());assertEquals(190,parsed.spawning().maxDistance());
+        assertEquals(200,parsed.spawning().despawnDistance());assertEquals(28,parsed.archetype("breaker").siegePower());
         assertEquals(42,parsed.spawning().globalCap());assertFalse(parsed.sector("lab").mix().containsKey("jumper"));
         assertNotNull(parsed.archetype("spitter"));assertFalse(SurvivalUpgrade.migrate(c,defaults()));
         assertEquals(28,c.getDouble("archetypes.breaker.siege-power"));

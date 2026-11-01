@@ -29,6 +29,7 @@ public final class HorrorService implements Listener,AutoCloseable {
     public HorrorService(DuckCatApocalypse plugin){this.plugin=plugin;}
     public int poolCount(){return pools.size();}
     public int shotCount(){return shots.size();}
+    public boolean windingUp(Entity mob){Ability state=abilities.get(mob.getUniqueId());return state!=null&&state.launch>plugin.clock().now();}
     public static void fallback(Zombie mob,String id){
         var eq=mob.getEquipment();
         int color=switch(id){case "spitter"->0x536a3e;case "jumper"->0x6d5449;case "crawler"->0x6f685b;case "stalker"->0x919689;case "bloated"->0x526b64;default->-1;};

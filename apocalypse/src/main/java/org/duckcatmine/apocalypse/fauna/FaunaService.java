@@ -79,6 +79,8 @@ public final class FaunaService implements Listener {
         ApocalypseConfig.Fauna rules = rules();
         if (!rules.enabled()) return null;
         Map<String, Integer> alive = plugin.mobs().countByArchetype();
+        var archetype=plugin.settings().archetype(wolf?WOLF:LIVESTOCK);
+        if(archetype!=null&&archetype.maxAlive()>0&&alive.getOrDefault(wolf?WOLF:LIVESTOCK,0)>=archetype.maxAlive())return null;
         if (alive.getOrDefault(WOLF, 0) + alive.getOrDefault(LIVESTOCK, 0) + incubating.size() >= rules.maxInfected()) return null;
         Class<? extends Animals> type = wolf ? Wolf.class : livestock(rules);
         if (type == null) return null;

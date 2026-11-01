@@ -5,14 +5,6 @@
   let draft = $state<Record<string, any>>({}),
     dirty = $state<Record<string, boolean>>({});
   let threat = $state<number | undefined>();
-  const bestiary = [
-    {id:'spitter',name:'Cracheur d’acide',note:'Repère la charge verte, puis esquive le crachat. La flaque se dissipe après 3 s.'},
-    {id:'jumper',name:'Bondisseur',note:'Son élan annonce un saut de plus de 3 blocs. Frappe-le pendant la préparation pour l’interrompre.'},
-    {id:'crawler',name:'Rampant',note:'Très bas, il peut se glisser sous les passages d’un bloc. Garde un œil au sol.'},
-    {id:'stalker',name:'Traqueur décharné',note:'Silencieux à l’approche. Son cri annonce une courte accélération, suivie d’une récupération.'},
-    {id:'bloated',name:'Boursouflé',note:'Recule après son élimination : son nuage toxique reste 4 s, sans abîmer les constructions.'},
-    {id:'breaker',name:'Briseur',note:'Deux fois plus efficace contre les murs et les barricades. Lent, robuste, et très reconnaissable.'},
-  ];
   const weapons=[
     {id:'pistol',name:'Pistolet',note:'Précis, maniable, un tir au clic droit.',shots:120},
     {id:'shotgun',name:'Fusil à pompe',note:'Une gerbe de huit plombs pour le combat rapproché.',shots:96},
@@ -20,7 +12,7 @@
     {id:'rocket_launcher',name:'Lance-roquettes',note:'La frappe la plus puissante : explosion sur 6 blocs, sans détruire les constructions. Dix tirs au total, sans recharge ni réparation.',shots:10},
   ];
   let groups = $derived([
-    ...new Set((status.settingsCatalog || []).map((s: any) => s.group)),
+    ...new Set((status.settingsCatalog || []).filter((s:any)=>s.group!=='Bestiaire').map((s: any) => s.group)),
   ] as string[]);
   $effect(() => {
     for (const [key, value] of Object.entries(status.settings || {}))
@@ -137,18 +129,9 @@
   {#if status.weaponModels}
     <details class="card bestiary"><summary><Icon name="shield" size={18}/><strong>L’arsenal de survie</strong><span>4 armes</span></summary>
       <div class="bestiary-grid arsenal">{#each weapons as weapon}<article><img src={asset(`weapons/${weapon.id}.svg`)} alt={weapon.name} width="84" height="84" loading="lazy"/><div><strong>{weapon.name}</strong><p>{weapon.note}</p><p>{status.items?.find((i:any)=>i.id===weapon.id)?.maxShots || weapon.shots} tirs · atelier mécanique</p></div></article>{/each}</div>
-      <p class="muted">Les modèles nécessitent le pack proposé à la connexion, sans mod. Les armes déjà possédées changent d’apparence en conservant leur usure. Les règles de PvP et du refuge restent applicables.</p>
+      <p class="muted">Les tirs font monter la visée, surtout au fusil à pompe et au lance-roquettes. S’accroupir réduit le recul. Les modèles nécessitent le pack proposé à la connexion, sans mod. Les armes déjà possédées changent d’apparence en conservant leur usure. Les règles de PvP et du refuge restent applicables.</p>
     </details>
   {/if}
-  {#if status.capabilities?.includes('horror-v1')}
-    <details class="card bestiary">
-      <summary><Icon name="skull" size={18} /><strong>Connaître les infectés</strong><span>6 profils à repérer</span></summary>
-      <p class="muted">Ils apparaissent à au moins {status.rules?.minSpawnDistance || 150} blocs de tous les joueurs, à l’extérieur. Le sonar les repère à 100 blocs.</p>
-      <div class="bestiary-grid">{#each bestiary as enemy}<article><img src={asset(`horror/${enemy.id}.svg`)} alt={enemy.name} width="84" height="84" loading="lazy" /><div><strong>{enemy.name}</strong><p>{enemy.note}</p></div></article>{/each}</div>
-      <p class="muted">Pack facultatif d’environ 150 Ko, proposé dans Minecraft : modèles, armes et sons, sans mod. Si un joueur ne l’a pas chargé, les infectés gardent leur apparence native et les mêmes capacités.</p>
-    </details>
-  {/if}
-
   <article class="card detailed">
     <div class="card-heading">
       <h2>Réglages à la carte</h2>

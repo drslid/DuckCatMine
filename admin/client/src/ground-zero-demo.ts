@@ -1,3 +1,4 @@
+import {demoMobSettings,demoMobCatalog} from './bestiary-demo';
 // Fictional, browser-only data for exercising the complete admin interface.
 const definitions: [string, string, number, number, string, string, any][] = [
   [
@@ -181,3 +182,6 @@ export const gzItems = [
   ['arrow', 'Flèche artisanale', 'arrow'],
   ['jerrycan', 'Jerrican', 'bucket'],
 ].map(([id, name, icon]) => ({ id, name, icon: 'minecraft:' + icon }));
+
+Object.assign(gzSettings,demoMobSettings);
+gzCatalog.push(...demoMobCatalog);

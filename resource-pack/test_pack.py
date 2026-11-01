@@ -20,9 +20,12 @@ class PackTest(unittest.TestCase):
             self.assertEqual(dispatcher['fallback'],{'type':'minecraft:model','model':'minecraft:item/paper'})
             self.assertEqual({c['when'] for c in dispatcher['cases']},{'duckcatmine:'+k for k in ['pistol','shotgun','smg','rocket_launcher','rocket_projectile']})
             meta=json.loads(z.read('pack.mcmeta'));self.assertEqual(meta['pack']['min_format'],[97,1])
-            for kind in ['spitter','jumper','crawler','stalker','bloated','breaker']:
+            rig=json.loads((ROOT/'apocalypse/src/main/resources/horror-rigs.json').read_text(encoding='utf-8'))
+            self.assertEqual(rig['version'],2)
+            self.assertEqual(len(rig['parts']),6)
+            for kind in ['spitter','jumper','crawler','stalker','bloated','breaker','abomination']:
                 self.assertIn('<title>',(ROOT/'admin/public/horror'/f'{kind}.svg').read_text(encoding='utf-8'))
-                for part in ['body','left','right']:
+                for part in rig['parts']:
                     definition=json.loads(z.read(f'assets/duckcatmine/items/{kind}_{part}.json'))
                     model=definition['model']['model'].split(':')[1]
                     body=json.loads(z.read(f'assets/duckcatmine/models/{model}.json'))

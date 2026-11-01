@@ -12,7 +12,7 @@ public final class SurvivalUpgrade {
     public static boolean migrate(YamlConfiguration config, YamlConfiguration defaults) {
         config.setDefaults(defaults);
         int version = config.isSet("survival-content-version") ? config.getInt("survival-content-version") : 1;
-        if (version >= 6) return false;
+        if (version >= 7) return false;
         if (version < 2) {
             for (String id : List.of("shotgun", "smg")) {
                 String path = "recipes." + id;
@@ -71,7 +71,14 @@ public final class SurvivalUpgrade {
                 config.set(path,loot);
             }
         }
-        config.set("survival-content-version", 6);
+        if(version<7){
+            config.set("spawning.min-distance",110);config.set("spawning.max-distance",190);config.set("spawning.despawn-distance",200);
+            if(config.getDouble("spawning.indoor-chance")==0)config.set("spawning.indoor-chance",.3);
+            if(config.getInt("spawning.global-cap")==60||config.getInt("spawning.global-cap")==80)config.set("spawning.global-cap",120);
+            if(config.getDouble("spawning.density")==1.5)config.set("spawning.density",2.5);
+            if(config.getInt("spawning.per-tick")==2)config.set("spawning.per-tick",3);
+        }
+        config.set("survival-content-version", 7);
         return true;
     }
     private static void copy(YamlConfiguration target,YamlConfiguration defaults,String path){

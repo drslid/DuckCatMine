@@ -1,3 +1,4 @@
+import {demoArchetypes} from './bestiary-demo';
 // This adapter runs entirely in the browser. It never contacts a game server.
 import { gzSettings, gzCatalog, gzPresets, gzItems } from './ground-zero-demo';
 const meta = {
@@ -240,6 +241,10 @@ function demoApocalypse() {
       'city-renovation',
       'radar-100',
       'horror-v1',
+      'horror-v2',
+      'infected-tuning',
+      'weapon-recoil',
+      'indoor-encounters',
       'renovation-v3',
     ],
     departure: gzDeparture,
@@ -257,11 +262,13 @@ function demoApocalypse() {
       secondsLeft: 74,
       hordes: 3,
     },
-    rules: {...apocalypseRules,minSpawnDistance:150},
+    rules: {...apocalypseRules,minSpawnDistance:110,maxSpawnDistance:190,despawnDistance:200},
     radarRange: 100,
     weaponModels: true,
     infected: { walker: 9, pursuer: 4, runner: 2, howler: 1, infected_wolf: 1 },
+    archetypes: demoArchetypes,
     archetypeLabels: {
+      ...Object.fromEntries(demoArchetypes.map(a=>[a.id,a.name])),
       walker: 'Errant',
       pursuer: 'Poursuivant',
       runner: 'Sprinteur',

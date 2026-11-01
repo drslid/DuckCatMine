@@ -1,8 +1,8 @@
 # Ground Zero · pack original
 
-Six silhouettes de créatures et quatre armes originales (cracheur, bondisseur, rampant, traqueur, boursouflé et briseur), textures de 32 pixels et onze sons synthétisés. Aucun asset de Minecraft ni modèle téléchargé n’est redistribué. Licence GPL-3.0-only, comme le projet.
+Sept silhouettes de créatures articulées et quatre armes originales (cracheur, bondisseur, rampant, traqueur, boursouflé, briseur et abomination), textures de 32 pixels et onze sons synthétisés. Aucun asset de Minecraft ni modèle téléchargé n’est redistribué. Licence GPL-3.0-only, comme le projet.
 
-Le pack prêt à servir se trouve dans `admin/public/packs/`, avec son manifeste SHA-1. Il cible **Minecraft Java 26.3, format de ressources 97.1**. Les miniatures du panneau sont calculées à partir des mêmes modèles et textures.
+Le pack prêt à servir se trouve dans `admin/public/packs/`, avec son manifeste SHA-1. Chaque créature possède six articulations (torse, tête, bras et jambes), pour la marche, la course et les attaques. Les pivots partagés avec le plugin sont définis dans `apocalypse/src/main/resources/horror-rigs.json`. Il cible **Minecraft Java 26.3, format de ressources 97.1**. Les miniatures du panneau sont calculées à partir des mêmes modèles et textures.
 
 Pour reconstruire les assets : Python 3.13 et FFmpeg avec libvorbis, puis depuis la racine :
 
@@ -16,7 +16,7 @@ L’installation n’a pas besoin de FFmpeg : les assets sont déjà fournis. La
 L’installateur HTTPS écrit `data/plugins/DuckCatApocalypse/resource-pack.json` :
 
 ```json
-{"url":"https://votre-domaine.example/packs/duckcatmine-horror-ed3b25ab86f13bf0.zip","sha1":"ed3b25ab86f13bf04dcc2d7d803b0a29c6994216"}
+{"url":"https://votre-domaine.example/packs/duckcatmine-horror-6177dd7c99a40e4c.zip","sha1":"6177dd7c99a40e4c613c1338c1f5e261af476c44"}
 ```
 
 Pour une installation existante, reprends le chemin et le SHA-1 du manifeste, puis relance le plugin avec une sauvegarde du monde. Seul le ZIP vérifié est public, avec cache immuable et `noindex`. Les données du jeu et les API d’administration restent authentifiées.

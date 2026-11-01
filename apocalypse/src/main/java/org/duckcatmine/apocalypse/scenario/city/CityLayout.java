@@ -234,6 +234,21 @@ public final class CityLayout {
         return true;
     }
 
+    public record InteriorSite(String kind,int minX,int minZ,int maxX,int maxZ,int floorY) {
+        public String key(){return minX+"_"+minZ;}
+        public boolean contains(int x,int z){return x>=minX+2&&x<=maxX-2&&z>=minZ+2&&z<=maxZ-2;}
+        public boolean infested(long seed){return Math.floorMod(mix(seed,minX,minZ),100)<35;}
+    }
+    /** Generated abandoned interiors only: never invent an interior in a player-built house. */
+    public InteriorSite interiorAt(int x,int z){
+        for(Placement p:placementsAt(x,z)){
+            if(!switch(p.kind()){case HOUSE_SMALL,HOUSE_LARGE,FARMHOUSE,APARTMENT,SHOP,SUPERMARKET,PHARMACY,POLICE,GARAGE,WAREHOUSE,CABIN,LAB -> true;default -> false;})continue;
+            var site=new InteriorSite(p.kind().name().toLowerCase(java.util.Locale.ROOT),p.minX(),p.minZ(),p.maxX(),p.maxZ(),p.floorY());
+            if(site.contains(x,z))return site;
+        }
+        return null;
+    }
+
     /** Walkable ground of a column ignoring roofs: the site floor inside a placement, street level in the city, else {@code terrainTop}. */
     public int floorAt(int x, int z, int terrainTop) {
         for (Placement placement : placementsAt(x, z)) {

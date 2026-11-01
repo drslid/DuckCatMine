@@ -28,7 +28,9 @@ public final class SettingsService {
                           Function<ApocalypseConfig, Object> current) {
     }
 
-    public static final List<Setting> CATALOG = List.of(
+    public static final List<Setting> CATALOG = catalog();
+    private static List<Setting> catalog(){
+        var list=new java.util.ArrayList<>(List.of(
             new Setting("infection-seconds", "infection.duration-seconds", Kind.INTEGER, 10, 600,
                     "Délai pour finir un antidote après une morsure (s)", "Infection", c -> c.infection().durationMs() / 1000),
             new Setting("bite-multiplier", "infection.bite-multiplier", Kind.DECIMAL, 0, 3,
@@ -76,7 +78,43 @@ public final class SettingsService {
             new Setting("intro", "intro.enabled", Kind.BOOLEAN, 0, 1,
                     "Introduction à la première entrée", "Monde", c -> c.play().intro()),
             new Setting("team-size", "teams.max-size", Kind.INTEGER, 2, 16,
-                    "Taille maximale d'une équipe", "Monde", c -> c.play().social().teamMaxSize()));
+                    "Taille maximale d'une équipe", "Monde", c -> c.play().social().teamMaxSize()),
+            new Setting("indoor-chance","spawning.indoor-chance",Kind.DECIMAL,0,1,"Part des rencontres dans les bâtiments abandonnés","Infectés",c->c.spawning().indoorChance())));
+        for(String id:ApocalypseConfig.KNOWN_ARCHETYPES.stream().sorted().toList()){
+            mob(list,id,"health","Vie maximale",1,1024,a->a.health());
+            mob(list,id,"damage","Dégâts par coup",0,100,a->a.damage());
+            mob(list,id,"speed","Vitesse de déplacement",.05,.6,a->a.speed());
+            mob(list,id,"armor","Armure",0,20,a->a.armor());
+            mob(list,id,"scale","Taille",.4,2,a->a.scale());
+            mob(list,id,"siege-power","Force contre les murs",0,500,a->a.siegePower());
+            mob(list,id,"bite-chance","Risque de morsure",0,1,a->a.biteChance());
+            list.add(new Setting("mob-"+id+"-max-alive","archetypes."+id+".max-alive",Kind.INTEGER,0,50,"Nombre maximum (0 = plafond global)","Bestiaire",c->c.archetype(id).maxAlive()));
+            if(!id.startsWith("infected_"))ability(list,id,"spawn-weight","Fréquence × (0 = désactivé)",0,5,1);
+        }
+        ability(list,"spitter","acid-damage","Dégâts du crachat",0,20,4);
+        ability(list,"spitter","acid-range","Portée du crachat",4,32,20);
+        ability(list,"spitter","acid-cooldown-seconds","Pause entre crachats (s)",1,60,7);
+        ability(list,"jumper","jump-range","Portée du bond",4,24,14);
+        ability(list,"jumper","jump-cooldown-seconds","Pause entre bonds (s)",1,60,7);
+        for(String id:List.of("runner","stalker")){
+            ability(list,id,"sprint-speed","Vitesse de la charge",.1,.6,.32);
+            ability(list,id,"sprint-seconds","Durée de la charge (s)",.5,10,1.5);
+            ability(list,id,"cooldown-seconds","Pause entre charges (s)",1,60,10);
+        }
+        ability(list,"bloated","gas-radius","Rayon du nuage toxique",.5,4,3);
+        ability(list,"bloated","gas-damage","Dégâts du nuage par seconde",0,10,3);
+        ability(list,"bloated","gas-seconds","Durée du nuage (s)",1,8,4);
+        ability(list,"abomination","slam-damage","Dégâts de la frappe au sol",0,50,10);
+        ability(list,"abomination","slam-radius","Rayon de la frappe au sol",1,8,4);
+        ability(list,"abomination","slam-cooldown-seconds","Pause entre frappes (s)",2,60,10);
+        return List.copyOf(list);
+    }
+    private static void mob(List<Setting> list,String id,String key,String label,double min,double max,Function<ApocalypseConfig.Archetype,Object> read){
+        list.add(new Setting("mob-"+id+"-"+key,"archetypes."+id+"."+key,Kind.DECIMAL,min,max,label,"Bestiaire",c->read.apply(c.archetype(id))));
+    }
+    private static void ability(List<Setting> list,String id,String key,String label,double min,double max,double fallback){
+        list.add(new Setting("mob-"+id+"-"+key,"archetypes."+id+".abilities."+key,Kind.DECIMAL,min,max,label,"Bestiaire",c->c.archetype(id).ability(key,fallback)));
+    }
 
     /** Bundles of values; anything not listed keeps its value. */
     public static final Map<String, Map<String, Object>> PRESETS = presets();
@@ -89,11 +127,11 @@ public final class SettingsService {
                 Map.entry("threat-per-hour", 1.5), Map.entry("fauna-share", 0.1)));
         presets.put("normal", Map.ofEntries(Map.entry("infection-seconds", 60), Map.entry("bite-multiplier", 1.0),
                 Map.entry("medical-boost", 3.0), Map.entry("bag-seconds", 300), Map.entry("protection-seconds", 30),
-                Map.entry("density", 1.5), Map.entry("per-tick", 2), Map.entry("global-cap", 80), Map.entry("night-bonus", 2),
+                Map.entry("density", 2.5), Map.entry("per-tick", 3), Map.entry("global-cap", 120), Map.entry("night-bonus", 2),
                 Map.entry("threat-per-hour", 3.0), Map.entry("fauna-share", 0.15)));
         presets.put("nightmare", Map.ofEntries(Map.entry("infection-seconds", 45), Map.entry("bite-multiplier", 1.5),
                 Map.entry("medical-boost", 1.5), Map.entry("bag-seconds", 180), Map.entry("protection-seconds", 15),
-                Map.entry("density", 2.5), Map.entry("per-tick", 3), Map.entry("global-cap", 150), Map.entry("night-bonus", 4),
+                Map.entry("density", 3.5), Map.entry("per-tick", 4), Map.entry("global-cap", 180), Map.entry("night-bonus", 4),
                 Map.entry("threat-per-hour", 6.0), Map.entry("fauna-share", 0.25)));
         return presets;
     }

@@ -5,7 +5,7 @@ import argparse, base64, hashlib, html, json, math, random, shutil, struct, subp
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 FORMAT = [97, 1]  # Minecraft Java 26.3, verified against its version.json and Mojang release notes.
 ROSTER = {
     "spitter": ("Cracheur d’acide", (83, 106, 62), (215, 244, 82)),
@@ -14,6 +14,7 @@ ROSTER = {
     "stalker": ("Traqueur décharné", (145, 150, 137), (240, 230, 208)),
     "bloated": ("Boursouflé", (82, 107, 100), (189, 215, 110)),
     "breaker": ("Briseur", (103, 89, 83), (255, 158, 100)),
+    "abomination": ("Abomination", (92, 70, 77), (235, 72, 44)),
 }
 
 def write_json(path: Path, value):
@@ -88,48 +89,7 @@ def thumbnail(path: Path, elements, assets: Path, kind: str, label: str, texture
         if shade:svg.append('<polygon points="'+' '.join(f'{x:.3f},{y:.3f}' for x,y in points)+f'" opacity="{shade}"/>')
     svg.append('</svg>');path.parent.mkdir(parents=True,exist_ok=True);path.write_text(''.join(svg),encoding='utf-8')
 
-def geometry(kind: str):
-    """Three compact item models form a rig; no third-party game textures or creature models."""
-    body = [box((4, 10, 5), (12, 21, 11)), box((4, 21, 4), (12, 29, 12), front="#face"),
-            box((1, 11, 6), (4, 23, 10), angle=-22.5), box((12, 10, 6), (15, 22, 10), angle=22.5)]
-    left = [box((3, 1, 6), (7, 11, 10)), box((2, 0, 5), (7, 2, 13))]
-    right = [box((9, 1, 6), (13, 11, 10)), box((9, 0, 5), (14, 2, 13))]
-    if kind == "spitter":
-        body += [box((2, 19, 10), (14, 24, 15), "#wound"), box((1, 17, 6), (4, 21, 10), "#eye", light=3),
-                 box((12, 17, 6), (15, 21, 10), "#eye", light=3)]
-        body += [box((x, 22, 14), (x+1, 25, 16), "#bone") for x in (3, 6, 9, 12)]
-    elif kind == "jumper":
-        body = [box((3, 8, 4), (13, 19, 11), angle=22.5, axis="x", origin=(8, 10, 8)),
-                box((3, 14, 9), (13, 23, 17), front="#face"), box((0, 3, 6), (3, 20, 10)),
-                box((13, 3, 6), (16, 20, 10)), box((6, 11, 2), (10, 22, 5), "#bone")]
-        left = [box((1, 0, 4), (7, 4, 14)), box((2, 3, 7), (7, 10, 12), angle=-22.5)]
-        right = [box((9, 0, 4), (15, 4, 14)), box((9, 3, 7), (14, 10, 12), angle=22.5)]
-    elif kind == "crawler":
-        body = [box((3, 3, 1), (13, 10, 14)), box((3, 4, 12), (13, 12, 20), front="#face"),
-                box((0, 0, 6), (3, 5, 18)), box((13, 0, 6), (16, 5, 18)),
-                box((6, 9, 0), (10, 12, 12), "#bone")]
-        left = [box((3, 0, -5), (7, 4, 4))]
-        right = [box((9, 0, -5), (13, 4, 4))]
-    elif kind == "stalker":
-        body = [box((5, 11, 6), (11, 23, 10)), box((5, 23, 5), (11, 32, 11), front="#face"),
-                box((1, 3, 7), (4, 24, 10), angle=-22.5), box((12, 1, 7), (15, 23, 10), angle=22.5),
-                box((7, 13, 4), (9, 29, 6), "#bone")]
-        left = [box((4, 0, 7), (7, 12, 10)), box((3, 0, 7), (7, 2, 14))]
-        right = [box((9, 0, 7), (12, 12, 10)), box((9, 0, 7), (13, 2, 14))]
-    elif kind == "bloated":
-        body = [box((1, 5, 2), (15, 21, 15)), box((4, 20, 5), (12, 28, 13), front="#face"),
-                box((-2, 5, 5), (2, 20, 12), angle=-22.5), box((14, 6, 5), (18, 20, 12), angle=22.5),
-                box((5, 9, 14), (11, 18, 17), "#wound"), box((2, 17, 11), (5, 21, 15), "#eye", light=2)]
-        left = [box((3, 0, 6), (7, 7, 11))]
-        right = [box((9, 0, 6), (13, 7, 11))]
-    elif kind == "breaker":
-        body = [box((1, 9, 3), (15, 24, 13)), box((3, 22, 4), (13, 31, 14), front="#face"),
-                box((-3, 3, 4), (2, 25, 12)), box((14, 2, 4), (19, 25, 12)),
-                box((-4, 0, 6), (3, 7, 14), "#bone"), box((13, 0, 6), (20, 7, 14), "#bone"),
-                box((5, 10, 13), (11, 19, 15), "#wound")]
-        left = [box((2, 0, 5), (7, 10, 11)), box((1, 0, 4), (7, 3, 14))]
-        right = [box((9, 0, 5), (14, 10, 11)), box((9, 0, 4), (15, 3, 14))]
-    return {"body": body, "left": left, "right": right}
+from creatures import geometry, rebase
 
 def sound(path: Path, name: str, ffmpeg: str, work: Path):
     gun=name in ('pistol','shotgun','smg','rocket_launch','rocket_impact')
@@ -157,18 +117,19 @@ def build(output: Path, ffmpeg: str):
         work=Path(temporary);pack=work/"pack";assets=pack/"assets"/"duckcatmine";preview=[]
         write_json(pack/"pack.mcmeta",{"pack":{"min_format":FORMAT,"max_format":FORMAT,"description":"DuckCatMine · Ground Zero — bestiaire, armes et sons"}})
         shutil.copyfile(ROOT.parent/"LICENSE",pack/"LICENSE.txt")
+        rig=json.loads((ROOT.parent/"apocalypse/src/main/resources/horror-rigs.json").read_text(encoding="utf-8"))
         for index,(kind,(label,base,eye)) in enumerate(ROSTER.items()):
             texture(assets/"textures/item/horror"/(kind+"_skin.png"),base,eye,index*71)
             texture(assets/"textures/item/horror"/(kind+"_face.png"),base,eye,index*71,True)
             for key,color in [("wound",(78,31,36)),("bone",(188,179,141)),("eye",eye)]:
                 png(assets/"textures/item/horror"/(kind+"_"+key+".png"),[(*color,255)]*1024)
-            parts=geometry(kind)
+            parts=geometry(kind,box)
             thumbnail(ROOT.parent/'admin/public/horror'/f'{kind}.svg',[element for group in parts.values() for element in group],assets,kind,label)
             for part,elements in parts.items():
                 model=kind+"_"+part
                 write_json(assets/"items"/(model+".json"),{"model":{"type":"minecraft:model","model":"duckcatmine:item/"+model}})
-                write_json(assets/"models/item"/(model+".json"),{"gui_light":"side","textures":{key:"duckcatmine:item/horror/"+kind+"_"+key for key in ["skin","face","wound","bone","eye"]},"elements":elements})
-            preview.append({"id":kind,"name":label,"skin":base,"eyes":eye,"parts":parts})
+                write_json(assets/"models/item"/(model+".json"),{"gui_light":"side","textures":{key:"duckcatmine:item/horror/"+kind+"_"+key for key in ["skin","face","wound","bone","eye"]},"elements":rebase(elements,rig["models"][kind]["pivots"][part])})
+            preview.append({"id":kind,"name":label,"skin":base,"eyes":eye,"parts":parts,"pivots":rig["models"][kind]["pivots"]})
         from weapons import build_weapons
         weapons=build_weapons(assets,ROOT.parent/'admin/public/weapons',png,box,write_json,thumbnail)
         sounds={}

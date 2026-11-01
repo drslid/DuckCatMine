@@ -239,14 +239,14 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
         Spawning spawning = new Spawning(
                 read.bool("spawning.enabled", true),
                 read.integer("spawning.interval-seconds", 3, 1, 60),
-                read.integer("spawning.global-cap", 60, 0, 400),
-                read.integer("spawning.min-distance", 150, 150, 256),
-                read.integer("spawning.max-distance", 180, 166, 320),
-                read.integer("spawning.despawn-distance", 288, 192, 512),
+                read.integer("spawning.global-cap", 120, 0, 400),
+                read.integer("spawning.min-distance", 110, 101, 198),
+                read.integer("spawning.max-distance", 190, 102, 199),
+                read.integer("spawning.despawn-distance", 200, 200, 200),
                 read.integer("spawning.night-bonus", 2, 0, 16),
-                read.decimal("spawning.indoor-chance", 0, 0, 1),
-                read.decimal("spawning.density", 1.5, 0.25, 5),
-                read.integer("spawning.per-tick", 2, 1, 5));
+                read.decimal("spawning.indoor-chance", .3, 0, 1),
+                read.decimal("spawning.density", 2.5, 0.25, 5),
+                read.integer("spawning.per-tick", 3, 1, 5));
         long checkpointMs = read.integer("clock.checkpoint-seconds", 5, 1, 60) * 1000L;
 
         Map<String, Archetype> archetypes = new LinkedHashMap<>();

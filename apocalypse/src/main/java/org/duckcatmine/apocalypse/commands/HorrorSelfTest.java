@@ -70,7 +70,7 @@ final class HorrorSelfTest {
             details.add("Rampant : collision native sous un bloc ("+String.format(Locale.ROOT,"%.2f",crawler.getHeight())+").");
             if(p.settings().archetype("breaker").siegePower()!=28)throw new IllegalStateException("Force de siège du briseur incorrecte pour la configuration de test");
             for(String kind:HorrorModels.KINDS){Zombie mob=fixture(kind,new Location(w,408,y,400));mob.setAI(false);mob.setGravity(false);p.horrorModels().verifyRig(mob,kind);}
-            details.add("Sept rigs : six articulations, quatre orientations sans double rotation, apparence native restaurée et équipement conservé.");
+            details.add("Sept rigs : six articulations, quatre orientations avec le demi-tour du rendu client compensé, apparence native restaurée et équipement conservé.");
             liveTuning();indoorEncounter();
             // A pre-existing manual force flag must survive two overlapping leases.
             manual=w.getChunkAt(50,50);if(!manual.isForceLoaded()){manual.setForceLoaded(true);forced.add(manual);}

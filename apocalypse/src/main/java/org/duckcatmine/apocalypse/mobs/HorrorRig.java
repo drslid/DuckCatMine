@@ -41,6 +41,10 @@ public final class HorrorRig {
     public static Quaternionf rotation(float yaw,Pose pose){
         return new Quaternionf().rotateY((float)Math.toRadians(-yaw)).rotateX(pose.pitch()).rotateZ(pose.roll());
     }
+    /** Vanilla 26.3 ItemDisplayRenderer.submitInner rotates the mesh by PI around Y after our transform. */
+    public static Quaternionf itemRendererCorrection(){
+        return new Quaternionf(0,1,0,0);
+    }
     public static Pose pose(String kind,String part,double phase,boolean moving,boolean running,boolean charging,boolean striking){
         float wave=moving?(float)Math.sin(phase):0;
         float leg=wave*(running?.95f:.58f),arm=wave*(running?.8f:.42f);

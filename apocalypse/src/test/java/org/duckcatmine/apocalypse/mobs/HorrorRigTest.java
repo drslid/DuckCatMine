@@ -5,14 +5,28 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HorrorRigTest {
-    @Test void facingMatchesAllFourTravelDirectionsWithoutInitialEntityYaw(){
+    @Test void clientRenderedFacingMatchesAllFourTravelDirectionsWithoutInitialEntityYaw(){
         for(double[] move:new double[][]{{0,1},{1,0},{0,-1},{-1,0},{1,1}}){
             float yaw=HorrorRig.motionYaw(move[0],move[1],37);
-            Vector3f face=new Vector3f(0,0,1).rotate(HorrorRig.rotation(yaw,new HorrorRig.Pose(0,0)));
+            // Measured in Minecraft 26.3 DisplayRenderer$ItemDisplayRenderer.submitInner:
+            // PoseStack.rotate(Axis.YP, 3.1415927f) is applied AFTER the entity transform.
+            var rotation=HorrorRig.rotation(yaw,new HorrorRig.Pose(0,0));
+            Vector3f uncorrected=new Vector3f(0,0,1).rotateY((float)Math.PI).rotate(rotation);
+            Vector3f face=new Vector3f(0,0,1).rotateY((float)Math.PI).rotate(HorrorRig.itemRendererCorrection()).rotate(rotation);
             double length=Math.hypot(move[0],move[1]);
+            assertEquals(-move[0]/length,uncorrected.x,1e-5);assertEquals(-move[1]/length,uncorrected.z,1e-5);
             assertEquals(move[0]/length,face.x,1e-5);assertEquals(move[1]/length,face.z,1e-5);
         }
         assertEquals(37,HorrorRig.motionYaw(0,0,37));
+    }
+    @Test void rendererCorrectionKeepsJointPositionsAndArticulationInTheAuthoredFrame(){
+        for(String kind:HorrorRig.kinds())for(String part:HorrorRig.PARTS)for(float yaw:new float[]{0,90,180,-90}){
+            var pose=HorrorRig.pose(kind,part,Math.PI/2,true,true,false,false);
+            var rotation=HorrorRig.rotation(yaw,pose);var offset=HorrorRig.offset(kind,part,.8f,yaw);
+            var expected=new Vector3f(.25f,.1f,.4f).mul(.8f).rotate(rotation).add(offset);
+            var rendered=new Vector3f(.25f,.1f,.4f).rotateY((float)Math.PI).rotate(HorrorRig.itemRendererCorrection()).mul(.8f).rotate(rotation).add(offset);
+            assertTrue(expected.distance(rendered)<1e-5,kind+"/"+part+" at "+yaw);
+        }
     }
     @Test void armsLegsAndHeadHaveSeparateJointsAndOppositeStrides(){
         for(String kind:HorrorRig.kinds()){

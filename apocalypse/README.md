@@ -4,6 +4,10 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Sens de marche des mutants — alpha.14
+
+Le rendu compense le demi-tour ajouté par le client Minecraft aux entités d’affichage d’objets. La correction porte sur le maillage, sans retourner les pivots ni modifier la marche, les collisions ou les vitesses. Les tests incluent désormais cette étape du client 26.3, dans les quatre directions et pour les six articulations. Le pack reste inchangé.
+
 ## Bestiaire articulé et rencontres — alpha.13
 
 **Ground Zero → Bestiaire** permet de choisir chaque infecté, voir sa silhouette et modifier sa vie, ses dégâts, sa vitesse, son armure, sa taille, sa force contre les murs, son risque de morsure, sa fréquence et ses capacités spéciales. Les attributs changent sur les créatures déjà présentes, sans les soigner : la proportion de vie restante est conservée. Fréquence et plafond concernent les prochaines apparitions ; une fréquence de 0 désactive les apparitions du type.

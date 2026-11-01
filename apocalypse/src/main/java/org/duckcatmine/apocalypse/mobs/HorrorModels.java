@@ -114,6 +114,9 @@ public final class HorrorModels implements Listener,AutoCloseable {
                 var head=rig.parts().get(1).getTransformation().getTranslation();
                 var expected=HorrorRig.offset(kind,"head",(float)(height/HorrorRig.layout(kind).height()),yaw);
                 if(Math.abs(head.x-expected.x)>.01||Math.abs(head.z-expected.z)>.01)throw new IllegalStateException("Articulation orientée de côté");
+                var transform=rig.parts().get(1).getTransformation();
+                var front=new Vector3f(0,0,1).rotateY((float)Math.PI).rotate(transform.getRightRotation()).mul(transform.getScale()).rotate(transform.getLeftRotation()).normalize();
+                if(front.dot(new Vector3f((float)-Math.sin(Math.toRadians(yaw)),0,(float)Math.cos(Math.toRadians(yaw))))<.99)throw new IllegalStateException("Rendu client tourné vers l’arrière");
                 if(Math.abs(rig.parts().get(4).getTransformation().getLeftRotation().dot(rig.parts().get(5).getTransformation().getLeftRotation()))>.999)throw new IllegalStateException("Jambes non articulées");
                 if(Math.abs(rig.parts().get(2).getTransformation().getLeftRotation().dot(rig.parts().get(3).getTransformation().getLeftRotation()))>.999)throw new IllegalStateException("Bras non articulés");
             }
@@ -154,7 +157,7 @@ public final class HorrorModels implements Listener,AutoCloseable {
             // Passengers retain their own entity yaw. Neutralize it so world-facing rotation is applied exactly once.
             display.setRotation(0,0);
             display.setInterpolationDelay(0);display.setTransformation(new Transformation(offset,
-                    HorrorRig.rotation(yaw,HorrorRig.pose(rig.kind(),part,rig.phase,walking,running,charging,striking)),new Vector3f(scale),new org.joml.Quaternionf()));
+                    HorrorRig.rotation(yaw,HorrorRig.pose(rig.kind(),part,rig.phase,walking,running,charging,striking)),new Vector3f(scale),HorrorRig.itemRendererCorrection()));
         }
         if(frames%20==0)hideEquipment(mob,true);
     }

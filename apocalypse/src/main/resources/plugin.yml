@@ -1,5 +1,5 @@
 name: DuckCatApocalypse
-version: '0.1.0-alpha.13'
+version: '0.1.0-alpha.14'
 main: org.duckcatmine.apocalypse.DuckCatApocalypse
 api-version: '26.3'
 description: Scénario de survie Ground Zero (NEXUS-13) pour DuckCatMine.

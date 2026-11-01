@@ -18,19 +18,24 @@ final class Structures {
     }
 
     static void render(CityLayout.Placement p, Canvas world, CityLayout layout, boolean legacy) {
+        renderRevision(p,world,layout,legacy?1:3);
+    }
+
+    static void renderRevision(CityLayout.Placement p, Canvas world, CityLayout layout, int revision) {
+        boolean legacy=revision==1;
         Frame f = new Frame(world, p.minX(), p.minZ(), p.width(), p.depth(), p.front());
         Random r = new Random(p.seed());
         int y = p.floorY();
         switch (p.kind()) {
-            case HOUSE_SMALL -> { if (legacy) LegacyHomes.house(f, r, y, 1, PlaceType.HOUSE); else Homes.house(f, r, y, 1, PlaceType.HOUSE); }
-            case HOUSE_LARGE -> { if (legacy) LegacyHomes.house(f, r, y, 2, PlaceType.HOUSE); else Homes.house(f, r, y, 2, PlaceType.HOUSE); }
-            case FARMHOUSE -> { if (legacy) LegacyHomes.house(f, r, y, 1, PlaceType.FARM); else Homes.house(f, r, y, 1, PlaceType.FARM); }
-            case APARTMENT -> { if (legacy) LegacyHomes.apartment(f, r, y); else Homes.apartment(f, r, y); }
+            case HOUSE_SMALL -> { if (legacy) LegacyHomes.house(f, r, y, 1, PlaceType.HOUSE); else if(revision==2) V2Homes.house(f, r, y, 1, PlaceType.HOUSE); else Homes.house(f,r,y,1,PlaceType.HOUSE); }
+            case HOUSE_LARGE -> { if (legacy) LegacyHomes.house(f, r, y, 2, PlaceType.HOUSE); else if(revision==2) V2Homes.house(f, r, y, 2, PlaceType.HOUSE); else Homes.house(f,r,y,2,PlaceType.HOUSE); }
+            case FARMHOUSE -> { if (legacy) LegacyHomes.house(f, r, y, 1, PlaceType.FARM); else if(revision==2) V2Homes.house(f, r, y, 1, PlaceType.FARM); else Homes.house(f,r,y,1,PlaceType.FARM); }
+            case APARTMENT -> { if (legacy) LegacyHomes.apartment(f, r, y); else if(revision==2) V2Homes.apartment(f, r, y); else Homes.apartment(f,r,y); }
             case RUIN -> Homes.ruin(f, r, y);
             case YARD -> Homes.yard(f, r, y);
             case CABIN -> Rural.cabin(f, r, y, layout);
-            case SHOP -> { if (legacy) LegacyShops.shop(f, r, y); else Shops.shop(f, r, y); }
-            case SUPERMARKET -> { if (legacy) LegacyShops.supermarket(f, r, y); else Shops.supermarket(f, r, y); }
+            case SHOP -> { if (legacy) LegacyShops.shop(f, r, y); else if(revision==2) V2Shops.shop(f, r, y); else Shops.shop(f,r,y); }
+            case SUPERMARKET -> { if (legacy) LegacyShops.supermarket(f, r, y); else if(revision==2) V2Shops.supermarket(f, r, y); else Shops.supermarket(f,r,y); }
             case PHARMACY -> Shops.pharmacy(f, r, y);
             case GARAGE -> Shops.garage(f, r, y);
             case WAREHOUSE -> Shops.warehouse(f, r, y);
@@ -43,6 +48,7 @@ final class Structures {
             case LAB -> Rural.lab(f, r, y, layout);
             case CHECKPOINT -> Rural.checkpoint(f, r, y, layout);
         }
+        if(revision>=3) AccessKit.approach(p,world,layout);
     }
 
     // ---------------------------------------------------------------- kit

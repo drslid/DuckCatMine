@@ -74,6 +74,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private DeathService deaths;
     private BagService bags;
     private MobService mobs;
+    private org.duckcatmine.apocalypse.mobs.HorrorService horror;
+    private org.duckcatmine.apocalypse.mobs.HorrorModels horrorModels;
     private LootService loot;
     private SearchService search;
     private NoiseService noise;
@@ -158,6 +160,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
             renovator = new org.duckcatmine.apocalypse.scenario.city.CityRenovator(this);
             mapTeleports = new org.duckcatmine.apocalypse.spawn.MapTeleportService(this);
             radar = new org.duckcatmine.apocalypse.radar.RadarService(this);
+            horror=new org.duckcatmine.apocalypse.mobs.HorrorService(this);
+            horrorModels=new org.duckcatmine.apocalypse.mobs.HorrorModels(this);
             items.radarConfigurer(radar::configure);
             departures = new DepartureService(this);
             siege = new SiegeManager(this);
@@ -169,6 +173,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             status = new StatusWriter(this);
             tuning = new SettingsService(this);
             scenario.load();
+            director.restore();
             if (scenario.isEnabled()) clock.resume();
             infections.load();
             bags.load();
@@ -188,6 +193,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(new BoundaryListener(this), this);
         events.registerEvents(new ProtectionListener(this), this);
         events.registerEvents(new MobListener(this), this);
+        events.registerEvents(horror,this);
+        events.registerEvents(horrorModels,this);
         events.registerEvents(new VanillaUseGuard(items), this);
         events.registerEvents(infections, this);
         events.registerEvents(bags, this);
@@ -220,7 +227,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             registered.setExecutor(command);
             registered.setTabCompleter(command);
         }
-        for (Player player : getServer().getOnlinePlayers()) sessions.reconcile(player);
+        for (Player player : getServer().getOnlinePlayers()) {sessions.reconcile(player);horrorModels.offer(player);}
         ticker = getServer().getScheduler().runTaskTimer(this, this::tick, TICK_PERIOD, TICK_PERIOD);
         getLogger().info("Ground Zero " + (scenario.isEnabled() ? "ouvert" : "fermé")
                 + (scenario.problem() == null ? "" : " — " + scenario.problem()));
@@ -284,11 +291,14 @@ public final class DuckCatApocalypse extends JavaPlugin {
         try {
             infections.tick();
             mobs.tick();
+            horror.tick();
+            horrorModels.tick();
             firearms.tick();
             turrets.tick();
             sessions.tickLeaves();
             if (ticks % TICKS_PER_SECOND == 0) {
                 noise.tick();
+                director.approachTick();
                 siege.tick();
                 threat.tick();
                 fauna.tick();
@@ -333,6 +343,10 @@ public final class DuckCatApocalypse extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if(director!=null)director.close();
+        if(horrorModels!=null)horrorModels.close();
+        if(horror!=null)horror.close();
+        if (renovator != null) renovator.close();
         if (turrets != null) turrets.close();
         if (ticker != null) ticker.cancel();
         if (database == null) return;
@@ -417,6 +431,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public MobService mobs() {
         return mobs;
     }
+    public org.duckcatmine.apocalypse.mobs.HorrorService horror(){return horror;}
+    public org.duckcatmine.apocalypse.mobs.HorrorModels horrorModels(){return horrorModels;}
 
     public SpawnDirector director() {
         return director;

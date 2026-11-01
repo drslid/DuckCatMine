@@ -24,8 +24,9 @@ final class Shops {
         }
         f.fill(doorU, y, 0, doorU, y + 1, 0, B.AIR);
         if (r.nextBoolean()) {
-            f.set(doorU, y, 0, B.door(Material.SPRUCE_DOOR, BlockFace.NORTH, false, r.nextBoolean()));
-            f.set(doorU, y + 1, 0, B.door(Material.SPRUCE_DOOR, BlockFace.NORTH, true, false));
+            boolean open=r.nextBoolean();
+            f.set(doorU, y, 0, B.door(Material.SPRUCE_DOOR, BlockFace.NORTH, false, open));
+            f.set(doorU, y + 1, 0, B.door(Material.SPRUCE_DOOR, BlockFace.NORTH, true, open));
         }
     }
 
@@ -37,7 +38,8 @@ final class Shops {
         f.fill(0, y0, 0, w - 1, y0, d - 1, B.of(r.nextBoolean() ? Material.SMOOTH_STONE : Material.POLISHED_DIORITE));
         Structures.walls(f, w, d, y0 + 1, top - 1, wall);
         f.fill(0, y0 + 4, 0, w - 1, y0 + 4, 0, B.of(Structures.wool(r)));
-        int doorU = 2 + r.nextInt(Math.max(1, w - 4));
+        r.nextInt(Math.max(1,w-4)); // Keep the remaining seeded decoration sequence stable.
+        int doorU = w/2;
         storefront(f, r, w, y0 + 1, doorU);
         Structures.flatRoof(f, w, d, top, B.of(Material.SMOOTH_STONE), wall);
         int y = y0 + 1;
@@ -57,6 +59,7 @@ final class Shops {
         if (r.nextBoolean()) Structures.barrel(f, w - 2, y, back + 1, PlaceType.SHOP);
         Structures.cobwebs(f, r, w, d, y0 + 4, 1 + r.nextInt(3));
         Structures.decay(f, r, w, d, y0 + 1, y0 + 3, r.nextInt(3));
+        f.fill(doorU,y,1,doorU,y+1,back+1,B.AIR);
     }
 
     static void pharmacy(Frame f, Random r, int y0) {

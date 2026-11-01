@@ -9,6 +9,7 @@
     renovateZ = $state(0),
     renovateRadius = $state(128);
   let unavailable = $derived(!status.world);
+  let renovationBlocked = $derived(!!status.survivors?.length && status.renovationBlocked !== false);
 </script>
 
 <div class="maintenance-grid">
@@ -146,8 +147,9 @@
       les ajouts, les bases revendiquées et les conteneurs. Les nouvelles zones
       utilisent déjà les nouveaux modèles.
     </p>
-    {#if status.survivors?.length}<p class="notice">
-        Les joueurs doivent quitter Ground Zero avant de lancer une rénovation.
+    {#if status.renovationExclusions?.length}<details class="advanced"><summary>Quartiers préservés · {status.renovationExclusions.length}</summary>{#each status.renovationExclusions as area}<p class="muted small"><strong>{area.label}</strong> · X {area.minX} à {area.maxX} · Z {area.minZ} à {area.maxZ} · toutes les hauteurs. Aucun travail dans cette zone ni sur les approches qui la touchent.</p>{/each}</details>{/if}
+    {#if renovationBlocked}<p class="notice">
+        Les joueurs doivent rejoindre un quartier préservé ou quitter Ground Zero avant la rénovation.
       </p>{/if}
     {#if status.renovation}<p class="notice" aria-live="polite">
         {status.renovation.message}<br />{status.renovation.buildings} bâtiments ·
@@ -161,7 +163,7 @@
           action: 'renovate',
           value: { x: renovateX, z: renovateZ, radius: renovateRadius },
           title: 'Rénover cette zone',
-          description: `Améliorer les bâtiments existants dans un rayon de ${renovateRadius} blocs autour de ${renovateX} · ${renovateZ}. Ground Zero doit être vide. Une sauvegarde est conseillée avant la première rénovation.`,
+          description: `Améliorer les bâtiments existants dans un rayon de ${renovateRadius} blocs autour de ${renovateX} · ${renovateZ}. Les quartiers préservés sont exclus. Le travail attend si un joueur est ailleurs dans Ground Zero. Prévois une sauvegarde avant la première rénovation.`,
           required: 'RENOVER',
         });
       }}
@@ -185,7 +187,7 @@
           status.stale ||
           unavailable ||
           !status.capabilities?.includes('city-renovation') ||
-          !!status.survivors?.length ||
+          renovationBlocked ||
           ['running', 'paused'].includes(status.renovation?.state)}
         ><Icon name="build" />Rénover la zone</button
       >

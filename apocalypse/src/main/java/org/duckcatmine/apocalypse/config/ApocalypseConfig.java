@@ -21,7 +21,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     public static final String INFECTED_LIVESTOCK = "infected_livestock";
     /** Stable archetype IDs: each has its own behaviour in code; config tunes their numbers. */
     public static final Set<String> KNOWN_ARCHETYPES = Set.of(WALKER, "pursuer", "runner", "howler", "breaker", "abomination",
-            INFECTED_WOLF, INFECTED_LIVESTOCK);
+            INFECTED_WOLF, INFECTED_LIVESTOCK,"spitter","jumper","crawler","stalker","bloated");
     public static final Set<String> STATIONS = Set.of("workbench", "workshop", "medical");
     public static final Set<String> WEAPONS = Set.of("club", "blade", "spear", "heavy_club", "fire_axe");
     /** Never handed out at the start of a life, whatever the configuration says. */
@@ -240,9 +240,9 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.bool("spawning.enabled", true),
                 read.integer("spawning.interval-seconds", 3, 1, 60),
                 read.integer("spawning.global-cap", 60, 0, 400),
-                read.integer("spawning.min-distance", 20, 8, 64),
-                read.integer("spawning.max-distance", 40, 12, 96),
-                read.integer("spawning.despawn-distance", 72, 32, 192),
+                read.integer("spawning.min-distance", 150, 150, 256),
+                read.integer("spawning.max-distance", 180, 166, 320),
+                read.integer("spawning.despawn-distance", 288, 192, 512),
                 read.integer("spawning.night-bonus", 2, 0, 16),
                 read.decimal("spawning.indoor-chance", 0, 0, 1),
                 read.decimal("spawning.density", 1.5, 0.25, 5),
@@ -267,7 +267,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                     read.decimal(base + "bite-chance", 0.33, 0, 1),
                     read.decimal(base + "armor", 0, 0, 20),
                     read.decimal(base + "knockback-resistance", 0, 0, 1),
-                    read.decimal(base + "scale", 1, 0.5, 2),
+                    read.decimal(base + "scale", 1, 0.4, 2),
                     read.integer(base + "max-alive", 0, 0, 50),
                     read.decimal(base + "memory-seconds", 6, 0, 120),
                     read.decimal(base + "siege-power", 2, 0, 500),
@@ -290,6 +290,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
             }
             Map<String, Double> mix = read.numbers("sectors." + id + ".mix", 0, 1_000_000);
             mix.entrySet().removeIf(entry -> {
+                if (archetypes.containsKey(entry.getKey()) && entry.getValue() == 0) return true;
                 if (archetypes.containsKey(entry.getKey()) && entry.getValue() > 0) return false;
                 read.errors.add("sectors." + id + ".mix." + entry.getKey() + " : archétype non configuré ou poids nul.");
                 return true;

@@ -134,7 +134,7 @@ public final class ItemRegistry {
         definitions.put(SMG, new Definition("Mitraillette", NamedTextColor.GOLD, "minecraft:crossbow", 1,
                 List.of("Maintiens le clic droit : tir automatique.", "Sans munitions · 360 tirs · réparable à l'atelier.")));
         definitions.put(RADAR, new Definition("Sonar de survie", NamedTextColor.AQUA, Material.FILLED_MAP, null, 1,
-                List.of("Tiens-le en seconde main (F) : radar sur 10 blocs.", "Bleu : survivants · rouge : infectés.", "Les points extérieurs indiquent les joueurs éloignés.")));
+                List.of("Tiens-le en seconde main (F) : radar sur 100 blocs.", "Accroupi + clic droit : zoom 50 / 100 blocs.", "Bleu : survivants · rouge : infectés.", "Les points extérieurs indiquent les joueurs éloignés.")));
         definitions.put(AMMO, new Definition("Munitions de pistolet", NamedTextColor.WHITE, "minecraft:copper_nugget", 32,
                 List.of("Pour le pistolet de fortune.")));
         definitions.put(DECOY, new Definition("Leurre sonore", NamedTextColor.AQUA, Material.SNOWBALL, "minecraft:note_block", 8,

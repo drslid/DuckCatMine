@@ -107,11 +107,13 @@ test('map teleport follows the authenticated account and never a client supplied
   assert.equal(command({...input,value:{...input.value,y:null}},s,'Alex').command,'apocalypse admin teleport-point Alex 12 surface -32');
 });
 
-test('city renovation requires an empty scenario, supported plugin and explicit bounded area', () => {
+test('renovation requires empty or excluded player locations, supported plugin and bounded area', () => {
   const input={action:'renovate',value:{x:0,z:0,radius:128},confirmation:'RENOVER'};
   const s={...status(),capabilities:['city-renovation'],survivors:[]};
   assert.equal(command(input,s,'Alex').command,'apocalypse admin renovate 0 0 128 confirm');
   assert.throws(() => command(input,{...s,survivors:[{name:'Alex'}]},'Alex'));
+  assert.equal(command(input,{...s,survivors:[{name:'Alex'}],renovationBlocked:false},'Alex').command,'apocalypse admin renovate 0 0 128 confirm');
+  assert.throws(() => command(input,{...s,survivors:[{name:'Alex'}],renovationBlocked:true},'Alex'));
   assert.throws(() => command({...input,confirmation:''},s,'Alex'));
   assert.throws(() => command({...input,value:{...input.value,radius:769}},s,'Alex'));
   assert.throws(() => command(input,{...s,renovation:{state:'paused'}},'Alex'));

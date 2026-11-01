@@ -175,9 +175,19 @@ public final class ApocalypseCommand implements TabExecutor {
         String actor = sender instanceof Player player ? player.getName() : "console";
         switch (action) {
             case "status" -> adminStatus(sender);
+            case "building-preview" -> {
+                try {
+                    org.duckcatmine.apocalypse.scenario.city.CityRenovator.writePreview(plugin.getDataFolder().toPath().resolve("building-preview.json"));
+                    Text.good(sender,"DCAPO_PREVIEW:building-preview.json");
+                } catch(java.io.IOException e) { Text.error(sender,"Aperçus non enregistrés : "+e.getMessage()); }
+            }
             case "turret-selftest" -> {
                 try { Text.good(sender, "DCAPO_TEST:" + TurretSelfTest.start(plugin)); }
                 catch (IllegalArgumentException e) { Text.error(sender,e.getMessage()); }
+            }
+            case "horror-selftest" -> {
+                try { Text.good(sender,"DCAPO_TEST:"+HorrorSelfTest.start(plugin)); }
+                catch(IllegalArgumentException e){Text.error(sender,e.getMessage());}
             }
             case "enable", "disable" -> {
                 String error = plugin.scenario().setEnabled(action.equals("enable"), actor);
@@ -213,8 +223,9 @@ public final class ApocalypseCommand implements TabExecutor {
                 }
                 int size = plugin.director().horde(target, plugin.settings().play().threat().hordeMax());
                 audit(actor, "admin_horde", target.getName() + " x" + size);
-                plugin.events().add("horde", "Horde de " + size + " infectés envoyée vers " + target.getName() + " par " + actor);
-                Text.good(sender, size + " infecté(s) envoyé(s) vers " + target.getName() + " (tracé).");
+                if(size==0){Text.error(sender,"Approche occupée ou plafond atteint. Réessaie après quelques secondes.");return;}
+                plugin.events().add("horde", "Préparation d’une horde : jusqu’à " + size + " infectés vers " + target.getName() + " par " + actor);
+                Text.good(sender, "Approche en préparation : jusqu’à " + size + " infecté(s), à au moins 150 blocs de tous les joueurs.");
             }
             case "destruction" -> destruction(sender, args, actor);
             case "upgrade" -> {

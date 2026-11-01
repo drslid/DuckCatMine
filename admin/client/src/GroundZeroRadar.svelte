@@ -1,5 +1,8 @@
 <script lang="ts">
   let { status, player }: { status: any; player: any } = $props();
+  let zoom = $state(100);
+  let maximum = $derived(status.capabilities?.includes('radar-100') ? 100 : 10);
+  let range = $derived(Math.min(zoom, maximum));
   let dots = $derived.by(() => {
     if (!player || status.stale) return [];
     const yaw = ((player.yaw || 0) * Math.PI) / 180;
@@ -7,8 +10,8 @@
       const dx = p.x - player.x,
         dz = p.z - player.z,
         d = Math.hypot(dx, dz);
-      const far = d > 10,
-        scale = far ? 89 / (d || 1) : 7;
+      const far = d > range,
+        scale = far ? 89 / (d || 1) : 70 / range;
       return {
         x: 100 + (-dx * Math.cos(yaw) - dz * Math.sin(yaw)) * scale,
         y: 100 - (-dx * Math.sin(yaw) + dz * Math.cos(yaw)) * scale,
@@ -23,9 +26,8 @@
           (p: any) =>
             Math.hypot(
               p.x - player.x,
-              (p.y ?? player.y) - player.y,
               p.z - player.z,
-            ) <= 10,
+            ) <= range,
         )
         .map((p: any) =>
           project(p, true, status.archetypeLabels?.[p.type] || 'Infecté'),
@@ -39,8 +41,9 @@
 
 <div class="sonar" aria-label={`Sonar autour de ${player.name}`}>
   <div class="heading">
-    <strong>Sonar · 10 blocs</strong><small>Devant ↑ · positions 5 s</small>
+    <strong>Sonar · {range} blocs</strong><small>Devant ↑ · positions 5 s</small>
   </div>
+  {#if maximum === 100}<div class="zoom" aria-label="Portée du sonar">{#each [50,100] as value}<button type="button" aria-pressed={zoom===value} onclick={()=>zoom=value}>{value} blocs</button>{/each}</div>{/if}
   <svg
     viewBox="0 0 200 200"
     role="img"
@@ -48,6 +51,7 @@
   >
     <circle cx="100" cy="100" r="73" fill="#102b30" stroke="#438e83" />
     <circle cx="100" cy="100" r="36" fill="none" stroke="#29515b" />
+    <circle cx="100" cy="100" r="18" fill="none" stroke="#29515b" />
     <path d="M27 100H173M100 27V173" stroke="#29515b" />
     {#each dots as dot}<circle
         cx={dot.x}
@@ -80,6 +84,9 @@
     flex-wrap: wrap;
     font-size: 12px;
   }
+  .zoom { display:flex; gap:4px; margin-top:8px; }
+  .zoom button { font:inherit; font-size:11px; padding:4px 8px; min-height:32px; color:var(--muted); background:transparent; border:1px solid var(--border); border-radius:6px; }
+  .zoom button[aria-pressed='true'] { color:#b8efdd; border-color:#438e83; background:#183a39; }
   small {
     color: var(--muted);
     font-size: 10px;

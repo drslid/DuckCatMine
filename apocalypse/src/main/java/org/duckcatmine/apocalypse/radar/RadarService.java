@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.server.MapInitializeEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
@@ -30,6 +31,8 @@ public final class RadarService implements Listener {
     private int mapId = -1;
     private MapView view;
     private final Renderer renderer = new Renderer();
+    private final Map<UUID,Integer> ranges = new HashMap<>();
+    private final Map<UUID,Long> lastZoom = new HashMap<>();
 
     public RadarService(DuckCatApocalypse plugin) {
         this.plugin = plugin;
@@ -48,7 +51,17 @@ public final class RadarService implements Listener {
     }
 
     @EventHandler public void onMap(MapInitializeEvent event) { if (event.getMap().getId() == mapId) bind(event.getMap()); }
-    @EventHandler public void onQuit(PlayerQuitEvent event) { renderer.states.remove(event.getPlayer().getUniqueId()); }
+    @EventHandler public void onQuit(PlayerQuitEvent event) { renderer.states.remove(event.getPlayer().getUniqueId()); ranges.remove(event.getPlayer().getUniqueId()); lastZoom.remove(event.getPlayer().getUniqueId()); }
+    @EventHandler public void onZoom(PlayerInteractEvent event) {
+        if (!event.getAction().isRightClick() || !event.getPlayer().isSneaking()
+                || !plugin.sessions().isSurvivor(event.getPlayer()) || !plugin.items().is(event.getItem(),ItemRegistry.RADAR)) return;
+        event.setCancelled(true);
+        var id=event.getPlayer().getUniqueId();long now=System.currentTimeMillis();
+        if(now-lastZoom.getOrDefault(id,0L)<300)return;lastZoom.put(id,now);
+        int range=ranges.getOrDefault(id,RadarMath.RANGE)==100?50:100;
+        ranges.put(id,range);renderer.states.remove(id);
+        event.getPlayer().sendActionBar(net.kyori.adventure.text.Component.text("Sonar · "+range+" blocs"));
+    }
 
     /** Maps can have been loaded with the world before listeners were registered. Rebind them on startup too. */
     public void restore() {
@@ -88,7 +101,7 @@ public final class RadarService implements Listener {
         java.util.Arrays.fill(data, BG);
         for (int x = 0; x < 128; x++) for (int y = 0; y < 128; y++) {
             double radius = Math.hypot(x - 64, y - 64);
-            if (radius <= 48 && (x == 64 || y == 64 || Math.abs(radius - 24) < .5)) data[y * 128 + x] = GRID;
+            if (radius <= 48 && (x == 64 || y == 64 || Math.abs(radius - 24) < .5 || Math.abs(radius - 12) < .5)) data[y * 128 + x] = GRID;
             if (Math.abs(radius - 49) < .8) data[y * 128 + x] = RING;
         }
         return data;
@@ -109,17 +122,17 @@ public final class RadarService implements Listener {
             state.at = now;
             byte[] pixels = BACKGROUND.clone();
             Location at = viewer.getLocation();
-            for (var entity : viewer.getNearbyEntities(10, 10, 10)) {
-                if (entity instanceof Player || !plugin.mobs().isScenarioMob(entity)) continue;
-                Location other = entity.getLocation();
-                if (at.distanceSquared(other) > 100) continue;
-                var pos = RadarMath.project(other.getX() - at.getX(), other.getZ() - at.getZ(), at.getYaw());
+            int range=ranges.getOrDefault(viewer.getUniqueId(),RadarMath.RANGE);
+            for (var other : plugin.mobs().mapPositions(viewer.getWorld(),org.duckcatmine.apocalypse.mobs.MobService.MAP_LIMIT)) {
+                double dx=other.x()-at.getX(),dz=other.z()-at.getZ();
+                if (dx*dx+dz*dz > range*range) continue;
+                var pos = RadarMath.project(dx,dz,at.getYaw(),range);
                 dot(pixels, pos.x(), pos.y(), RED, 1);
             }
             for (Player other : viewer.getWorld().getPlayers()) {
                 if (other == viewer || other.isDead() || !plugin.sessions().isSurvivor(other)) continue;
                 Location p = other.getLocation();
-                var pos = RadarMath.project(p.getX() - at.getX(), p.getZ() - at.getZ(), at.getYaw());
+                var pos = RadarMath.project(p.getX() - at.getX(), p.getZ() - at.getZ(), at.getYaw(),range);
                 boolean infected = plugin.infections().remaining(other.getUniqueId()) != null;
                 dot(pixels, pos.x(), pos.y(), infected && !pos.far() ? RED : BLUE, pos.far() ? 1 : 2);
             }

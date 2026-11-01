@@ -105,8 +105,11 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
-        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage", "outdoor-spawns")));
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage", "outdoor-spawns", "renovation-v3", "radar-100", "distant-spawns", "horror-v1")));
+        root.addProperty("radarRange",org.duckcatmine.apocalypse.radar.RadarMath.RANGE);
+        root.addProperty("renovationBlocked",plugin.renovator().blockedByPlayers());
         root.add("renovation", gson.toJsonTree(plugin.renovator().snapshot()));
+        root.add("renovationExclusions",gson.toJsonTree(plugin.renovator().exclusions()));
         root.add("teleports", gson.toJsonTree(plugin.mapTeleports().snapshot()));
         root.add("departure", gson.toJsonTree(plugin.departures().snapshot()));
         root.addProperty("generatedAt", System.currentTimeMillis());
@@ -154,6 +157,10 @@ public final class StatusWriter {
         root.add("infected", infected);
         root.add("archetypeLabels", labels);
         root.addProperty("infectedTotal", total);
+        root.addProperty("approachingInfected",plugin.director().approachingCount());
+        root.addProperty("approachChunks",plugin.director().approachChunks());
+        root.add("resourcePack",gson.toJsonTree(Map.of("available",plugin.horrorModels().available(),"readyPlayers",plugin.horrorModels().readyCount(),"activeModels",plugin.horrorModels().modelCount())));
+        rules.addProperty("minSpawnDistance",plugin.settings().spawning().minDistance());
         root.add("infectedPositions", gson.toJsonTree(plugin.mobs().mapPositions(world, org.duckcatmine.apocalypse.mobs.MobService.MAP_LIMIT)));
         root.addProperty("incubatingAnimals", plugin.fauna().incubatingCount());
         root.addProperty("activeInfections", plugin.infections().count());

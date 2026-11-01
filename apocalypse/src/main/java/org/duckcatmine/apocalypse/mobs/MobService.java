@@ -134,7 +134,7 @@ public final class MobService {
         zombie.setCanBreakDoors(false);
         zombie.setCanPickupItems(false);
         zombie.setPersistent(false);
-        zombie.setRemoveWhenFarAway(true);
+        zombie.setRemoveWhenFarAway(false); // the bounded director owns despawning, including approaches at 150+ blocks
         EntityEquipment equipment = zombie.getEquipment();
         equipment.clear();
         for (EquipmentSlot slot : SLOTS) equipment.setDropChance(slot, 0f);
@@ -148,11 +148,13 @@ public final class MobService {
         base(zombie, Attribute.SPAWN_REINFORCEMENTS, 0);
         base(zombie, Attribute.ARMOR, archetype.armor());
         base(zombie, Attribute.KNOCKBACK_RESISTANCE, archetype.knockbackResistance());
-        base(zombie, Attribute.SCALE, Math.max(0.5, Math.min(2.0, archetype.scale() * size)));
+        base(zombie, Attribute.SCALE, Math.max(0.4, Math.min(2.0, archetype.scale() * ("crawler".equals(archetype.id())?1:size))));
+        HorrorService.fallback(zombie,archetype.id());
         NamedTextColor color = switch (archetype.id()) {
             case "abomination" -> NamedTextColor.DARK_RED;
             case "howler", "breaker" -> NamedTextColor.RED;
-            case "runner", "pursuer" -> NamedTextColor.GOLD;
+            case "runner", "pursuer", "jumper" -> NamedTextColor.GOLD;
+            case "spitter","bloated" -> NamedTextColor.GREEN;
             default -> NamedTextColor.GRAY;
         };
         zombie.customName(Component.text(archetype.name(), color));
@@ -217,6 +219,7 @@ public final class MobService {
             Tracked state = entry.getValue();
             ApocalypseConfig.Archetype archetype = plugin.settings().archetype(state.archetype);
             if (archetype == null) continue;
+            if (plugin.director().approaching(mob)) continue;
             perceive(mob, state, archetype, now);
             Location remembered = state.hunt.goal(now);
             if (remembered != null && state.hunt.confirmed(now)) plugin.siege().consider(mob, archetype, remembered, state.lastMovedAt, now);
@@ -226,7 +229,7 @@ public final class MobService {
             }
             plugin.placed().stepOn(mob);
             switch (state.archetype) {
-                case "runner" -> runner(mob, state, archetype, now);
+                case "runner", "stalker" -> runner(mob, state, archetype, now);
                 case "howler" -> howler(mob, state, archetype, now);
                 case "abomination" -> abomination(mob, state, archetype, now);
                 default -> {
@@ -306,7 +309,13 @@ public final class MobService {
         if (here.distanceSquared(goal) < 4 || now < state.nextPath || !goal.getWorld().isChunkLoaded(goal.getBlockX() >> 4, goal.getBlockZ() >> 4)) return;
         if (mob.getTarget() != null) mob.setTarget(null);
         state.nextPath = now + 1000;
-        mob.getPathfinder().moveTo(goal, "pursuer".equals(state.archetype) ? 1.15 : 1.0);
+        // The native pathfinder has a bounded search range. Advance towards the remembered point in short steps.
+        Location waypoint=goal;
+        if(here.distanceSquared(goal)>16*16){
+            var delta=goal.toVector().subtract(here.toVector());waypoint=here.clone().add(delta.normalize().multiply(16));
+            if(!mob.getWorld().isChunkLoaded(waypoint.getBlockX()>>4,waypoint.getBlockZ()>>4))return;
+        }
+        mob.getPathfinder().moveTo(waypoint, "pursuer".equals(state.archetype) ? 1.15 : 1.0);
     }
 
     /** Last time this infected actually moved (siege uses it to tell a blocked infected from an idle one). */

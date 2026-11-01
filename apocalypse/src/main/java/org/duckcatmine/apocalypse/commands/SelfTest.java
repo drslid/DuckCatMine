@@ -59,7 +59,10 @@ final class SelfTest {
                     || meta.getMapView().getRenderers().size() != 1 || !meta.getMapView().getRenderers().getFirst().isContextual()) throw new IllegalStateException("sonar non lié à une carte contextuelle");
             return "40 kits complets et variés, radar individuel sans mod";
         });
-        check(lines, "intérieurs et rayons v2", org.duckcatmine.apocalypse.scenario.city.CityRenovator::verifyBlueprints);
+        check(lines, "bâtiments praticables v3", () -> {
+            org.duckcatmine.apocalypse.scenario.city.CityRenovator.writePreview(plugin.getDataFolder().toPath().resolve("building-preview.json"));
+            return org.duckcatmine.apocalypse.scenario.city.CityRenovator.verifyBlueprints();
+        });
         check(lines, "sérialisation d'inventaire", () -> {
             ItemStack[] items = {plugin.items().create("scrap", 3), ItemStack.empty(),
                     plugin.items().create(ItemRegistry.ANTIDOTE, 1), ItemStack.of(Material.BREAD, 5)};
@@ -390,12 +393,13 @@ final class SelfTest {
         check(lines, "ville et conteneurs", () -> {
             int[][] cells = {{0, 1}, {1, 0}, {-1, -1}, {1, 1}, {3, -3}, {-3, 2}, {2, 1}, {-2, -3}};
             for (int[] cell : cells) {
-                for (CityLayout.ContainerSpot spot : layout.containers(cell[0], cell[1])) {
-                    Material type = world.getBlockAt(spot.x(), spot.y(), spot.z()).getType();
-                    if (type != Material.CHEST && type != Material.BARREL)
-                        throw new IllegalStateException("conteneur attendu en " + spot.x() + " " + spot.y() + " " + spot.z() + ", trouvé " + type);
-                    if (layout.placeAt(spot.x(), spot.y(), spot.z()) != spot.place())
-                        throw new IllegalStateException("identification incohérente en " + spot.x() + " " + spot.y() + " " + spot.z());
+                var candidates=new java.util.LinkedHashMap<String,CityLayout.ContainerSpot>();
+                for(int revision:new int[]{3,2,1}) for(var spot:layout.containers(cell[0],cell[1],revision)) candidates.putIfAbsent(spot.x()+":"+spot.y()+":"+spot.z(),spot);
+                for(var spot:candidates.values()) {
+                    var block=world.getBlockAt(spot.x(),spot.y(),spot.z());Material type=block.getType();
+                    if(type!=Material.CHEST && type!=Material.BARREL) continue; // Destroyed loot containers are a supported player action.
+                    if(((org.bukkit.block.TileState)block.getState(false)).getPersistentDataContainer().has(plugin.keys().playerPlaced)) continue;
+                    if(layout.placeAt(spot.x(),spot.y(),spot.z())!=spot.place()) throw new IllegalStateException("identification incohérente en "+spot);
                     spots.add(spot);
                 }
             }

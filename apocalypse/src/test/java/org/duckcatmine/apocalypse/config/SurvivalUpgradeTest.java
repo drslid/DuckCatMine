@@ -37,7 +37,7 @@ class SurvivalUpgradeTest {
         c.set("recipes.pistol.usage","Ma recette conservée");
         String loot=c.getMapList("places.police.loot").toString();
         assertTrue(SurvivalUpgrade.migrate(c,defaults()));
-        assertEquals(4,c.getInt("survival-content-version"));
+        assertEquals(5,c.getInt("survival-content-version"));
         assertEquals(2,c.getInt("places.house.rolls-min"));
         assertEquals(loot,c.getMapList("places.police.loot").toString());
         assertEquals("Ma recette conservée",c.getString("recipes.pistol.usage"));
@@ -54,5 +54,18 @@ class SurvivalUpgradeTest {
         c.set("survival-content-version",3); c.set("perception.investigate-seconds",45);
         SurvivalUpgrade.migrate(c,defaults()); assertEquals(45,c.getDouble("perception.investigate-seconds"));
         ApocalypseConfig.parse(c);
+    }
+    @Test void distantSpawnsAndHorrorAreMigratedOnceWithoutChangingOtherRules() throws Exception {
+        var c=defaults();c.set("survival-content-version",4);c.set("spawning.min-distance",20);
+        c.set("spawning.max-distance",40);c.set("spawning.despawn-distance",72);c.set("archetypes.breaker.siege-power",14);
+        c.set("archetypes.spitter",null);c.set("sectors.residential.mix.spitter",null);
+        c.set("sectors.lab.mix.jumper",0);c.set("spawning.global-cap",42);
+        assertTrue(SurvivalUpgrade.migrate(c,defaults()));
+        var parsed=ApocalypseConfig.parse(c);
+        assertEquals(150,parsed.spawning().minDistance());assertEquals(180,parsed.spawning().maxDistance());
+        assertEquals(288,parsed.spawning().despawnDistance());assertEquals(28,parsed.archetype("breaker").siegePower());
+        assertEquals(42,parsed.spawning().globalCap());assertFalse(parsed.sector("lab").mix().containsKey("jumper"));
+        assertNotNull(parsed.archetype("spitter"));assertFalse(SurvivalUpgrade.migrate(c,defaults()));
+        assertEquals(28,c.getDouble("archetypes.breaker.siege-power"));
     }
 }

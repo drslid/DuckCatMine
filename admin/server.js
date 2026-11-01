@@ -655,10 +655,12 @@ function properties() {
 }
 
 const servePlugins = pluginRoutes({ jobs: JOBS_DIR, requireSession, requireCsrf, body, json, enqueueJob, audit, HttpError });
+const serveResourcePack = require('./resource-pack').resourcePackRoute(path.join(__dirname,'public','packs'));
 
 async function serve(req, res) {
   securityHeaders(res);
   const url = new URL(req.url, ORIGIN);
+  if (serveResourcePack(req,res,url)) return;
   if (await servePlugins(req, res, url)) return;
   if (req.method === 'POST' && /^\/api\/(?:command|settings|jobs|map\/policy)$/.test(url.pathname)) {
     res.once('finish', () => { if (res.statusCode < 400) {
@@ -704,6 +706,13 @@ async function serve(req, res) {
     if (!fs.existsSync(filename)) throw new HttpError(404, 'Image introuvable.');
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=604800');
+    return fs.createReadStream(filename).pipe(res);
+  }
+  if (req.method === 'GET' && /^\/horror\/(spitter|jumper|crawler|stalker|bloated|breaker)\.svg$/.test(url.pathname)) {
+    const filename=path.join(__dirname,'public','horror',path.basename(url.pathname));
+    if (!fs.existsSync(filename)) throw new HttpError(404,'Image introuvable.');
+    res.setHeader('Content-Type','image/svg+xml');
+    res.setHeader('Cache-Control','public, max-age=604800');
     return fs.createReadStream(filename).pipe(res);
   }
   if (req.method === 'POST' && url.pathname === '/api/invite-info') {

@@ -10,7 +10,7 @@ FROM node:22-bookworm-slim
 WORKDIR /app
 COPY --chmod=644 package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
-COPY --chmod=644 server.js runtime.js plugins.js apocalypse.js items.json ./
+COPY --chmod=644 server.js runtime.js plugins.js apocalypse.js resource-pack.js items.json ./
 COPY public ./public
 COPY --from=interface /build/public/v2 ./public/v2
 RUN chmod -R a+rX /app/public

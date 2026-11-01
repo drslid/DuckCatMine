@@ -60,6 +60,10 @@ def download_plugins():
 
 
 def configure(origin):
+    pack = json.loads((ROOT / 'admin/public/packs/manifest.json').read_text(encoding='utf-8'))
+    if origin.startswith('https://'):
+        write_file('data/plugins/DuckCatApocalypse/resource-pack.json', json.dumps({
+            'url': origin + pack['path'], 'sha1': pack['sha1']}, ensure_ascii=False) + '\n')
     write_file('data/plugins/BlueMap/core.conf', 'accept-download: true\nrender-thread-count: 1\n')
     write_file('data/plugins/BlueMap/plugin.conf', 'live-player-markers: true\nplayer-render-limit: 1\nskin-download: true\n')
     write_file('data/plugins/BlueMap/webserver.conf', 'enabled: true\nport: 8100\nsse-enabled: true\n')

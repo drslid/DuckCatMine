@@ -206,7 +206,7 @@ public final class ThreatDirector {
         size = (int) Math.round(size * Math.min(2.0, 1 + (level - START_LEVEL) * 0.05)
                 * Math.max(0.5, plugin.settings().spawning().density() / 1.5));
         int spawned = plugin.director().horde(player, size);
-        if (spawned > 0) plugin.events().add("horde", "Horde de " + spawned + " infectés vers " + player.getName());
+        if (spawned > 0) plugin.events().add("horde", "Horde en préparation : jusqu’à " + spawned + " infectés vers " + player.getName());
         if (spawned > 0 && message != null) {
             player.sendActionBar(Component.text(message, NamedTextColor.RED));
             player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_AMBIENT, SoundCategory.HOSTILE, 1f, 0.5f);

@@ -1,9 +1,18 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import { asset } from './api';
   let { status, busy, act, ask }: any = $props();
   let draft = $state<Record<string, any>>({}),
     dirty = $state<Record<string, boolean>>({});
   let threat = $state<number | undefined>();
+  const bestiary = [
+    {id:'spitter',name:'Cracheur d’acide',note:'Repère la charge verte, puis esquive le crachat. La flaque se dissipe après 3 s.'},
+    {id:'jumper',name:'Bondisseur',note:'Son élan annonce un saut de plus de 3 blocs. Frappe-le pendant la préparation pour l’interrompre.'},
+    {id:'crawler',name:'Rampant',note:'Très bas, il peut se glisser sous les passages d’un bloc. Garde un œil au sol.'},
+    {id:'stalker',name:'Traqueur décharné',note:'Silencieux à l’approche. Son cri annonce une courte accélération, suivie d’une récupération.'},
+    {id:'bloated',name:'Boursouflé',note:'Recule après son élimination : son nuage toxique reste 4 s, sans abîmer les constructions.'},
+    {id:'breaker',name:'Briseur',note:'Deux fois plus efficace contre les murs et les barricades. Lent, robuste, et très reconnaissable.'},
+  ];
   let groups = $derived([
     ...new Set((status.settingsCatalog || []).map((s: any) => s.group)),
   ] as string[]);
@@ -119,6 +128,15 @@
     {/each}
   </article>
 
+  {#if status.capabilities?.includes('horror-v1')}
+    <details class="card bestiary">
+      <summary><Icon name="skull" size={18} /><strong>Connaître les infectés</strong><span>6 profils à repérer</span></summary>
+      <p class="muted">Ils apparaissent à au moins {status.rules?.minSpawnDistance || 150} blocs de tous les joueurs, à l’extérieur. Le sonar les repère à 100 blocs.</p>
+      <div class="bestiary-grid">{#each bestiary as enemy}<article><img src={asset(`horror/${enemy.id}.svg`)} alt={enemy.name} width="84" height="84" loading="lazy" /><div><strong>{enemy.name}</strong><p>{enemy.note}</p></div></article>{/each}</div>
+      <p class="muted">Pack facultatif d’environ 100 Ko, proposé dans Minecraft : modèles et sons, sans mod. Si un joueur ne l’a pas chargé, les infectés gardent leur apparence native et les mêmes capacités.</p>
+    </details>
+  {/if}
+
   <article class="card detailed">
     <div class="card-heading">
       <h2>Réglages à la carte</h2>
@@ -200,6 +218,14 @@
 </div>
 
 <style>
+  .bestiary { grid-column:1/-1; }
+  .bestiary > summary { display:flex;align-items:center;gap:9px;cursor:pointer;min-height:32px; }
+  .bestiary > summary span { color:var(--muted);font-size:11px;margin-left:auto; }
+  .bestiary-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;margin:12px 0; }
+  .bestiary-grid article { display:flex;align-items:center;gap:10px;min-width:0;background:var(--surface2);border-radius:10px;padding:8px; }
+  .bestiary-grid img { flex:none;image-rendering:pixelated; }
+  .bestiary-grid strong { font-size:12px; }
+  .bestiary-grid p { font-size:11px;line-height:1.5;color:var(--muted);margin:5px 0 0; }
   .rules-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);

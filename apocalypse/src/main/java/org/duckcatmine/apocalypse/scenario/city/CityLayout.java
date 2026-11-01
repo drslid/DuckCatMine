@@ -118,6 +118,8 @@ public final class CityLayout {
             ProbeCanvas probe = new ProbeCanvas(x, y, z);
             Structures.render(placement, probe, this);
             if (probe.found() != null) return probe.found();
+            Structures.renderRevision(placement,probe,this,2);
+            if(probe.found()!=null) return probe.found();
             Structures.render(placement, probe, this, true);
             if (probe.found() != null) return probe.found();
         }
@@ -143,9 +145,10 @@ public final class CityLayout {
     }
 
     /** Searchable containers of the city block (i, j) as the generator leaves them (needs a running server). */
-    public List<ContainerSpot> containers(int i, int j) {
+    public List<ContainerSpot> containers(int i, int j) { return containers(i,j,3); }
+    public List<ContainerSpot> containers(int i,int j,int revision) {
         CollectCanvas canvas = new CollectCanvas();
-        for (Placement placement : cell(i, j).placements()) Structures.render(placement, canvas, this);
+        for (Placement placement : cell(i, j).placements()) Structures.renderRevision(placement,canvas,this,revision);
         List<ContainerSpot> spots = new ArrayList<>();
         canvas.found().forEach((spot, place) -> spots.add(new ContainerSpot(spot.x(), spot.y(), spot.z(), place)));
         return spots;
@@ -618,6 +621,8 @@ public final class CityLayout {
                 for (Placement placement : cell(i, j).placements()) {
                     if (canvas.touches(placement.minX() - 1, placement.minZ() - 1, placement.maxX() + 1, placement.maxZ() + 1))
                         Structures.render(placement, canvas, this);
+                    else if(canvas.touches(placement.minX()-AccessKit.MARGIN,placement.minZ()-AccessKit.MARGIN,placement.maxX()+AccessKit.MARGIN,placement.maxZ()+AccessKit.MARGIN))
+                        AccessKit.approach(placement,canvas,this);
                 }
             }
         }
@@ -665,6 +670,17 @@ public final class CityLayout {
         data.setBlock(dx, h, dz, h <= Terrain.WATER_Y + 1 && noise < 700 ? B.SAND : B.GRASS);
         if (noise < 90) data.setBlock(dx, h + 1, dz, B.of(Material.SHORT_GRASS));
         else if (noise < 100) data.setBlock(dx, h + 1, dz, B.of(noise < 95 ? Material.DANDELION : Material.POPPY));
+    }
+
+    /** Baseline for urban entrance approaches; property rendering then supplies fences and plants. */
+    BlockData approachTerrain(int x,int y,int z) {
+        if(!urban(x,z)) return null;
+        if(y>Terrain.CITY_Y) return B.AIR;
+        if(y<Terrain.CITY_Y) return B.DIRT;
+        int noise=(int)(mix(seed,x,z)&1023),rx=roadDistance(x),rz=roadDistance(z);
+        if(rx<=ROAD_HALF || rz<=ROAD_HALF) return Streets.road(x,z,rx,rz,noise);
+        if(rx<=ROAD_HALF+2 || rz<=ROAD_HALF+2) return Streets.sidewalk(noise);
+        return lot(cell(cellOf(x),cellOf(z)).ground(),noise);
     }
 
     private static BlockData lot(Ground ground, int noise) {

@@ -49,7 +49,7 @@ function makeApocalypseCommands(HttpError) {
     }
     if (action === 'renovate') {
       if (!status.capabilities?.includes('city-renovation')) fail('Mets le plugin Ground Zero à jour pour rénover la ville.', 409);
-      if (status.survivors?.length) fail('Fais sortir les joueurs de Ground Zero avant la rénovation.', 409);
+      if (status.survivors?.length && status.renovationBlocked !== false) fail('Les joueurs doivent rejoindre un quartier préservé ou quitter Ground Zero avant la rénovation.', 409);
       if (['running', 'paused'].includes(status.renovation?.state)) fail('Une rénovation est déjà en cours.', 409);
       confirmation(input, 'RENOVER');
       const x = number(value?.x, -30000000, 30000000, true), z = number(value?.z, -30000000, 30000000, true);

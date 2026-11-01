@@ -1,4 +1,4 @@
-survival-content-version: 4
+survival-content-version: 5
 # DuckCatApocalypse — réglages du scénario Ground Zero.
 # Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
 # au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
@@ -49,16 +49,17 @@ loot:
 search:
   # Un coffre ou tonneau de fouille vidé se réapprovisionne après ce temps de scénario actif, et seulement
   # quand plus personne n'est dans les parages (le tronçon a été déchargé). Un conteneur qui contient encore
-  # des objets n'est jamais rempli par-dessus. On ne peut rien y déposer.
+  # des objets n'est jamais rempli par-dessus. Les dépôts et la casse restent possibles.
   refill-minutes: 30
 
 spawning:
   enabled: true
   interval-seconds: 3
   global-cap: 60
-  min-distance: 20
-  max-distance: 40
-  despawn-distance: 72
+  # Distance horizontale à TOUS les joueurs, vérifiée juste avant chaque apparition.
+  min-distance: 150
+  max-distance: 180
+  despawn-distance: 288
   # Infectés en plus autour de chaque survivant pendant la nuit.
   night-bonus: 2
   # Ancien réglage conservé pour compatibilité : les apparitions sont désormais toujours extérieures.
@@ -75,25 +76,25 @@ sectors:
     mix: {walker: 80, pursuer: 20}
   residential:
     local-cap: 4
-    mix: {walker: 55, pursuer: 25, runner: 12, howler: 5, breaker: 3}
+    mix: {walker: 50, pursuer: 18, runner: 8, howler: 4, breaker: 3, spitter: 4, jumper: 4, crawler: 5, stalker: 2, bloated: 2}
   downtown:
     local-cap: 6
-    mix: {walker: 40, pursuer: 25, runner: 18, howler: 10, breaker: 7}
+    mix: {walker: 35, pursuer: 20, runner: 10, howler: 7, breaker: 7, spitter: 6, jumper: 5, crawler: 4, stalker: 3, bloated: 3}
   industrial:
     local-cap: 5
-    mix: {walker: 35, pursuer: 20, runner: 15, howler: 5, breaker: 25}
+    mix: {walker: 30, pursuer: 15, runner: 10, howler: 4, breaker: 22, spitter: 5, jumper: 4, crawler: 4, stalker: 2, bloated: 4}
   medical:
     local-cap: 6
-    mix: {walker: 35, pursuer: 28, runner: 15, howler: 15, breaker: 5, abomination: 2}
+    mix: {walker: 28, pursuer: 20, runner: 10, howler: 10, breaker: 5, abomination: 2, spitter: 8, jumper: 4, crawler: 5, stalker: 4, bloated: 4}
   outskirts:
     local-cap: 3
-    mix: {walker: 60, pursuer: 25, runner: 10, howler: 5}
+    mix: {walker: 55, pursuer: 20, runner: 8, howler: 4, spitter: 3, jumper: 4, crawler: 3, stalker: 2, bloated: 1}
   countryside:
     local-cap: 2
-    mix: {walker: 60, pursuer: 25, runner: 10, breaker: 5}
+    mix: {walker: 55, pursuer: 20, runner: 8, breaker: 5, spitter: 2, jumper: 4, crawler: 3, stalker: 2, bloated: 1}
   lab:
     local-cap: 7
-    mix: {walker: 20, pursuer: 25, runner: 25, howler: 10, breaker: 14, abomination: 6}
+    mix: {walker: 15, pursuer: 15, runner: 15, howler: 8, breaker: 12, abomination: 5, spitter: 9, jumper: 7, crawler: 4, stalker: 5, bloated: 5}
 
 # Archétypes : comportement et capacités. L'apparence ne change jamais les statistiques.
 # speed est une valeur d'attribut Minecraft (zombie vanilla : 0.23), pas des blocs par seconde.
@@ -213,7 +214,7 @@ archetypes:
     knockback-resistance: 0.8
     memory-seconds: 10
     # Fort contre les barricades : chaque coup use bien plus un bloc.
-    siege-power: 14
+    siege-power: 28
     points: 120
     min-threat: 2
     appearances: [heavy_worker, heavy_security]
@@ -255,7 +256,113 @@ archetypes:
       - {item: apocalypse:antidote, weight: 50}
       - {item: apocalypse:gun_parts, weight: 30, amount: 2}
       - {item: apocalypse:syringe, weight: 20, amount: 2}
-  # Animaux contaminés par une morsure (jamais apparus directement) : mêmes règles de morsure et de butin.
+  spitter:
+    name: Cracheur d’acide
+    health: 26
+    damage: 3
+    speed: 0.17
+    follow-range: 32
+    bite-chance: 0.25
+    siege-power: 2
+    points: 55
+    max-alive: 3
+    appearances: [drifter]
+    abilities:
+      acid-range: 20
+      acid-damage: 4
+      acid-windup-seconds: 0.8
+      acid-cooldown-seconds: 7
+    guaranteed-loot:
+      - {item: apocalypse:alcohol, weight: 70}
+      - {item: apocalypse:cloth, weight: 30}
+    bonus-loot:
+      - {item: apocalypse:bandage, weight: 80}
+      - {item: apocalypse:antidote, weight: 20}
+  jumper:
+    name: Bondisseur
+    health: 22
+    damage: 4
+    speed: 0.21
+    follow-range: 32
+    bite-chance: 0.35
+    siege-power: 2
+    points: 50
+    max-alive: 3
+    appearances: [runner]
+    abilities:
+      jump-range: 14
+      jump-windup-seconds: 0.6
+      jump-cooldown-seconds: 7
+    guaranteed-loot:
+      - {item: apocalypse:scrap, weight: 70}
+      - {item: apocalypse:spring, weight: 30}
+    bonus-loot:
+      - {item: apocalypse:bandage, weight: 90}
+      - {item: apocalypse:antidote, weight: 10}
+  crawler:
+    name: Rampant
+    health: 14
+    damage: 3
+    speed: 0.16
+    follow-range: 24
+    bite-chance: 0.3
+    scale: 0.45
+    siege-power: 1
+    points: 25
+    max-alive: 4
+    appearances: [citizen]
+    guaranteed-loot:
+      - {item: apocalypse:cloth, weight: 70}
+      - {item: apocalypse:scrap, weight: 30}
+  stalker:
+    name: Traqueur décharné
+    health: 24
+    damage: 4
+    speed: 0.18
+    follow-range: 32
+    bite-chance: 0.35
+    scale: 1.1
+    siege-power: 3
+    points: 65
+    max-alive: 2
+    appearances: [citizen_tall]
+    abilities:
+      sprint-speed: 0.32
+      sprint-seconds: 1.5
+      sprint-range: 12
+      recovery-seconds: 4
+      recovery-speed: 0.12
+      cooldown-seconds: 10
+    guaranteed-loot:
+      - {item: apocalypse:cloth, weight: 50}
+      - {item: apocalypse:alcohol, weight: 50}
+    bonus-loot:
+      - {item: apocalypse:bandage, weight: 85}
+      - {item: apocalypse:antidote, weight: 15}
+  bloated:
+    name: Boursouflé
+    health: 45
+    damage: 4
+    speed: 0.13
+    follow-range: 24
+    bite-chance: 0.3
+    scale: 1.15
+    knockback-resistance: 0.6
+    siege-power: 5
+    points: 75
+    max-alive: 2
+    appearances: [heavy_worker]
+    abilities:
+      gas-radius: 3
+      gas-seconds: 4
+      gas-damage: 3
+    guaranteed-loot:
+      - {item: apocalypse:alcohol, weight: 50}
+      - {item: apocalypse:scrap, weight: 50}
+    bonus-loot:
+      - {item: apocalypse:bandage, weight: 80}
+      - {item: apocalypse:antidote, weight: 20}
+  # Animaux contaminés et faune générée à distance : mêmes règles de morsure et de butin.
   infected_wolf:
     name: Loup infecté
     health: 16

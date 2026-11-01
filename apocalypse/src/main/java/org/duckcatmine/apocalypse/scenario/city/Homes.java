@@ -11,15 +11,16 @@ final class Homes {
         LegacyHomes.house(f, r, y0, floors, place);
         int w = f.width(), d = f.depth(), y = y0 + 1;
         f.fill(1, y, 1, w - 2, y + 2, d - 2, B.AIR);
-        kitchen(f, y, 1, 1, place);
+        kitchenSide(f,y,place);
         if (floors == 1) {
             int partition = Math.max(4, d / 2);
             f.fill(1, y, partition, w - 2, y + 2, partition, B.of(Material.WHITE_TERRACOTTA));
             opening(f, w / 2, y, partition);
             Structures.bed(f, w - 2, y, d - 2, d - 3, Material.LIGHT_BLUE_BED);
             Structures.chest(f, 1, y, d - 2, BlockFace.NORTH, place);
-            f.set(1, y + 1, d - 2, B.of(Material.BOOKSHELF));
-            sofa(f, 1, y, partition - 1);
+            f.set(1, y + 1, d - 2, B.AIR);
+            f.set(1,y,partition+1,B.of(Material.BOOKSHELF));
+            sofa(f,w-3,y,partition-1);
         } else {
             sofa(f, 1, y, d / 2);
             Structures.table(f, new Random(7), w / 2, y, d - 3);
@@ -34,6 +35,10 @@ final class Homes {
         }
         f.set(w - 2, y + 2, d - 2, B.lantern(true));
         f.set(w / 2, y + 2, 0, B.of(Material.SEA_LANTERN));
+        // A seven-block-wide home used to put the crafting table immediately behind the front door.
+        f.fill(w/2,y,1,w/2,y+1,2,B.AIR);
+        f.set(w/2,y,0,B.door(Material.OAK_DOOR,BlockFace.NORTH,false,false));
+        f.set(w/2,y+1,0,B.door(Material.OAK_DOOR,BlockFace.NORTH,true,false));
     }
     static void apartment(Frame f, Random r, int y0) {
         int floors = LegacyHomes.apartment(f, r, y0), w = f.width(), d = f.depth(), mid = w / 2;
@@ -63,6 +68,13 @@ final class Homes {
         }
         f.fill(mid - 1, y0 + 1, 0, mid + 1, y0 + 2, 0, B.AIR);
     }
+    private static void kitchenSide(Frame f,int y,PlaceType place) {
+        Structures.barrel(f,1,y,1,place);
+        f.set(1,y,2,B.facing(Material.FURNACE,BlockFace.EAST));
+        f.set(1,y,3,B.of(Material.CRAFTING_TABLE));
+        f.set(1,y+2,1,B.slab(Material.OAK_SLAB,false));
+        f.set(1,y+2,3,B.slab(Material.OAK_SLAB,false));
+    }
     private static void kitchen(Frame f, int y, int x, int v, PlaceType place) {
         Structures.barrel(f, x, y, v, place);
         f.set(x + 1, y, v, B.facing(Material.FURNACE, BlockFace.SOUTH));
@@ -79,7 +91,7 @@ final class Homes {
     private static void sofa(Frame f, int x, int y, int v) {
         f.set(x, y, v, B.stairs(Material.SPRUCE_STAIRS, BlockFace.EAST, false));
         f.set(x + 1, y, v, B.stairs(Material.SPRUCE_STAIRS, BlockFace.EAST, false));
-        f.set(x + 1, y, v + 1, B.of(Material.RED_CARPET));
+
     }
     private static void opening(Frame f, int x, int y, int v) { opening(f,x,y,v,BlockFace.NORTH); }
     private static void opening(Frame f, int x, int y, int v, BlockFace facing) {

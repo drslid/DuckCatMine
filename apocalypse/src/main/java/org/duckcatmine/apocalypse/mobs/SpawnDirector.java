@@ -24,15 +24,43 @@ import org.duckcatmine.apocalypse.scenario.city.Sector;
  * night, always outside building footprints and below no roof, out of reach, never in the refuge or in unloaded chunks. Hordes and tension cycles come with the threat director.
  */
 public final class SpawnDirector {
-    private static final int LOCAL_RADIUS = 40;
+    private static final int LOCAL_RADIUS = 240;
     private static final int ATTEMPTS = 8;
 
     private final DuckCatApocalypse plugin;
     private final Random random = new Random();
+    private final ApproachChunks chunks;
+    private static final class Group {
+        final java.util.Set<UUID> members=new java.util.HashSet<>();
+        final Location goal;
+        final long until;
+        ApproachChunks.Lease lease;
+        int cx,cz,cursor;boolean moving;
+        Group(Location goal,long until,ApproachChunks.Lease lease,int x,int z){this.goal=goal;this.until=until;this.lease=lease;cx=x;cz=z;}
+    }
+    private final java.util.List<Group> groups=new java.util.ArrayList<>();
+    private int reserved;
+    private boolean closed;
 
     public SpawnDirector(DuckCatApocalypse plugin) {
         this.plugin = plugin;
+        chunks=new ApproachChunks(plugin);
     }
+    public void restore(){chunks.recover();}
+    public void close(){closed=true;for(Group g:groups)g.lease.close();groups.clear();chunks.close();}
+    public int approachChunks(){return chunks.count();}
+    public ApproachChunks approachLeases(){return chunks;}
+    /** Offline-only integration fixture, using the same leases, navigation and cleanup as real distant spawns. */
+    public boolean trialApproach(Mob mob,Location goal){
+        if(!mob.getWorld().getPlayers().isEmpty())throw new IllegalStateException("Test réservé au monde vide");
+        var at=mob.getLocation();
+        return chunks.acquire(mob.getWorld(),at.getBlockX()>>4,at.getBlockZ()>>4,lease->{
+            if(lease==null)return;Group group=new Group(goal.clone(),System.currentTimeMillis()+30_000,lease,at.getBlockX()>>4,at.getBlockZ()>>4);
+            group.members.add(mob.getUniqueId());groups.add(group);
+        });
+    }
+    public boolean approaching(Entity e){return groups.stream().anyMatch(g->g.members.contains(e.getUniqueId()));}
+    public int approachingCount(){return groups.stream().mapToInt(g->g.members.size()).sum();}
 
     private CityLayout layout(World world) {
         return world.getGenerator() instanceof GroundZeroGenerator ? CityLayout.of(world.getSeed()) : null;
@@ -50,7 +78,7 @@ public final class SpawnDirector {
         World world = plugin.scenario().world();
         if (!plugin.scenario().isEnabled() || world == null || !spawning.enabled()) return;
         despawnFar(world, spawning.despawnDistance());
-        int total = plugin.mobs().count();
+        int total = plugin.mobs().count()+reserved;
         boolean night = !world.isDayTime();
         for (Player player : world.getPlayers()) {
             if (total >= spawning.globalCap()) return;
@@ -59,22 +87,9 @@ public final class SpawnDirector {
             ApocalypseConfig.SectorRule rule = settings.sector(sector.id());
             if (rule == null || rule.mix().isEmpty()) continue;
             int cap = plugin.threat().localCap(localCap(rule, spawning, sector) + (night ? spawning.nightBonus() : 0));
-            int near = plugin.mobs().countNear(player.getLocation(), LOCAL_RADIUS);
-            for (int k = 0; k < spawning.perTick() && near < cap && total < spawning.globalCap(); k++) {
-                Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance());
-                if (spot == null) break;
-                Sector at = sectorAt(spot);
-                if (animalSpawn(at) && plugin.fauna().spawnInfected(spot, wolfFor(at)) != null) {
-                    total++;
-                    near++;
-                    continue;
-                }
-                String archetype = pickArchetype(rule.mix());
-                if (archetype == null) break;
-                if (plugin.mobs().spawn(archetype, pickAppearance(settings.archetype(archetype), sector), spot) == null) break;
-                total++;
-                near++;
-            }
+            int near = plugin.mobs().countNear(player.getLocation(), LOCAL_RADIUS)+reserved;
+            int count=Math.min(spawning.perTick(),Math.min(cap-near,spawning.globalCap()-total));
+            if(count>0&&enqueue(player,count,false)>0)return; // one bounded async preparation at a time
         }
     }
 
@@ -106,14 +121,7 @@ public final class SpawnDirector {
 
     /** Small capped reinforcement (howler call): walkers only, inside the global budget, never next to the survivor. */
     public void reinforce(Player player, int count) {
-        ApocalypseConfig.Spawning spawning = plugin.settings().spawning();
-        World world = player.getWorld();
-        if (!plugin.scenario().isEnabled() || !plugin.scenario().isScenarioWorld(world) || !spawning.enabled()) return;
-        Sector sector = sectorAt(player.getLocation());
-        for (int k = 0; k < count && plugin.mobs().count() < spawning.globalCap(); k++) {
-            Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance());
-            if (spot != null) plugin.mobs().spawn(ApocalypseConfig.WALKER, pickAppearance(plugin.settings().archetype(ApocalypseConfig.WALKER), sector), spot);
-        }
+        enqueue(player,count,true);
     }
 
     /**
@@ -121,28 +129,87 @@ public final class SpawnDirector {
      * global budget; the mix follows the sector where the group appears. Returns how many infected came.
      */
     public int horde(Player player, int size) {
-        ApocalypseConfig settings = plugin.settings();
-        ApocalypseConfig.Spawning spawning = settings.spawning();
-        World world = player.getWorld();
-        if (!plugin.scenario().isEnabled() || !plugin.scenario().isScenarioWorld(world) || !spawning.enabled()) return 0;
-        Location center = findSpot(world, player, spawning.maxDistance(), spawning.maxDistance() + 16);
-        if (center == null) return 0;
-        Sector sector = sectorAt(center);
-        ApocalypseConfig.SectorRule rule = settings.sector(sector.id());
-        Map<String, Double> mix = rule == null || rule.mix().isEmpty() ? Map.of(ApocalypseConfig.WALKER, 1.0) : rule.mix();
-        Location goal = player.getLocation();
-        int spawned = 0;
-        for (int k = 0; k < size && plugin.mobs().count() < spawning.globalCap(); k++) {
-            Location spot = k == 0 ? center : nearby(world, center);
-            if (spot == null) continue;
-            String archetype = pickArchetype(mix);
-            if (archetype == null) archetype = ApocalypseConfig.WALKER;
-            Mob mob = plugin.mobs().spawn(archetype, pickAppearance(settings.archetype(archetype), sector), spot);
-            if (mob == null) continue;
-            plugin.mobs().send(mob, goal.clone().add(random.nextGaussian() * 2, 0, random.nextGaussian() * 2), 90_000);
-            spawned++;
+        return enqueue(player,size,false);
+    }
+
+    /** Returns reserved capacity, not an invented synchronous spawn count. Each individual is rechecked after loading. */
+    private int enqueue(Player player,int requested,boolean walkersOnly){
+        var rules=plugin.settings().spawning();World world=player.getWorld();
+        if(closed||chunks.busy()||groups.size()>=2||!plugin.scenario().isEnabled()||!rules.enabled()
+                ||!plugin.sessions().isSurvivor(player)||!plugin.scenario().isScenarioWorld(world))return 0;
+        int count=Math.min(20,Math.min(requested,rules.globalCap()-plugin.mobs().count()-reserved));if(count<=0)return 0;
+        Location goal=player.getLocation().clone();
+        int min=Math.max(SpawnDistance.MINIMUM,rules.minDistance()),max=Math.max(min+16,rules.maxDistance());
+        int[] candidate=null;
+        for(int attempt=0;attempt<16;attempt++){
+            double angle=random.nextDouble()*Math.PI*2,distance=min+8+random.nextDouble()*(max-min);
+            int x=(int)Math.floor(goal.getX()+Math.cos(angle)*distance),z=(int)Math.floor(goal.getZ()+Math.sin(angle)*distance);
+            Location at=new Location(world,x+.5,goal.getY(),z+.5);
+            CityLayout layout=layout(world);
+            if(!world.getWorldBorder().isInside(at)||nearAnySurvivor(world,at,min)||(layout!=null&&!layout.openGround(x,z)))continue;
+            candidate=new int[]{x,z};break;
         }
-        return spawned;
+        if(candidate==null)return 0;
+        int x=candidate[0],z=candidate[1];UUID requester=player.getUniqueId();reserved+=count;
+        boolean accepted=chunks.acquire(world,x>>4,z>>4,lease->{
+            reserved-=count;if(lease==null)return;
+            Player current=plugin.getServer().getPlayer(requester);
+            if(closed||!plugin.scenario().isEnabled()||!plugin.settings().spawning().enabled()||current==null
+                    ||!current.getWorld().equals(world)||!plugin.sessions().isSurvivor(current)){lease.close();return;}
+            Group group=new Group(goal,System.currentTimeMillis()+120_000,lease,x>>4,z>>4);
+            var sector=sectorAt(new Location(world,x,goal.getY(),z));var rule=plugin.settings().sector(sector.id());
+            Map<String,Double> mix=rule==null?Map.of(ApocalypseConfig.WALKER,1.0):rule.mix();
+            for(int n=0;n<count&&plugin.mobs().count()<plugin.settings().spawning().globalCap();n++){
+                Location spot=outdoorSpot(world,x+random.nextInt(7)-3,z+random.nextInt(7)-3);
+                if(spot==null||nearAnySurvivor(world,spot,Math.max(SpawnDistance.MINIMUM,plugin.settings().spawning().minDistance())))continue;
+                String id=walkersOnly?ApocalypseConfig.WALKER:pickArchetype(mix);if(id==null)continue;
+                org.bukkit.entity.LivingEntity entity=null;
+                if(!walkersOnly&&animalSpawn(sector))entity=plugin.fauna().spawnInfected(spot,wolfFor(sector));
+                if(entity==null)entity=plugin.mobs().spawn(id,pickAppearance(plugin.settings().archetype(id),sector),spot);
+                if(entity!=null){entity.setRemoveWhenFarAway(false);group.members.add(entity.getUniqueId());}
+            }
+            if(group.members.isEmpty())lease.close();else groups.add(group);
+        });
+        if(!accepted){reserved-=count;return 0;}return count;
+    }
+
+    /** Every second. Distant mobs walk towards the original encounter, never a hidden player's live position. */
+    public void approachTick(){
+        for(Group g:new java.util.ArrayList<>(groups)){
+            boolean expired=closed||!plugin.scenario().isEnabled()||System.currentTimeMillis()>g.until;
+            g.members.removeIf(id->{
+                Entity e=plugin.getServer().getEntity(id);
+                if(!(e instanceof Mob mob)||!mob.isValid()||mob.isDead())return true;
+                if(expired){mob.remove();plugin.mobs().forget(id);return true;}
+                for(Player p:mob.getWorld().getPlayers())if(!p.isDead()&&plugin.sessions().isSurvivor(p)
+                        &&!SpawnDistance.outside(mob.getX(),mob.getZ(),p.getX(),p.getZ(),80)){
+                    plugin.mobs().send(mob,g.goal,30_000);return true;
+                }
+                return false;
+            });
+            if(g.members.isEmpty()){g.lease.close();groups.remove(g);continue;}
+            Mob leader=(Mob)plugin.getServer().getEntity(g.members.iterator().next());
+            Location at=leader.getLocation();int cx=at.getBlockX()>>4,cz=at.getBlockZ()>>4;
+            if((cx!=g.cx||cz!=g.cz)&&!g.moving&&!chunks.busy()){
+                g.moving=true;
+                if(!chunks.acquire(leader.getWorld(),cx,cz,next->{g.moving=false;if(next==null)return;if(!groups.contains(g)){next.close();return;}g.lease.close();g.lease=next;g.cx=cx;g.cz=cz;}))g.moving=false;
+            }
+            List<UUID> members=new java.util.ArrayList<>(g.members);
+            for(int n=0;n<Math.min(6,members.size());n++){
+                UUID id=members.get(Math.floorMod(g.cursor++,members.size()));
+                if(!(plugin.getServer().getEntity(id) instanceof Mob mob))continue;
+                Location here=mob.getLocation();double dx=g.goal.getX()-here.getX(),dz=g.goal.getZ()-here.getZ(),d=Math.hypot(dx,dz);
+                if(d<4)continue;
+                double base=Math.atan2(dz,dx);
+                for(int attempt=0;attempt<3;attempt++){
+                    double angle=base+(attempt==0?0:(attempt==1?.7:-.7));
+                    int wx=(int)Math.floor(here.getX()+Math.cos(angle)*Math.min(14,d)),wz=(int)Math.floor(here.getZ()+Math.sin(angle)*Math.min(14,d));
+                    if(!g.lease.contains(wx>>4,wz>>4))continue;
+                    Location waypoint=outdoorSpot(mob.getWorld(),wx,wz);
+                    if(waypoint!=null&&mob.getPathfinder().moveTo(waypoint,1.0))break;
+                }
+            }
+        }
     }
 
     private Location nearby(World world, Location center) {
@@ -230,7 +297,7 @@ public final class SpawnDirector {
     private boolean nearAnySurvivor(World world, Location spot, double distance) {
         double squared = distance * distance;
         for (Player player : world.getPlayers()) {
-            if (player.getLocation().distanceSquared(spot) < squared) return true;
+            if (!SpawnDistance.outside(spot.getX(),spot.getZ(),player.getX(),player.getZ(),distance)) return true;
         }
         return false;
     }

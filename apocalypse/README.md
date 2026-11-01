@@ -4,6 +4,39 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Bâtiments, sonar et bestiaire — alpha.11
+
+**La ville devient praticable.** Entrées des maisons étroites dégagées, portes cohérentes et approches reliées à la rue. La rénovation vérifie les accès aux pièces, lits, escaliers et coffres avant modification. Les inventaires, blocs personnalisés et bases revendiquées sont conservés ; un bâtiment dont un ajout bloque le passage est ignoré. Aucune régénération du monde.
+
+Pour préserver un quartier, crée `plugins/DuckCatApocalypse/renovation-exclusions.json` :
+
+```json
+{"version":1,"areas":[{"world":"ground_zero","label":"Mon quartier","minX":0,"maxX":95,"minZ":0,"maxZ":95}]}
+```
+
+Toutes les hauteurs sont couvertes, bornes incluses. Les bâtiments dont l’approche touche la zone sont entièrement exclus. Un fichier de protection invalide bloque la rénovation. Le panneau Maintenance affiche les exclusions. La rénovation avance si le monde est vide ou si tous les joueurs restent dans les quartiers préservés. Elle se met en pause dès qu’un joueur se trouve ailleurs.
+
+**Repère le danger avant le contact.** Sonar de **100 blocs** dans Minecraft et sur le site. Accroupi + clic droit : zoom 50 / 100 blocs. Points bleus extérieurs : direction des joueurs éloignés. Actualisation native toutes les 500 ms, web toutes les 5 s ; aucun chargement de chunk par le radar.
+
+**Ils arrivent de loin.** Chaque apparition automatique, animal infecté, renfort et membre d’une horde reste à **150 blocs horizontalement de tous les joueurs** au minimum. Préparation asynchrone, deux groupes d’approche et 36 chunks simultanés au maximum ; journal d’appartenance et nettoyage à l’arrêt. Les infectés approchent le lieu initial sans suivre les coordonnées d’un joueur caché. L’approche expire après deux minutes ; les plafonds incluent les réservations. Les hordes annoncent une préparation, pas un nombre déjà apparu.
+
+| Infecté | Comment réagir |
+|---|---|
+| Cracheur d’acide | Charge verte, crachat à vue jusqu’à 20 blocs, flaque de 3 s. Frapper pendant la préparation l’interrompt. |
+| Bondisseur | Élan avant un saut physique de plus de 3 blocs ; récupération de 7 s. |
+| Rampant | Collision native de moins d’un bloc. Surveille les passages bas. |
+| Traqueur décharné | Approche silencieuse, cri avant une courte accélération, puis récupération. |
+| Boursouflé | Nuage toxique de 4 s sur 3 blocs autour du corps après élimination. Recule ! |
+| Briseur | Force de siège doublée (14 → 28 par défaut), sans doubler ses dégâts directs. |
+
+Acide et nuages respectent le refuge, les protections d’arrivée, les joueurs hors scénario, les modes créatif/spectateur et les murs. Aucun bloc, inventaire ou animal sain n’est abîmé. Plafonds de 12 projectiles et 12 zones actives ; dégâts toxiques limités à une application par joueur et par seconde.
+
+**Pack original facultatif (~100 Ko).** Six modèles et six sons, sans mod. L’installation HTTPS prépare son URL portable. Le client peut refuser ; les créatures restent natives avec les mêmes statistiques. Si un joueur présent n’a pas chargé le pack, l’apparence native est conservée pour tous. Au plus 16 modèles de trois pièces sont animés près des joueurs. Les autres packs du serveur restent chargés.
+
+`/apocalypse admin horror-selftest` vérifie les vrais crachats, murs, sauts, rigs et locations de chunks dans un scénario vide. Résultat : `horror-selftest.json`. Le rendu final et l’acceptation du pack demandent aussi une vérification avec un client Minecraft.
+
+La migration vers le contenu 5 sauvegarde `config.yml`, relève les distances, double une seule fois la force de siège et ajoute les profils rares. Les autres règles et poids existants restent conservés ; un poids 0 désactive un profil.
+
 ## Apparitions extérieures — alpha.10
 
 Les apparitions automatiques restent **dehors** : les intérieurs des bâtiments sont exclus, même après une modification de leur toit. Un toit ajouté par les joueurs bloque aussi les apparitions dessous et sur le toit dans le monde généré Ground Zero. Le même filtre s'applique aux apparitions ordinaires, animaux infectés du directeur, renforts des hurleurs et à chaque membre d'une horde. Les infectés déjà présents peuvent toujours entrer en marchant ou en enfonçant les obstacles.
@@ -40,7 +73,7 @@ Le test Paper asynchrone `/apocalypse admin turret-selftest` est réservé à un
 - **Un départ équipé** : chaque nouvelle vie reçoit une arme de mêlée aléatoire, 4–6 aliments, 2 bandages, 8 torches, une pioche et des provisions aléatoires. Une reconnexion ne redonne pas le kit. Les vies existantes reçoivent ce kit une seule fois.
 - **Fouille plus généreuse** : 5–9 piles dans les maisons et boutiques, 7–12 au supermarché, 4–8 à la police et à l'entrepôt lorsque les anciens réglages par défaut étaient utilisés. Les anciens conteneurs de fouille reçoivent une seule fois 3 piles supplémentaires dans leurs emplacements libres. Les coffres des joueurs sont exclus.
 - **Trois armes à feu sans balles** : pistolet au clic droit ; fusil à pompe à courte portée ; mitraillette en maintenant le clic droit. Une usure par tir, y compris une gerbe complète. Réparation à l'atelier avant la casse ; règles de PvP et du refuge respectées. Visuels Minecraft vanilla, aucun pack ni mod obligatoire.
-- **Sonar personnel** : carte en seconde main (F), cercle de 10 blocs orienté selon le regard. Survivants en bleu, infectés et joueurs mordus proches en rouge ; joueurs lointains sur l'anneau extérieur bleu. `/apocalypse radar` récupère une carte perdue. Sur le panneau, sélectionne un survivant pour son sonar (positions toutes les 5 secondes).
+- **Sonar personnel** : carte en seconde main (F), cercle de 100 blocs orienté selon le regard. Survivants en bleu, infectés et joueurs mordus proches en rouge ; joueurs lointains sur l'anneau extérieur bleu. `/apocalypse radar` récupère une carte perdue. Sur le panneau, sélectionne un survivant pour son sonar (positions toutes les 5 secondes).
 - **Maisons et magasins** : pièces meublées, cuisines, salles de bain, escaliers d'immeuble et rayons contenant du stock à prendre au clic droit. Les nouvelles zones utilisent ces modèles dès leur génération.
 - **Rénovation de l'existant** : Ground Zero → Maintenance. Zone limitée et scénario vide ; préparation asynchrone des chunks déjà générés seulement. Pause tant qu'un joueur est dans ce monde. Seuls les blocs encore identiques au modèle d'origine sont remplacés ; conteneurs, ajouts et bases revendiquées conservés. Un ancien coffre peut donc rester à son emplacement d'origine.
 

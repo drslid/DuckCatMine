@@ -298,32 +298,45 @@
     </div>
   </div>
 {:else if tab === 'backups'}<article class="card">
-    <div class="card-heading">
+    <div class="card-heading backup-heading">
       <div>
         <h2>Protéger le monde</h2>
-        <p class="muted">Crée une sauvegarde sans déconnecter les joueurs.</p>
+        <p class="muted">Les {status.backupLimit || 5} dernières sauvegardes sont conservées automatiquement.</p>
+        <p class="muted">{status.backups?.length || 0} archives · {bytes((status.backups || []).reduce((sum, b) => sum + b.size, 0))} utilisés</p>
       </div>
-      <button class="primary" disabled={busy} onclick={() => startJob('backup')}
+      <button class="primary" disabled={busy || !!job} onclick={() => startJob('backup')}
         ><Icon name="save" />Sauvegarder</button
       >
     </div>
     {#if jobText}<p role="status">{jobText}</p>{/if}
+    {#if status.backupWarning}<p role="alert" class="backup-warning">{status.backupWarning}</p>{/if}
     <div class="backup-list">
       {#each status.backups || [] as b}<div class="backup-entry">
           <div>
             <strong>{new Date(b.at).toLocaleString('fr-FR')}</strong><small
-              >{bytes(b.size)}</small
+            >{bytes(b.size)}{b.canDelete === false ? ' · La plus récente, protégée' : ''}</small
             >
           </div>
           <a class="quiet" href={`/api/backups/${encodeURIComponent(b.name)}`}
             >Télécharger</a
           ><button
             class="quiet"
+            disabled={busy || !!job}
             onclick={() => {
               archive = b.name;
+              confirmText = '';
+              password = '';
               operation = 'restore';
             }}>Restaurer</button
           >
+          <button class="quiet backup-delete" disabled={busy || !!job || b.canDelete === false}
+            title={b.canDelete === false ? 'La sauvegarde la plus récente est protégée' : 'Supprimer cette archive'}
+            onclick={() => {
+              archive = b.name;
+              confirmText = '';
+              password = '';
+              operation = 'backup-delete';
+            }}><Icon name="trash" size={15} />Supprimer</button>
         </div>{/each}{#if !status.backups?.length}<p class="empty">
           Les sauvegardes apparaîtront ici.
         </p>{/if}
@@ -472,6 +485,8 @@
         <h2>
           {operation === 'restore'
             ? 'Restaurer le monde'
+            : operation === 'backup-delete'
+              ? 'Supprimer cette sauvegarde'
             : operation === 'apply'
               ? 'Appliquer les réglages'
               : 'Programmer une relance'}
@@ -488,18 +503,21 @@
       <p>
         {operation === 'restore'
           ? 'Le monde actuel sera remplacé par l’archive choisie. Une copie de sécurité sera conservée.'
+          : operation === 'backup-delete'
+            ? 'Cette archive sera supprimée définitivement. Le monde en cours reste intact et les joueurs restent connectés.'
           : 'Une sauvegarde du monde sera créée avant le redémarrage.'}
       </p>
+      {#if operation === 'backup-delete'}<p class="backup-filename">{archive}<br />{bytes(status.backups?.find((b) => b.name === archive)?.size || 0)} à libérer</p>{/if}
       <form
         onsubmit={(e) => {
           e.preventDefault();
           startJob(operation);
         }}
       >
-        {#if operation === 'restore'}<label
-            >Tape RESTAURER<input
+        {#if operation === 'restore' || operation === 'backup-delete'}<label
+            >Tape {operation === 'restore' ? 'RESTAURER' : 'SUPPRIMER'}<input
               bind:value={confirmText}
-              pattern="RESTAURER"
+              pattern={operation === 'restore' ? 'RESTAURER' : 'SUPPRIMER'}
               required
             /></label
           >{/if}<label
@@ -509,7 +527,7 @@
             bind:value={password}
             required
           /></label
-        ><button class="primary full" disabled={busy}>Confirmer</button>
+        ><button class="primary full" disabled={busy}>{operation === 'backup-delete' ? 'Supprimer définitivement' : 'Confirmer'}</button>
       </form>
     </div>
   </div>{/if}

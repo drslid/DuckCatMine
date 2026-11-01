@@ -1,0 +1,28 @@
+name: Build Paper plugins
+on:
+  push:
+    branches: [main]
+    paths: ['towers/**', 'welcome/**', 'apocalypse/**', 'Dockerfile.plugins', '.github/workflows/plugins.yml']
+  pull_request:
+    paths: ['towers/**', 'welcome/**', 'apocalypse/**', 'Dockerfile.plugins', '.github/workflows/plugins.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: plugins-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Build and test
+        run: |
+          mvn -B -f towers/pom.xml package
+          mvn -B -f welcome/pom.xml package
+          mvn -B -f apocalypse/pom.xml verify

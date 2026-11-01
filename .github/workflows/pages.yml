@@ -31,9 +31,13 @@ jobs:
           npm ci
           node --test runtime.test.js
           node --test plugins.test.js
+          node --test apocalypse.test.js
+          node --test map-picker.test.js
+          node --test resource-pack.test.js
+          python3 ../resource-pack/test_pack.py
           node smoke-test.js
           python3 -m pip install PyYAML==6.0.2
-          python3 -m unittest worker_test plugin_manager_test
+          python3 -m unittest worker_test plugin_manager_test backup_manager_test
       - name: Build UI and server-free demo
         working-directory: admin/client
         run: |

@@ -1,9 +1,14 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { copyDemoAssets } from './demo-assets.mjs';
 export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [svelte(), {
     name: 'demo-head',
+    writeBundle(options) {
+      if (mode !== 'demo' || !options.dir) return;
+      copyDemoAssets(options.dir);
+    },
     transformIndexHtml(html) {
       if (mode !== 'demo') return html;
       return html.replace(/<link\s+rel="manifest"[^>]*>/g, '')

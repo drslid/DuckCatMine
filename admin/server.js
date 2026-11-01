@@ -43,6 +43,9 @@ class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
+const { makeApocalypseCommands, failure: apocalypseFailure } = require('./apocalypse');
+const { command: apocalypseCommand } = makeApocalypseCommands(HttpError);
+
 fs.mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
 fs.mkdirSync(JOBS_DIR, { recursive: true, mode: 0o700 });
 fs.mkdirSync(CUSTOM_ITEMS_DIR, { recursive: true, mode: 0o700 });
@@ -306,12 +309,42 @@ function panelReply(raw) {
     range: [400, 'Quantité hors limites pour cet objet.'],
     invalid: [400, 'Objet ou emplacement invalide.'],
     syntax: [400, 'Action invalide.'],
+    scenario: [409, SCENARIO_REFUSAL],
   };
   if (value.error) {
     const [status, message] = errors[value.error] || [502, 'Le jeu a refusé cette action.'];
     throw new HttpError(status, message);
   }
   return value;
+}
+
+const SCENARIO_REFUSAL = 'Ce joueur est dans Ground Zero : action bloquée pour respecter les règles du scénario.';
+const APOCALYPSE_DIR = path.join('plugins', 'DuckCatApocalypse');
+
+// DuckCatApocalypse writes status.json every 5 s; older than 30 s means the server or the plugin is stopped.
+function apocalypseStatus() {
+  const status = readJsonFile(path.join(APOCALYPSE_DIR, 'status.json'), null);
+  if (!status || typeof status !== 'object' || Array.isArray(status)) return { installed: false };
+  const age = Date.now() - Number(status.generatedAt || 0);
+  const fresh = age > -60000 && age < 30000 && status.running !== false;
+  let mapRenderedAt = null;
+  try { mapRenderedAt = fs.statSync(path.join(MC_DATA_DIR, APOCALYPSE_DIR, 'map.png')).mtimeMs; } catch {}
+  return { ...status, installed: true, stale: !fresh, ageSeconds: Math.round(age / 1000), mapRenderedAt,
+    survivors: fresh && Array.isArray(status.survivors) ? status.survivors : [],
+    infectedPositions: fresh && Array.isArray(status.infectedPositions) ? status.infectedPositions.slice(0,512) : [] };
+}
+
+function scenarioSurvivor(player) {
+  const status = apocalypseStatus();
+  return status.installed && status.survivors.some((survivor) => String(survivor?.name || '').toLowerCase() === player.toLowerCase());
+}
+
+// A missing bridge or an offline player is left to the command itself.
+async function refuseScenarioPlayer(player) {
+  if (scenarioSurvivor(player)) throw new HttpError(409, SCENARIO_REFUSAL);
+  let scenario = null;
+  try { scenario = panelReply(await rcon(`dcpanel status ${player}`)).scenario; } catch {}
+  if (scenario) throw new HttpError(409, SCENARIO_REFUSAL);
 }
 
 function panelSlot(value) {
@@ -415,7 +448,7 @@ const statusSnapshot = new SharedSnapshot(async () => {
   return {
     online: answers.length > 0, players: answers[0] || '', tps: answers[1] || '', mspt: answers[2] || '', ...meta,
     ops: readJsonFile('ops.json', []), whitelist: readJsonFile('whitelist.json', []),
-    backups: backups(), properties: properties(), logs: await recentLog(), metrics: systemMetrics(),
+    backups: backups(), backupLimit: 5, backupWarning: backupWarning(), properties: properties(), logs: await recentLog(), metrics: systemMetrics(),
     pending: pendingSettings(), scheduledRestart: scheduledRestart(), observedAt: new Date().toISOString(),
     address: process.env.MC_ADDRESS || new URL(ORIGIN).hostname, mapStart: mapStart(), mapPolicy: mapPolicy(),
     gameVersion: gameVersion(),
@@ -521,13 +554,25 @@ function backups() {
     return fs.readdirSync(BACKUP_DIR)
       .filter((name) => /^(world|manual|pre-restore)-[0-9-]+\.tar\.gz$/.test(name))
       .map((name) => {
-        const stat = fs.statSync(path.join(BACKUP_DIR, name));
-        return { name, size: stat.size, mtimeMs: stat.mtimeMs };
+        try {
+          const stat = fs.lstatSync(path.join(BACKUP_DIR, name));
+          return stat.isFile() && stat.size > 0 ? { name, size: stat.size, mtimeMs: stat.mtimeMs } : null;
+        } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
       })
-      .sort((a, b) => b.mtimeMs - a.mtimeMs)
-      .slice(0, 20)
-      .map(({ name, size, mtimeMs }) => ({ name, size, at: new Date(mtimeMs).toISOString() }));
+      .filter(Boolean)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name))
+      .map(({ name, size, mtimeMs }, index) => ({ name, size, at: new Date(mtimeMs).toISOString(), canDelete: index > 0 }));
   } catch { return []; }
+}
+
+function backupWarning() {
+  try {
+    const verified = JSON.parse(fs.readFileSync(path.join(JOBS_DIR, 'backup-verification.json'), 'utf8'));
+    if (verified.ok || !Array.isArray(verified.identity)) return '';
+    const [name, size, mtimeNs] = verified.identity;
+    const { stat } = backupFile(name);
+    return stat.size === size && Math.abs(stat.mtimeMs - mtimeNs / 1e6) < 1 ? verified.error : '';
+  } catch { return ''; }
 }
 
 function pendingSettings() {
@@ -591,7 +636,7 @@ function backupFile(name) {
   if (!/^(world|manual|pre-restore)-[0-9-]+\.tar\.gz$/.test(name)) throw new HttpError(400, 'Nom de sauvegarde invalide.');
   const filename = path.join(BACKUP_DIR, name);
   let stat;
-  try { stat = fs.statSync(filename); }
+  try { stat = fs.lstatSync(filename); }
   catch (error) { if (error.code === 'ENOENT') throw new HttpError(404, 'Sauvegarde introuvable.'); throw error; }
   if (!stat.isFile()) throw new HttpError(404, 'Sauvegarde introuvable.');
   return { filename, stat };
@@ -622,10 +667,12 @@ function properties() {
 }
 
 const servePlugins = pluginRoutes({ jobs: JOBS_DIR, requireSession, requireCsrf, body, json, enqueueJob, audit, HttpError });
+const serveResourcePack = require('./resource-pack').resourcePackRoute(path.join(__dirname,'public','packs'));
 
 async function serve(req, res) {
   securityHeaders(res);
   const url = new URL(req.url, ORIGIN);
+  if (serveResourcePack(req,res,url)) return;
   if (await servePlugins(req, res, url)) return;
   if (req.method === 'POST' && /^\/api\/(?:command|settings|jobs|map\/policy)$/.test(url.pathname)) {
     res.once('finish', () => { if (res.statusCode < 400) {
@@ -671,6 +718,13 @@ async function serve(req, res) {
     if (!fs.existsSync(filename)) throw new HttpError(404, 'Image introuvable.');
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=604800');
+    return fs.createReadStream(filename).pipe(res);
+  }
+  if (req.method === 'GET' && (/^\/horror\/(spitter|jumper|crawler|stalker|bloated|breaker|abomination)\.svg$/.test(url.pathname) || /^\/weapons\/(pistol|shotgun|smg|rocket_launcher)\.svg$/.test(url.pathname))) {
+    const filename=path.join(__dirname,'public',url.pathname.startsWith('/weapons/')?'weapons':'horror',path.basename(url.pathname));
+    if (!fs.existsSync(filename)) throw new HttpError(404,'Image introuvable.');
+    res.setHeader('Content-Type','image/svg+xml');
+    res.setHeader('Cache-Control','public, max-age=604800');
     return fs.createReadStream(filename).pipe(res);
   }
   if (req.method === 'POST' && url.pathname === '/api/invite-info') {
@@ -959,8 +1013,17 @@ async function serve(req, res) {
     if (input.type === 'backup') {
       return json(res, 202, { id: enqueueJob('backup', session.username) });
     }
-    if (!['apply', 'restore', 'restart'].includes(input.type)) throw new HttpError(400, 'Opération inconnue.');
+    if (!['apply', 'restore', 'restart', 'backup-delete'].includes(input.type)) throw new HttpError(400, 'Opération inconnue.');
     if (!(await checkPasswordAsync(input.password, readUsers()[session.username]))) throw new HttpError(403, 'Mot de passe incorrect.');
+    if (input.type === 'backup-delete') {
+      if (input.confirm !== 'SUPPRIMER') throw new HttpError(400, 'Confirmation manquante.');
+      const name = String(input.backup || '');
+      const { stat } = backupFile(name);
+      if (!backups().find((backup) => backup.name === name)?.canDelete) throw new HttpError(409, 'La sauvegarde la plus récente est protégée.');
+      return json(res, 202, { id: enqueueJob('backup-delete', session.username, {
+        backup: name, expected: { size: stat.size, mtimeMs: stat.mtimeMs },
+      }) });
+    }
     if (input.type === 'restart') return json(res, 202, { id: scheduledRestart()?.id || enqueueJob('restart', session.username) });
     const players = await rcon('list');
     if (!/\b0 of a max of \d+ players online\b/.test(players)) throw new HttpError(409, 'Attends que tous les joueurs soient déconnectés.');
@@ -997,6 +1060,7 @@ async function serve(req, res) {
         || !Number.isInteger(count) || count < 1 || count > 64) {
       throw new HttpError(400, 'Pseudo, identifiant d’objet ou quantité invalide (1 à 64).');
     }
+    await refuseScenarioPlayer(player);
     const command = `give ${player} ${item.includes(':') ? item : `minecraft:${item}`} ${count}`;
     const result = await rcon(command);
     audit('give_item', session.username, `${player} ${item} ${count}`);
@@ -1015,6 +1079,7 @@ async function serve(req, res) {
         || !Number.isInteger(count) || count < 1 || count > 64 || !['give', 'drop'].includes(mode)) {
       throw new HttpError(400, 'Choisis un joueur, un objet du catalogue et une quantité de 1 à 64.');
     }
+    await refuseScenarioPlayer(player);
     const command = mode === 'give' ? `give ${player} ${id} ${count}`
       : `execute at ${player} run summon item ^ ^1 ^2 {Item:{id:"${id}",count:${count}}}`;
     const result = await rcon(command);
@@ -1158,6 +1223,7 @@ async function serve(req, res) {
     const count = Number(input.count);
     if (!customItems().some((item) => item.id === id) || !/^[A-Za-z0-9_]{3,16}$/.test(player)
         || !Number.isInteger(count) || count < 1 || count > 64) throw new HttpError(400, 'Objet, joueur ou quantité invalide.');
+    await refuseScenarioPlayer(player);
     const result = await rcon(`mcraft give ${id} ${count} ${player}`);
     if (/unknown command|not found|not online|error|failed/i.test(result)) throw new HttpError(409, result);
     audit('custom_item_given', session.username, `${id} ${count} ${player}`);
@@ -1172,6 +1238,7 @@ async function serve(req, res) {
     if (!/^[A-Za-z0-9_]{3,16}$/.test(player) || !['loco', 'loco_anim', 'carr', 'carg', 'carb'].includes(model)) {
       throw new HttpError(400, 'Joueur ou modèle de train invalide.');
     }
+    await refuseScenarioPlayer(player);
     const result = await rcon(`train chest give ${player} --finite --locked --train ${model}`);
     if (/unknown command|failed to find|not found|no player/i.test(result)) throw new HttpError(409, result);
     audit('train_chest', session.username, `${player} ${model}`);
@@ -1218,6 +1285,34 @@ async function serve(req, res) {
     audit('skin_gallery_apply', session.username, `${player} ${source}:${id}`);
     return json(res, 200, { result: result || `Skin appliqué à ${player}.` });
   }
+  if (req.method === 'GET' && url.pathname === '/api/apocalypse') {
+    requireSession(req);
+    return json(res, 200, apocalypseStatus());
+  }
+  if (req.method === 'GET' && url.pathname === '/api/apocalypse/map.png') {
+    requireSession(req);
+    const filename = path.join(MC_DATA_DIR, APOCALYPSE_DIR, 'map.png');
+    let stat;
+    try { stat = fs.statSync(filename); } catch { throw new HttpError(404, 'Aucune carte : lance un rendu.'); }
+    if (!stat.isFile() || stat.size > 64 * 1024 * 1024) throw new HttpError(404, 'Carte indisponible.');
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'private, no-cache');
+    return fs.createReadStream(filename).pipe(res);
+  }
+  if (req.method === 'POST' && url.pathname === '/api/apocalypse/action') {
+    const session = requireSession(req);
+    requireCsrf(req, session);
+    const input = await body(req);
+    const { command, detail } = apocalypseCommand(input, apocalypseStatus(), session.username);
+    const result = await rcon(command, 60000);
+    const refused = apocalypseFailure(result);
+    if (refused) {
+      audit(`apocalypse_${input.action}_refused`, session.username, `${detail} ${refused}`.slice(0, 500));
+      throw new HttpError(409, refused.slice(0, 1000));
+    }
+    audit(`apocalypse_${input.action}`, session.username, detail);
+    return json(res, 200, { pending: result.match(/DCAPO_PENDING:([a-f0-9-]{36})/)?.[1], result: result.replace(/☣\s*/g, '').trim().slice(0, 8000) });
+  }
   if (req.method === 'POST' && url.pathname === '/api/events') {
     const session = requireSession(req);
     requireCsrf(req, session);
@@ -1231,6 +1326,7 @@ async function serve(req, res) {
     if (['loot', 'horde'].includes(kind) && (!/^[A-Za-z0-9_]{3,16}$/.test(player) || !names.includes(player))) {
       throw new HttpError(400, 'Choisis un joueur connecté.');
     }
+    if (['loot', 'horde'].includes(kind)) await refuseScenarioPlayer(player);
     if (kind !== 'stop' && Date.now() < (eventCooldowns.get(kind) || 0)) {
       throw new HttpError(429, 'Attends quelques secondes avant de relancer cet événement.');
     }

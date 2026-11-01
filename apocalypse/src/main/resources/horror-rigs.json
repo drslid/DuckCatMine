@@ -1,0 +1,258 @@
+{
+  "version": 2,
+  "parts": [
+    "body",
+    "head",
+    "arm_left",
+    "arm_right",
+    "left",
+    "right"
+  ],
+  "models": {
+    "spitter": {
+      "height": 29,
+      "pivots": {
+        "body": [
+          8,
+          11,
+          8
+        ],
+        "head": [
+          8,
+          23,
+          8
+        ],
+        "arm_left": [
+          3,
+          21,
+          8
+        ],
+        "arm_right": [
+          13,
+          21,
+          8
+        ],
+        "left": [
+          5,
+          11,
+          8
+        ],
+        "right": [
+          11,
+          11,
+          8
+        ]
+      }
+    },
+    "jumper": {
+      "height": 23,
+      "pivots": {
+        "body": [
+          8,
+          9,
+          8
+        ],
+        "head": [
+          8,
+          17,
+          12
+        ],
+        "arm_left": [
+          2,
+          17,
+          8
+        ],
+        "arm_right": [
+          14,
+          17,
+          8
+        ],
+        "left": [
+          4,
+          9,
+          8
+        ],
+        "right": [
+          12,
+          9,
+          8
+        ]
+      }
+    },
+    "crawler": {
+      "height": 12,
+      "pivots": {
+        "body": [
+          8,
+          5,
+          8
+        ],
+        "head": [
+          8,
+          7,
+          15
+        ],
+        "arm_left": [
+          2,
+          6,
+          12
+        ],
+        "arm_right": [
+          14,
+          6,
+          12
+        ],
+        "left": [
+          5,
+          4,
+          1
+        ],
+        "right": [
+          11,
+          4,
+          1
+        ]
+      }
+    },
+    "stalker": {
+      "height": 32,
+      "pivots": {
+        "body": [
+          8,
+          11,
+          8
+        ],
+        "head": [
+          8,
+          24,
+          8
+        ],
+        "arm_left": [
+          3,
+          23,
+          8
+        ],
+        "arm_right": [
+          13,
+          23,
+          8
+        ],
+        "left": [
+          5,
+          11,
+          8
+        ],
+        "right": [
+          11,
+          11,
+          8
+        ]
+      }
+    },
+    "bloated": {
+      "height": 28,
+      "pivots": {
+        "body": [
+          8,
+          7,
+          8
+        ],
+        "head": [
+          8,
+          22,
+          9
+        ],
+        "arm_left": [
+          1,
+          20,
+          8
+        ],
+        "arm_right": [
+          15,
+          20,
+          8
+        ],
+        "left": [
+          5,
+          7,
+          8
+        ],
+        "right": [
+          11,
+          7,
+          8
+        ]
+      }
+    },
+    "breaker": {
+      "height": 32,
+      "pivots": {
+        "body": [
+          8,
+          10,
+          8
+        ],
+        "head": [
+          8,
+          24,
+          8
+        ],
+        "arm_left": [
+          0,
+          23,
+          8
+        ],
+        "arm_right": [
+          16,
+          23,
+          8
+        ],
+        "left": [
+          4,
+          10,
+          8
+        ],
+        "right": [
+          12,
+          10,
+          8
+        ]
+      }
+    },
+    "abomination": {
+      "height": 32,
+      "pivots": {
+        "body": [
+          8,
+          10,
+          8
+        ],
+        "head": [
+          8,
+          24,
+          8
+        ],
+        "arm_left": [
+          0,
+          23,
+          8
+        ],
+        "arm_right": [
+          16,
+          23,
+          8
+        ],
+        "left": [
+          4,
+          10,
+          8
+        ],
+        "right": [
+          12,
+          10,
+          8
+        ]
+      }
+    }
+  }
+}

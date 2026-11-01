@@ -5,7 +5,7 @@ import argparse, base64, hashlib, html, json, math, random, shutil, struct, subp
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 FORMAT = [97, 1]  # Minecraft Java 26.3, verified against its version.json and Mojang release notes.
 ROSTER = {
     "spitter": ("Cracheur d’acide", (83, 106, 62), (215, 244, 82)),
@@ -53,7 +53,7 @@ def box(start, end, texture="#skin", angle=0, axis="z", origin=(8, 16, 8), front
     if light: value["light_emission"] = light
     return value
 
-def thumbnail(path: Path, elements, assets: Path, kind: str, label: str):
+def thumbnail(path: Path, elements, assets: Path, kind: str, label: str, texture_paths=None):
     """Actual model faces and original textures, baked to a small standalone SVG for the panel."""
     def project(v):
         x,y,z=v
@@ -78,8 +78,8 @@ def thumbnail(path: Path, elements, assets: Path, kind: str, label: str):
     minx=min(x for x,y in all_points);maxx=max(x for x,y in all_points);miny=min(y for x,y in all_points);maxy=max(y for x,y in all_points)
     size=max(maxx-minx,maxy-miny)+6;ox=(minx+maxx-size)/2;oy=(miny+maxy-size)/2
     svg=[f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{ox:.2f} {oy:.2f} {size:.2f} {size:.2f}" role="img"><title>{html.escape(label)}</title><defs>']
-    for key in ['skin','face','wound','bone','eye']:
-        data=base64.b64encode((assets/'textures/item/horror'/f'{kind}_{key}.png').read_bytes()).decode()
+    for key,file in (texture_paths or {k:assets/'textures/item/horror'/f'{kind}_{k}.png' for k in ['skin','face','wound','bone','eye']}).items():
+        data=base64.b64encode(file.read_bytes()).decode()
         svg.append(f'<image id="{key}" width="32" height="32" href="data:image/png;base64,{data}" image-rendering="pixelated"/>')
     svg.append('</defs>')
     for _,points,key,shade in sorted(faces,key=lambda f:f[0]):
@@ -132,15 +132,17 @@ def geometry(kind: str):
     return {"body": body, "left": left, "right": right}
 
 def sound(path: Path, name: str, ffmpeg: str, work: Path):
-    duration = 0.65 if name in ("spit", "jump") else 1.5
+    gun=name in ('pistol','shotgun','smg','rocket_launch','rocket_impact')
+    duration = {'pistol':.22,'shotgun':.4,'smg':.16,'rocket_launch':.8,'rocket_impact':1.2}.get(name,0.65 if name in ('spit','jump') else 1.5)
     rate = 22050; rng = random.Random(name); filtered = 0.0; samples = []
     for n in range(int(rate*duration)):
         t = n/rate; noise = rng.uniform(-1, 1); filtered = .94*filtered+.06*noise
         envelope = min(1, t/.045)*max(0, 1-t/duration)**.65
-        frequency = {"charge": 73, "spit": 220, "jump": 95, "breath": 42, "burst": 55, "growl": 48}[name]
+        frequency = {"charge":73,"spit":220,"jump":95,"breath":42,"burst":55,"growl":48,'pistol':95,'shotgun':55,'smg':110,'rocket_launch':65,'rocket_impact':38}[name]
         tone = math.sin(2*math.pi*frequency*t + 2.8*math.sin(t*19))
         grit = .5*math.sin(2*math.pi*frequency*2.37*t) + .5*math.sin(2*math.pi*frequency*3.1*t)
         value = (noise*.55+filtered*2) if name in ("spit", "burst") else tone*.32+grit*.2+filtered*2.5
+        if gun:value=(noise*.65+filtered*2+tone*.4)*math.exp(-t*(11 if name in ('pistol','smg','shotgun') else 3))
         value *= envelope * (.55+.25*math.sin(t*31)**2)
         samples.append(int(max(-.92,min(.92,value))*32767))
     wav = work/(name+".wav")
@@ -153,7 +155,7 @@ def build(output: Path, ffmpeg: str):
     output = output.resolve(); output.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="pack-build-",dir=output) as temporary:
         work=Path(temporary);pack=work/"pack";assets=pack/"assets"/"duckcatmine";preview=[]
-        write_json(pack/"pack.mcmeta",{"pack":{"min_format":FORMAT,"max_format":FORMAT,"description":"DuckCatMine · Ground Zero — bestiaire et sons"}})
+        write_json(pack/"pack.mcmeta",{"pack":{"min_format":FORMAT,"max_format":FORMAT,"description":"DuckCatMine · Ground Zero — bestiaire, armes et sons"}})
         shutil.copyfile(ROOT.parent/"LICENSE",pack/"LICENSE.txt")
         for index,(kind,(label,base,eye)) in enumerate(ROSTER.items()):
             texture(assets/"textures/item/horror"/(kind+"_skin.png"),base,eye,index*71)
@@ -167,14 +169,17 @@ def build(output: Path, ffmpeg: str):
                 write_json(assets/"items"/(model+".json"),{"model":{"type":"minecraft:model","model":"duckcatmine:item/"+model}})
                 write_json(assets/"models/item"/(model+".json"),{"gui_light":"side","textures":{key:"duckcatmine:item/horror/"+kind+"_"+key for key in ["skin","face","wound","bone","eye"]},"elements":elements})
             preview.append({"id":kind,"name":label,"skin":base,"eyes":eye,"parts":parts})
+        from weapons import build_weapons
+        weapons=build_weapons(assets,ROOT.parent/'admin/public/weapons',png,box,write_json,thumbnail)
         sounds={}
-        for name in ["charge","spit","jump","breath","burst","growl"]:
+        for name in ["charge","spit","jump","breath","burst","growl","pistol","shotgun","smg","rocket_launch","rocket_impact"]:
             sound(assets/"sounds/horror"/(name+".ogg"),name,ffmpeg,work)
             sounds["horror."+name]={"subtitle":"duckcatmine.subtitle."+name,"sounds":[{"name":"duckcatmine:horror/"+name,"attenuation_distance":24}]}
         write_json(assets/"sounds.json",sounds)
         labels={"charge":"Un infecté prépare une attaque","spit":"Crachat d’acide","jump":"Un infecté bondit","breath":"Une respiration inquiétante","burst":"Un nuage toxique se répand","growl":"Un briseur gronde"}
+        labels.update(pistol='Tir de pistolet',shotgun='Tir de fusil à pompe',smg='Rafale de mitraillette',rocket_launch='Départ de roquette',rocket_impact='Explosion de roquette')
         write_json(assets/"lang/fr_fr.json",{"duckcatmine.subtitle."+k:v for k,v in labels.items()})
-        write_json(assets/"lang/en_us.json",{"duckcatmine.subtitle."+k:v for k,v in {"charge":"An infected prepares an attack","spit":"Acid spits","jump":"An infected leaps","breath":"Uneasy breathing","burst":"A toxic cloud spreads","growl":"A breaker growls"}.items()})
+        write_json(assets/"lang/en_us.json",{"duckcatmine.subtitle."+k:v for k,v in {"charge":"An infected prepares an attack","spit":"Acid spits","jump":"An infected leaps","breath":"Uneasy breathing","burst":"A toxic cloud spreads","growl":"A breaker growls","pistol":"Pistol shot","shotgun":"Shotgun blast","smg":"Submachine gun burst","rocket_launch":"Rocket launch","rocket_impact":"Rocket impact"}.items()})
         temporary_zip=work/"pack.zip"
         with zipfile.ZipFile(temporary_zip,"w",zipfile.ZIP_DEFLATED,compresslevel=9) as z:
             for path in sorted(pack.rglob("*")):
@@ -184,7 +189,7 @@ def build(output: Path, ffmpeg: str):
         data=temporary_zip.read_bytes();sha1=hashlib.sha1(data).hexdigest();name="duckcatmine-horror-"+sha1[:16]+".zip"
         (output/name).write_bytes(data)
         write_json(output/"manifest.json",{"version":VERSION,"minecraft":"26.3","format":FORMAT,"filename":name,"sha1":sha1,"size":len(data),"path":"/packs/"+name,"license":"GPL-3.0-only"})
-        write_json(output/"preview.json",{"version":VERSION,"models":preview})
+        write_json(output/"preview.json",{"version":VERSION,"models":preview,"weapons":weapons})
         assert len(data)<1024*1024,"Resource pack exceeds its lightweight budget"
         print(json.dumps({"file":str(output/name),"size":len(data),"sha1":sha1,"models":len(preview),"sounds":len(sounds)},ensure_ascii=False))
 

@@ -64,7 +64,8 @@ public final class ItemRegistry {
 
     public static final String PISTOL = "pistol";
     public static final String SHOTGUN = "shotgun", SMG = "smg", RADAR = "radar";
-    public static final Set<String> GUNS = Set.of(PISTOL, SHOTGUN, SMG);
+    public static final String ROCKET_LAUNCHER="rocket_launcher";
+    public static final Set<String> GUNS = Set.of(PISTOL, SHOTGUN, SMG,ROCKET_LAUNCHER);
     public static final String AMMO = "ammo";
     public static final String DECOY = "decoy";
     public static final String WORKSHOP = "workshop";
@@ -133,6 +134,8 @@ public final class ItemRegistry {
                 List.of("Clic droit : gerbe de 8 plombs, portée courte.", "Sans munitions · 96 tirs · réparable à l'atelier.")));
         definitions.put(SMG, new Definition("Mitraillette", NamedTextColor.GOLD, "minecraft:crossbow", 1,
                 List.of("Maintiens le clic droit : tir automatique.", "Sans munitions · 360 tirs · réparable à l'atelier.")));
+        definitions.put(ROCKET_LAUNCHER,new Definition("Lance-roquettes",NamedTextColor.LIGHT_PURPLE,"minecraft:crossbow",1,
+                List.of("Clic droit : roquette explosive, portée 96 blocs.","10 tirs au total · ni recharge ni réparation.","Explosion puissante sur 6 blocs · attention à la proximité !","Aucun dégât aux constructions · règles de PvP respectées.")));
         definitions.put(RADAR, new Definition("Sonar de survie", NamedTextColor.AQUA, Material.FILLED_MAP, null, 1,
                 List.of("Tiens-le en seconde main (F) : radar sur 100 blocs.", "Accroupi + clic droit : zoom 50 / 100 blocs.", "Bleu : survivants · rouge : infectés.", "Les points extérieurs indiquent les joueurs éloignés.")));
         definitions.put(AMMO, new Definition("Munitions de pistolet", NamedTextColor.WHITE, "minecraft:copper_nugget", 32,
@@ -234,12 +237,14 @@ public final class ItemRegistry {
         }
         if (isMelee(id)) melee(stack, config.play().weapons().get(id));
         if (GUNS.contains(id)) {
+            GunModels.apply(stack,id);
             stack.setData(DataComponentTypes.MAX_DAMAGE, org.duckcatmine.apocalypse.combat.Gun.of(id, config).durability());
             stack.setData(DataComponentTypes.DAMAGE, 0);
             stack.editPersistentDataContainer(data -> {
                 data.set(keys.magazine, PersistentDataType.INTEGER, 0);
                 data.set(keys.gunId, PersistentDataType.STRING, java.util.UUID.randomUUID().toString());
             });
+            if(ROCKET_LAUNCHER.equals(id))stack.editPersistentDataContainer(data->data.set(keys.charges,PersistentDataType.INTEGER,10));
         }
         if (SMG.equals(id)) {
             stack.setData(DataComponentTypes.CONSUMABLE, Consumable.consumable().consumeSeconds(3600f)

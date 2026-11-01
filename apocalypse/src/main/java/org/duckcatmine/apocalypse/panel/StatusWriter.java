@@ -107,6 +107,7 @@ public final class StatusWriter {
         root.addProperty("version", VERSION);
         root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage", "outdoor-spawns", "renovation-v3", "radar-100", "distant-spawns", "horror-v1")));
         root.addProperty("radarRange",org.duckcatmine.apocalypse.radar.RadarMath.RANGE);
+        root.addProperty("weaponModels",true);
         root.addProperty("renovationBlocked",plugin.renovator().blockedByPlayers());
         root.add("renovation", gson.toJsonTree(plugin.renovator().snapshot()));
         root.add("renovationExclusions",gson.toJsonTree(plugin.renovator().exclusions()));
@@ -326,6 +327,8 @@ public final class StatusWriter {
             entry.addProperty("id", id);
             entry.addProperty("name", plugin.items().label(id));
             entry.addProperty("icon", plugin.items().icon(id));
+            var gun=org.duckcatmine.apocalypse.combat.Gun.of(id,plugin.settings());
+            if(gun!=null){entry.addProperty("maxShots",gun.durability());entry.addProperty("damage",gun.damage());entry.addProperty("range",gun.range());entry.addProperty("pellets",gun.pellets());}
             items.add(entry);
         }
         root.add("items", items);

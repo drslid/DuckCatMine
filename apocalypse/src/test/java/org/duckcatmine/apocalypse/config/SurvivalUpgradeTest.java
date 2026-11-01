@@ -37,7 +37,7 @@ class SurvivalUpgradeTest {
         c.set("recipes.pistol.usage","Ma recette conservée");
         String loot=c.getMapList("places.police.loot").toString();
         assertTrue(SurvivalUpgrade.migrate(c,defaults()));
-        assertEquals(5,c.getInt("survival-content-version"));
+        assertEquals(6,c.getInt("survival-content-version"));
         assertEquals(2,c.getInt("places.house.rolls-min"));
         assertEquals(loot,c.getMapList("places.police.loot").toString());
         assertEquals("Ma recette conservée",c.getString("recipes.pistol.usage"));
@@ -67,5 +67,13 @@ class SurvivalUpgradeTest {
         assertEquals(42,parsed.spawning().globalCap());assertFalse(parsed.sector("lab").mix().containsKey("jumper"));
         assertNotNull(parsed.archetype("spitter"));assertFalse(SurvivalUpgrade.migrate(c,defaults()));
         assertEquals(28,c.getDouble("archetypes.breaker.siege-power"));
+    }
+    @Test void versionFiveAddsLauncherWithoutRetuningTheGame() throws Exception {
+        var c=defaults();c.set("survival-content-version",5);c.set("archetypes.breaker.siege-power",28);
+        c.set("perception.investigate-seconds",20);c.set("spawning.global-cap",150);c.set("recipes.rocket_launcher",null);
+        assertTrue(SurvivalUpgrade.migrate(c,defaults()));var parsed=ApocalypseConfig.parse(c);
+        assertEquals(28,parsed.archetype("breaker").siegePower());assertEquals(20,parsed.play().perception().investigateSeconds());
+        assertEquals(150,parsed.spawning().globalCap());assertEquals("apocalypse:rocket_launcher",parsed.play().recipes().get("rocket_launcher").result().item());
+        assertTrue(ApocalypseConfig.RARE_ITEMS.contains("apocalypse:rocket_launcher"));assertFalse(SurvivalUpgrade.migrate(c,defaults()));
     }
 }

@@ -189,6 +189,10 @@ public final class ApocalypseCommand implements TabExecutor {
                 try { Text.good(sender,"DCAPO_TEST:"+HorrorSelfTest.start(plugin)); }
                 catch(IllegalArgumentException e){Text.error(sender,e.getMessage());}
             }
+            case "rocket-selftest" -> {
+                try {Text.good(sender,"DCAPO_TEST:"+RocketSelfTest.start(plugin));}
+                catch(IllegalArgumentException e){Text.error(sender,e.getMessage());}
+            }
             case "enable", "disable" -> {
                 String error = plugin.scenario().setEnabled(action.equals("enable"), actor);
                 if (error != null) Text.error(sender, error);

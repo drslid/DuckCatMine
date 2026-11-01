@@ -12,6 +12,7 @@ public record Gun(String id, String label, double damage, double range, int pell
                     1, 0, (long) (config.play().pistol().fireDelaySeconds() * 1000), config.play().pistol().durability(), false);
             case "shotgun" -> new Gun(id, "Fusil à pompe", 2.5, 18, 8, .11, 1100, 96, false);
             case "smg" -> new Gun(id, "Mitraillette", 3, 32, 1, .025, 150, 360, true);
+            case "rocket_launcher" -> new Gun(id,"Lance-roquettes",RocketService.DAMAGE,RocketService.RANGE,1,0,2000,RocketBudget.CAPACITY,false);
             default -> null;
         };
     }

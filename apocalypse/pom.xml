@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.duckcatmine</groupId>
   <artifactId>duckcat-apocalypse</artifactId>
-  <version>0.1.0-alpha.11</version>
+  <version>0.1.0-alpha.12</version>
   <properties>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -248,6 +248,9 @@ public final class CraftingService implements Listener {
     public boolean repair(Player player) {
         ItemStack held = player.getInventory().getItemInMainHand();
         String id = plugin.items().idOf(held);
+        if(!org.duckcatmine.apocalypse.combat.RocketBudget.repairable(id)){
+            Text.warn(player,"Le lance-roquettes contient 10 tirs au total : il ne se recharge pas et ne se répare pas.");return false;
+        }
         boolean pistol = ItemRegistry.GUNS.contains(id == null ? "" : id);
         if (id == null || !(pistol || ItemRegistry.isMelee(id)) || !held.hasData(DataComponentTypes.MAX_DAMAGE)) {
             Text.warn(player, "Tiens en main une arme de mêlée ou une arme à feu à réparer.");

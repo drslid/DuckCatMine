@@ -256,6 +256,7 @@ function demoApocalypse() {
     },
     rules: {...apocalypseRules,minSpawnDistance:150},
     radarRange: 100,
+    weaponModels: true,
     infected: { walker: 9, pursuer: 4, runner: 2, howler: 1, infected_wolf: 1 },
     archetypeLabels: {
       walker: 'Errant',

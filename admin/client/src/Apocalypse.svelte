@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { api, demo, fold, iconUrl } from './api';
+  import { api, demo, fold, iconUrl, asset } from './api';
   import { modal } from './modal';
   import Icon from './Icon.svelte';
   import GroundZeroRules from './GroundZeroRules.svelte';
@@ -263,6 +263,7 @@
     });
   }
   function itemIcon(item: any) {
+    if(status?.weaponModels&&['pistol','shotgun','smg','rocket_launcher'].includes(item.id))return asset(`weapons/${item.id}.svg`);
     return iconUrl(item.icon || `minecraft:${oldIcons[item.id] || 'paper'}`);
   }
   function chooseOnMap(event: MouseEvent) {

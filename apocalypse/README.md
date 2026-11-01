@@ -4,6 +4,20 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Arsenal en 3D et lance-roquettes — alpha.12
+
+Le pistolet, le fusil à pompe et la mitraillette ont des modèles originaux reconnaissables en main, dans l’inventaire et au sol, avec leurs sons et leurs aperçus dans le panneau. Les armes déjà possédées reçoivent leur nouvelle apparence sans changer leur identité ni leur usure. Le pack facultatif commun passe à environ **150 Ko**, sans mod.
+
+Le **lance-roquettes** devient l’arme de zone la plus puissante : projectile visible jusqu’à 96 blocs, impact arrêté par les obstacles, explosion de 6 blocs et 80 dégâts maximum avant distance, murs et protections. Les règles de PvP et du refuge s’appliquent ; attention aux tirs trop proches. Aucun bloc ni inventaire n’est détruit par l’explosion.
+
+Chaque lanceur contient **10 tirs au total**, avec compteur et barre d’usure. Le dixième tir épuise l’arme. Ni recharge ni réparation, et le compteur persiste avec l’objet. Deux secondes entre les tirs, huit projectiles simultanés maximum ; le vol cesse si le tireur quitte la partie ou si la trajectoire sort des chunks chargés.
+
+Fabrication à l’atelier mécanique : **8 pièces d’arme, 16 ferrailles, 6 charges propulsives, 4 ressorts, 4 rubans**. Également très rare dans le butin militaire et du laboratoire ; jamais dans un kit de départ. `/apocalypse recipes rocket_launcher` affiche la recette. Le catalogue administrateur Ground Zero permet aussi de le donner.
+
+Panneau : **Ground Zero → Règles → L’arsenal de survie**, ou sélectionne un survivant pour choisir l’arme dans le catalogue. Sans le pack, les armes gardent un objet de repli nommé et leur fonctionnement ; le papier ordinaire conserve son apparence.
+
+Le test `/apocalypse admin rocket-selftest`, réservé à un scénario vide, vérifie le vol réel, l’arrêt sur un mur, les dégâts, la conservation d’un coffre et de ses diamants, le plafond et le nettoyage des projectiles. Les tests d’objets vérifient aussi la limite de dix tirs après sérialisation et la conservation des anciennes armes. Le rendu en main reste à vérifier avec un client Minecraft.
+
 ## Bâtiments, sonar et bestiaire — alpha.11
 
 **La ville devient praticable.** Entrées des maisons étroites dégagées, portes cohérentes et approches reliées à la rue. La rénovation vérifie les accès aux pièces, lits, escaliers et coffres avant modification. Les inventaires, blocs personnalisés et bases revendiquées sont conservés ; un bâtiment dont un ajout bloque le passage est ignoré. Aucune régénération du monde.
@@ -31,7 +45,7 @@ Toutes les hauteurs sont couvertes, bornes incluses. Les bâtiments dont l’app
 
 Acide et nuages respectent le refuge, les protections d’arrivée, les joueurs hors scénario, les modes créatif/spectateur et les murs. Aucun bloc, inventaire ou animal sain n’est abîmé. Plafonds de 12 projectiles et 12 zones actives ; dégâts toxiques limités à une application par joueur et par seconde.
 
-**Pack original facultatif (~100 Ko).** Six modèles et six sons, sans mod. L’installation HTTPS prépare son URL portable. Le client peut refuser ; les créatures restent natives avec les mêmes statistiques. Si un joueur présent n’a pas chargé le pack, l’apparence native est conservée pour tous. Au plus 16 modèles de trois pièces sont animés près des joueurs. Les autres packs du serveur restent chargés.
+**Pack original facultatif (~150 Ko).** Six modèles et six sons, sans mod. L’installation HTTPS prépare son URL portable. Le client peut refuser ; les créatures restent natives avec les mêmes statistiques. Si un joueur présent n’a pas chargé le pack, l’apparence native est conservée pour tous. Au plus 16 modèles de trois pièces sont animés près des joueurs. Les autres packs du serveur restent chargés.
 
 `/apocalypse admin horror-selftest` vérifie les vrais crachats, murs, sauts, rigs et locations de chunks dans un scénario vide. Résultat : `horror-selftest.json`. Le rendu final et l’acceptation du pack demandent aussi une vérification avec un client Minecraft.
 

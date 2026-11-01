@@ -12,7 +12,7 @@ public final class SurvivalUpgrade {
     public static boolean migrate(YamlConfiguration config, YamlConfiguration defaults) {
         config.setDefaults(defaults);
         int version = config.isSet("survival-content-version") ? config.getInt("survival-content-version") : 1;
-        if (version >= 5) return false;
+        if (version >= 6) return false;
         if (version < 2) {
             for (String id : List.of("shotgun", "smg")) {
                 String path = "recipes." + id;
@@ -39,10 +39,12 @@ public final class SurvivalUpgrade {
         if (version < 3 && !config.isSet(recipe)) defaults.getConfigurationSection(recipe).getValues(true).forEach((key, value) -> {
             if (!(value instanceof ConfigurationSection)) config.set(recipe + "." + key, value);
         });
-        for (String path : List.of("noise.walk", "noise.block-break", "noise.block-place"))
-            if (!config.isSet(path)) config.set(path, defaults.get(path));
-        if (!config.isSet("perception.investigate-seconds") || config.getDouble("perception.investigate-seconds") == 20)
-            config.set("perception.investigate-seconds", 30);
+        if(version<4){
+            for (String path : List.of("noise.walk", "noise.block-break", "noise.block-place"))
+                if (!config.isSet(path)) config.set(path, defaults.get(path));
+            if (!config.isSet("perception.investigate-seconds") || config.getDouble("perception.investigate-seconds") == 20)
+                config.set("perception.investigate-seconds", 30);
+        }
         if(version<5){
             int min=Math.max(150,config.getInt("spawning.min-distance",150));
             int max=Math.max(min+16,Math.max(180,config.getInt("spawning.max-distance",180)));
@@ -61,7 +63,15 @@ public final class SurvivalUpgrade {
                     if(!config.isSet(path))config.set(path,defaults.getDouble(path));
                 }
         }
-        config.set("survival-content-version", 5);
+        if(version<6){
+            if(!config.isSet("recipes.rocket_launcher"))copy(config,defaults,"recipes.rocket_launcher");
+            for(String place:List.of("military","lab")){
+                String path="places."+place+".loot";List<Map<?,?>> loot=new ArrayList<>(config.getMapList(path));
+                if(loot.stream().noneMatch(e->"apocalypse:rocket_launcher".equals(e.get("item"))))loot.add(Map.of("item","apocalypse:rocket_launcher","weight",1));
+                config.set(path,loot);
+            }
+        }
+        config.set("survival-content-version", 6);
         return true;
     }
     private static void copy(YamlConfiguration target,YamlConfiguration defaults,String path){

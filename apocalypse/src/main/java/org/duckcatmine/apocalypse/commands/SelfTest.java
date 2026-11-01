@@ -99,6 +99,25 @@ final class SelfTest {
             return ApocalypseConfig.WEAPONS.size() + " armes de mêlée (dégâts, cadence, usure), lance à portée longue, pistolet, "
                     + recipes + " recettes";
         });
+        check(lines,"modèles des armes et limite de roquettes",()->{
+            var pistol=plugin.items().create(ItemRegistry.PISTOL,1);
+            var identity=pistol.getPersistentDataContainer().get(plugin.keys().gunId,org.bukkit.persistence.PersistentDataType.STRING);
+            pistol.setData(DataComponentTypes.DAMAGE,17);pistol.unsetData(DataComponentTypes.CUSTOM_MODEL_DATA);pistol.setData(DataComponentTypes.ITEM_MODEL,net.kyori.adventure.key.Key.key("minecraft:crossbow"));
+            if(!org.duckcatmine.apocalypse.items.GunModels.apply(pistol,ItemRegistry.PISTOL)||pistol.getData(DataComponentTypes.DAMAGE)!=17
+                ||!identity.equals(pistol.getPersistentDataContainer().get(plugin.keys().gunId,org.bukkit.persistence.PersistentDataType.STRING)))throw new IllegalStateException("Ancien pistolet altéré");
+            if(org.duckcatmine.apocalypse.items.GunModels.apply(pistol,ItemRegistry.PISTOL))throw new IllegalStateException("Migration visuelle non idempotente");
+            var rocket=plugin.items().create(ItemRegistry.ROCKET_LAUNCHER,1);
+            if(rocket.getData(DataComponentTypes.MAX_DAMAGE)!=10)throw new IllegalStateException("Capacité différente de dix");
+            for(int use=0;use<10;use++){
+                int left=org.duckcatmine.apocalypse.combat.RocketBudget.remaining(rocket.getPersistentDataContainer().get(plugin.keys().charges,org.bukkit.persistence.PersistentDataType.INTEGER),rocket.getData(DataComponentTypes.DAMAGE));
+                if(left!=10-use)throw new IllegalStateException("Compteur de roquettes incorrect");
+                final int remaining=left-1;rocket.editPersistentDataContainer(d->d.set(plugin.keys().charges,org.bukkit.persistence.PersistentDataType.INTEGER,remaining));
+                rocket.setData(DataComponentTypes.DAMAGE,use+1);rocket=ItemStack.deserializeBytes(rocket.serializeAsBytes());
+            }
+            if(org.duckcatmine.apocalypse.combat.RocketBudget.remaining(rocket.getPersistentDataContainer().get(plugin.keys().charges,org.bukkit.persistence.PersistentDataType.INTEGER),0)!=0
+                ||org.duckcatmine.apocalypse.combat.RocketBudget.repairable(ItemRegistry.ROCKET_LAUNCHER))throw new IllegalStateException("Recharge imprévue");
+            return "Anciennes armes mises à jour sans réparation ; dix tirs conservés après sérialisation, onzième refusé";
+        });
         check(lines, "base de données", () -> {
             plugin.database().call(c -> {
                 Store.putMeta(c, "selftest", Long.toString(System.currentTimeMillis()));

@@ -82,6 +82,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private PlacedBlocks placed;
     private CraftingService crafting;
     private FirearmService firearms;
+    private org.duckcatmine.apocalypse.combat.RocketService rockets;
     private org.duckcatmine.apocalypse.combat.TurretService turrets;
     private org.duckcatmine.apocalypse.radar.RadarService radar;
     private ThrowableService throwables;
@@ -153,6 +154,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             placed = new PlacedBlocks(this);
             crafting = new CraftingService(this);
             firearms = new FirearmService(this);
+            rockets=new org.duckcatmine.apocalypse.combat.RocketService(this);
             turrets = new org.duckcatmine.apocalypse.combat.TurretService(this);
             throwables = new ThrowableService(this);
             vehicles = new VehicleService(this);
@@ -346,6 +348,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         if(director!=null)director.close();
         if(horrorModels!=null)horrorModels.close();
         if(horror!=null)horror.close();
+        if(rockets!=null)rockets.close();
         if (renovator != null) renovator.close();
         if (turrets != null) turrets.close();
         if (ticker != null) ticker.cancel();
@@ -469,6 +472,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public FirearmService firearms() {
         return firearms;
     }
+    public org.duckcatmine.apocalypse.combat.RocketService rockets(){return rockets;}
 
     public ThrowableService throwables() {
         return throwables;

@@ -1,4 +1,4 @@
-survival-content-version: 5
+survival-content-version: 6
 # DuckCatApocalypse — réglages du scénario Ground Zero.
 # Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
 # au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
@@ -586,6 +586,7 @@ places:
     rolls-min: 1
     rolls-max: 3
     loot:
+      - {item: apocalypse:rocket_launcher, weight: 1}
       - {item: apocalypse:serum, weight: 18}
       - {item: apocalypse:inhibitor, weight: 18}
       - {item: apocalypse:syringe, weight: 16}
@@ -599,6 +600,7 @@ places:
     rolls-min: 1
     rolls-max: 3
     loot:
+      - {item: apocalypse:rocket_launcher, weight: 1}
       - {item: apocalypse:casings, weight: 18, amount: 6}
       - {item: apocalypse:propellant, weight: 14, amount: 2}
       - {item: apocalypse:gun_parts, weight: 12}
@@ -718,6 +720,12 @@ recipes:
     ingredients: {"apocalypse:gun_parts": 4, "apocalypse:scrap": 8, "apocalypse:spring": 3, "apocalypse:tape": 3}
     noise: medium
     usage: Maintiens le clic droit pour tirer en automatique. Sans munitions, 360 tirs.
+  rocket_launcher:
+    station: workshop
+    result: {item: apocalypse:rocket_launcher}
+    ingredients: {"apocalypse:gun_parts": 8, "apocalypse:scrap": 16, "apocalypse:propellant": 6, "apocalypse:spring": 4, "apocalypse:tape": 4}
+    noise: high
+    usage: "10 roquettes au total, sans recharge ni réparation. Explosion puissante sur 6 blocs, aucun dégât aux constructions."
   ammo:
     station: workshop
     result: {item: apocalypse:ammo, amount: 8}

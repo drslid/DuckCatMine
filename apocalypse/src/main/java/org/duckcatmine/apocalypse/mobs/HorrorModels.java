@@ -49,7 +49,7 @@ public final class HorrorModels implements Listener,AutoCloseable {
     public String hash(){return sha1;}
     public void offer(Player player){
         if(!available()||!plugin.scenario().isScenarioWorld(player.getWorld())||!requested.add(player.getUniqueId()))return;
-        player.addResourcePack(PACK_ID,url,HexFormat.of().parseHex(sha1),"Ground Zero · bestiaire et sons originaux (~100 Ko). Facultatif, aucun mod requis.",false);
+        player.addResourcePack(PACK_ID,url,HexFormat.of().parseHex(sha1),"Ground Zero · bestiaire, armes et sons originaux (~150 Ko). Facultatif, aucun mod requis.",false);
     }
     @EventHandler(priority=EventPriority.LOWEST)public void onJoin(PlayerJoinEvent event){
         fallbackAll();ready.remove(event.getPlayer().getUniqueId());requested.remove(event.getPlayer().getUniqueId());

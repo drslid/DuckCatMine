@@ -14,7 +14,11 @@ class PackTest(unittest.TestCase):
             names=set(z.namelist());self.assertEqual(z.testzip(),None)
             self.assertIn('LICENSE.txt',names)
             self.assertTrue(all('..' not in Path(n).parts and not n.startswith('/') for n in names))
-            self.assertFalse(any(n.startswith('assets/minecraft/') for n in names),'Never replace vanilla assets globally')
+            self.assertEqual({n for n in names if n.startswith('assets/minecraft/')},{'assets/minecraft/items/paper.json'})
+            dispatcher=json.loads(z.read('assets/minecraft/items/paper.json'))['model']
+            self.assertEqual(dispatcher['property'],'minecraft:custom_model_data');self.assertEqual(dispatcher['index'],0)
+            self.assertEqual(dispatcher['fallback'],{'type':'minecraft:model','model':'minecraft:item/paper'})
+            self.assertEqual({c['when'] for c in dispatcher['cases']},{'duckcatmine:'+k for k in ['pistol','shotgun','smg','rocket_launcher','rocket_projectile']})
             meta=json.loads(z.read('pack.mcmeta'));self.assertEqual(meta['pack']['min_format'],[97,1])
             for kind in ['spitter','jumper','crawler','stalker','bloated','breaker']:
                 self.assertIn('<title>',(ROOT/'admin/public/horror'/f'{kind}.svg').read_text(encoding='utf-8'))
@@ -26,7 +30,13 @@ class PackTest(unittest.TestCase):
                         self.assertTrue(z.read('assets/duckcatmine/textures/'+texture.split(':')[1]+'.png').startswith(b'\x89PNG'))
                     for box in body['elements']:
                         for lo,hi in zip(box['from'],box['to']):self.assertTrue(-16<=lo<hi<=32)
-            sounds=json.loads(z.read('assets/duckcatmine/sounds.json'));self.assertEqual(len(sounds),6)
+            for kind in ['pistol','shotgun','smg','rocket_launcher','rocket_projectile']:
+                model=json.loads(z.read(f'assets/duckcatmine/models/item/weapons/{kind}.json'))
+                self.assertIn('firstperson_righthand',model['display']);self.assertIn('thirdperson_righthand',model['display'])
+                for texture in model['textures'].values():self.assertTrue(z.read('assets/duckcatmine/textures/'+texture.split(':')[1]+'.png').startswith(b'\x89PNG'))
+                for box in model['elements']:
+                    for lo,hi in zip(box['from'],box['to']):self.assertTrue(-16<=lo<hi<=32)
+            sounds=json.loads(z.read('assets/duckcatmine/sounds.json'));self.assertEqual(len(sounds),11)
             for sound in sounds.values():
                 self.assertTrue(z.read('assets/duckcatmine/sounds/'+sound['sounds'][0]['name'].split(':')[1]+'.ogg').startswith(b'OggS'))
 

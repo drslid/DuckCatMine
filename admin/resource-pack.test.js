@@ -23,4 +23,5 @@ test('only the verified pack is public; immutable bytes, HEAD and cache validati
     const response=await fetch(origin+candidate);assert.equal(response.status,401,candidate);await response.text();
   }
   const post=await fetch(url,{method:'POST'});assert.equal(post.status,401);await post.text();
+  const old=await fetch(origin+'/packs/duckcatmine-horror-51d517b28e20bfcb.zip');assert.equal(old.status,200);assert.equal((await old.arrayBuffer()).byteLength,102062);
 });

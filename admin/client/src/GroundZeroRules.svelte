@@ -13,6 +13,12 @@
     {id:'bloated',name:'Boursouflé',note:'Recule après son élimination : son nuage toxique reste 4 s, sans abîmer les constructions.'},
     {id:'breaker',name:'Briseur',note:'Deux fois plus efficace contre les murs et les barricades. Lent, robuste, et très reconnaissable.'},
   ];
+  const weapons=[
+    {id:'pistol',name:'Pistolet',note:'Précis, maniable, un tir au clic droit.',shots:120},
+    {id:'shotgun',name:'Fusil à pompe',note:'Une gerbe de huit plombs pour le combat rapproché.',shots:96},
+    {id:'smg',name:'Mitraillette',note:'Maintiens le clic droit pour tirer en rafale.',shots:360},
+    {id:'rocket_launcher',name:'Lance-roquettes',note:'La frappe la plus puissante : explosion sur 6 blocs, sans détruire les constructions. Dix tirs au total, sans recharge ni réparation.',shots:10},
+  ];
   let groups = $derived([
     ...new Set((status.settingsCatalog || []).map((s: any) => s.group)),
   ] as string[]);
@@ -128,12 +134,18 @@
     {/each}
   </article>
 
+  {#if status.weaponModels}
+    <details class="card bestiary"><summary><Icon name="shield" size={18}/><strong>L’arsenal de survie</strong><span>4 armes</span></summary>
+      <div class="bestiary-grid arsenal">{#each weapons as weapon}<article><img src={asset(`weapons/${weapon.id}.svg`)} alt={weapon.name} width="84" height="84" loading="lazy"/><div><strong>{weapon.name}</strong><p>{weapon.note}</p><p>{status.items?.find((i:any)=>i.id===weapon.id)?.maxShots || weapon.shots} tirs · atelier mécanique</p></div></article>{/each}</div>
+      <p class="muted">Les modèles nécessitent le pack proposé à la connexion, sans mod. Les armes déjà possédées changent d’apparence en conservant leur usure. Les règles de PvP et du refuge restent applicables.</p>
+    </details>
+  {/if}
   {#if status.capabilities?.includes('horror-v1')}
     <details class="card bestiary">
       <summary><Icon name="skull" size={18} /><strong>Connaître les infectés</strong><span>6 profils à repérer</span></summary>
       <p class="muted">Ils apparaissent à au moins {status.rules?.minSpawnDistance || 150} blocs de tous les joueurs, à l’extérieur. Le sonar les repère à 100 blocs.</p>
       <div class="bestiary-grid">{#each bestiary as enemy}<article><img src={asset(`horror/${enemy.id}.svg`)} alt={enemy.name} width="84" height="84" loading="lazy" /><div><strong>{enemy.name}</strong><p>{enemy.note}</p></div></article>{/each}</div>
-      <p class="muted">Pack facultatif d’environ 100 Ko, proposé dans Minecraft : modèles et sons, sans mod. Si un joueur ne l’a pas chargé, les infectés gardent leur apparence native et les mêmes capacités.</p>
+      <p class="muted">Pack facultatif d’environ 150 Ko, proposé dans Minecraft : modèles, armes et sons, sans mod. Si un joueur ne l’a pas chargé, les infectés gardent leur apparence native et les mêmes capacités.</p>
     </details>
   {/if}
 
@@ -222,6 +234,7 @@
   .bestiary > summary { display:flex;align-items:center;gap:9px;cursor:pointer;min-height:32px; }
   .bestiary > summary span { color:var(--muted);font-size:11px;margin-left:auto; }
   .bestiary-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;margin:12px 0; }
+  .arsenal { grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr)); }
   .bestiary-grid article { display:flex;align-items:center;gap:10px;min-width:0;background:var(--surface2);border-radius:10px;padding:8px; }
   .bestiary-grid img { flex:none;image-rendering:pixelated; }
   .bestiary-grid strong { font-size:12px; }

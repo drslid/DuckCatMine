@@ -708,8 +708,8 @@ async function serve(req, res) {
     res.setHeader('Cache-Control', 'public, max-age=604800');
     return fs.createReadStream(filename).pipe(res);
   }
-  if (req.method === 'GET' && /^\/horror\/(spitter|jumper|crawler|stalker|bloated|breaker)\.svg$/.test(url.pathname)) {
-    const filename=path.join(__dirname,'public','horror',path.basename(url.pathname));
+  if (req.method === 'GET' && (/^\/horror\/(spitter|jumper|crawler|stalker|bloated|breaker)\.svg$/.test(url.pathname) || /^\/weapons\/(pistol|shotgun|smg|rocket_launcher)\.svg$/.test(url.pathname))) {
+    const filename=path.join(__dirname,'public',url.pathname.startsWith('/weapons/')?'weapons':'horror',path.basename(url.pathname));
     if (!fs.existsSync(filename)) throw new HttpError(404,'Image introuvable.');
     res.setHeader('Content-Type','image/svg+xml');
     res.setHeader('Cache-Control','public, max-age=604800');

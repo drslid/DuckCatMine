@@ -160,6 +160,7 @@ export const gzItems = [
   ['pistol', 'Pistolet de fortune', 'crossbow'],
   ['shotgun', 'Fusil à pompe', 'crossbow'],
   ['smg', 'Mitraillette', 'crossbow'],
+  ['rocket_launcher','Lance-roquettes','crossbow'],
   ['radar', 'Sonar de survie', 'filled_map'],
   ['ammo', 'Munitions', 'copper_nugget'],
   ['decoy', 'Leurre sonore', 'note_block'],

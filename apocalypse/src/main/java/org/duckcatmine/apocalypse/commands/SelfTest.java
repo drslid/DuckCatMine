@@ -408,22 +408,73 @@ final class SelfTest {
             Block block = world.getBlockAt(spot.x(), spot.y(), spot.z());
             if (!(block.getState(false) instanceof Container container)) throw new IllegalStateException("pas un conteneur");
             plugin.search().reset(block);
-            if (!plugin.search().roll(block, container.getInventory())) throw new IllegalStateException("premier tirage refusé");
+            if (!plugin.search().roll(block)) throw new IllegalStateException("premier tirage refusé");
             int stacks = 0;
             for (ItemStack stack : container.getInventory().getContents()) if (stack != null && !stack.isEmpty()) stacks++;
-            boolean again = plugin.search().roll(block, container.getInventory());
+            boolean again = plugin.search().roll(block);
             // Simulate a pre-upgrade generated chest: existing items survive a single stock top-up.
             container.getInventory().setItem(0, ItemStack.of(Material.DIAMOND, 3));
             var tile = (org.bukkit.block.TileState) block.getState();
             tile.getPersistentDataContainer().remove(new org.bukkit.NamespacedKey(plugin, "stock_v2")); tile.update(true,false);
-            if (!plugin.search().roll(block, container.getInventory()) || plugin.search().roll(block, container.getInventory())) throw new IllegalStateException("réassort v2 répété ou absent");
+            if (!plugin.search().roll(block) || plugin.search().roll(block)) throw new IllegalStateException("réassort v2 répété ou absent");
             if (container.getInventory().getItem(0) == null || container.getInventory().getItem(0).getType() != Material.DIAMOND || container.getInventory().getItem(0).getAmount() != 3) throw new IllegalStateException("ancien stock écrasé");
             plugin.search().reset(block);
             if (again) throw new IllegalStateException("second tirage accepté sans renouvellement");
             if (stacks == 0 && plugin.settings().place(spot.place().id()).rollsMin() > 0) throw new IllegalStateException("rien tiré");
             return spot.place().label() + " : " + stacks + " pile(s) tirée(s), pas de second tirage, conteneur remis à zéro";
         });
+        check(lines, "stockage et casse du loot", () -> {
+            Location at = street(plugin, world).getBlock().getLocation().add(12,180,0);
+            Block first = at.getBlock(), second = first.getRelative(1,0,0);
+            if (!first.getType().isAir() || !second.getType().isAir()) throw new IllegalStateException("zone de test occupée");
+            List<org.bukkit.entity.Item> drops = new ArrayList<>();
+            try {
+                var left = (org.bukkit.block.data.type.Chest) Material.CHEST.createBlockData();
+                left.setFacing(org.bukkit.block.BlockFace.NORTH); left.setType(org.bukkit.block.data.type.Chest.Type.LEFT);
+                var right = (org.bukkit.block.data.type.Chest) left.clone(); right.setType(org.bukkit.block.data.type.Chest.Type.RIGHT);
+                first.setBlockData(left,false); second.setBlockData(right,false);
+                var generated = (org.bukkit.block.Chest) first.getState();
+                generated.getPersistentDataContainer().set(plugin.keys().searchPlace, org.bukkit.persistence.PersistentDataType.STRING, "house"); generated.update(true,false);
+                var placed = (org.bukkit.block.Chest) second.getState();
+                placed.getPersistentDataContainer().set(plugin.keys().playerPlaced, org.bukkit.persistence.PersistentDataType.BOOLEAN,true); placed.update(true,false);
+                var chest = (org.bukkit.block.Chest) first.getState(false);
+                if (chest.getInventory().getSize()!=54) throw new IllegalStateException("coffre double non formé");
+                SearchServiceDeposit(second,Material.DIAMOND,3);
+                if (!plugin.search().rollInventory(chest.getInventory()) || plugin.search().rollInventory(chest.getInventory())) throw new IllegalStateException("tirage double répété ou absent");
+                if (plugin.search().identify(second)!=null) throw new IllegalStateException("extension posée devenue du loot");
+                if (((Container)second.getState(false)).getInventory().all(Material.DIAMOND).values().stream().mapToInt(ItemStack::getAmount).sum()!=3) throw new IllegalStateException("dépôt du coffre double modifié");
+                org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)first.getState(false)).clear();
+                SearchServiceDeposit(first,Material.DIAMOND,5);
+                // A chunk reload after the refill interval must preserve a player's non-empty storage.
+                var snapshot = (org.bukkit.block.TileState)first.getState();
+                snapshot.getPersistentDataContainer().set(plugin.keys().searchRolled,org.bukkit.persistence.PersistentDataType.LONG,plugin.clock().now()-plugin.settings().search().refillMs()-1);snapshot.update(true,false);
+                plugin.search().onChunkLoad(new org.bukkit.event.world.ChunkLoadEvent(first.getChunk(),false));
+                if (plugin.search().roll(first)) throw new IllegalStateException("coffre de stockage réassorti");
+                if (org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)first.getState(false)).getItem(0).getAmount()!=5) throw new IllegalStateException("stockage écrasé");
+                if (!first.breakNaturally(ItemStack.of(Material.IRON_AXE))) throw new IllegalStateException("casse refusée");
+                int diamonds=0;
+                for (var entity:world.getNearbyEntities(at.clone().add(.5,.5,.5),2,2,2)) if (entity instanceof org.bukkit.entity.Item item) {
+                    drops.add(item); if(item.getItemStack().getType()==Material.DIAMOND) diamonds+=item.getItemStack().getAmount();
+                }
+                if (diamonds!=5) throw new IllegalStateException("contenu tombé "+diamonds+" / 5 diamants");
+                if (org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)second.getState(false)).getItem(0).getAmount()!=3) throw new IllegalStateException("autre moitié du coffre affectée");
+                // Unopened loot is prepared once before native destruction, without replacing a deposit.
+                first.setType(Material.BARREL,false);
+                var barrel=(Container)first.getState();barrel.getPersistentDataContainer().set(plugin.keys().searchPlace,org.bukkit.persistence.PersistentDataType.STRING,"house");barrel.update(true,false);
+                SearchServiceDeposit(first,Material.EMERALD,2);
+                if(!plugin.search().roll(first) || plugin.search().roll(first)) throw new IllegalStateException("loot avant casse non unique");
+                if(org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)first.getState(false)).getItem(0).getAmount()!=2) throw new IllegalStateException("dépôt avant ouverture perdu");
+                return "coffre double, dépôts conservés au rechargement, 5 diamants tombés une fois, autre moitié intacte, loot avant casse unique";
+            } finally {
+                for(var item:drops)item.remove();
+                first.setType(Material.AIR,false);second.setType(Material.AIR,false);
+            }
+        });
         return lines;
+    }
+
+    private static void SearchServiceDeposit(Block block, Material material, int count) {
+        org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)block.getState(false)).setItem(0,ItemStack.of(material,count));
     }
 
     private static Location street(DuckCatApocalypse plugin, World world) {

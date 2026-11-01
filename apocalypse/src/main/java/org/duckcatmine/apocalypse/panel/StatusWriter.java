@@ -105,7 +105,7 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
-        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search")));
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage")));
         root.add("renovation", gson.toJsonTree(plugin.renovator().snapshot()));
         root.add("teleports", gson.toJsonTree(plugin.mapTeleports().snapshot()));
         root.add("departure", gson.toJsonTree(plugin.departures().snapshot()));

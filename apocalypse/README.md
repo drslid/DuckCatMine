@@ -4,6 +4,12 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Coffres de loot utilisables — alpha.9
+
+Les coffres et tonneaux de fouille acceptent les dépôts, glisser-déposer, Maj+clic et entonnoirs. Tu peux les casser : Minecraft fait tomber leur contenu. Un coffre non encore ouvert reçoit son butin une seule fois avant la casse. Les coffres doubles gardent des marqueurs séparés par moitié ; une extension posée par un joueur ne génère pas de loot.
+
+Le réassort reste réservé aux inventaires entièrement vides après le délai actif et un rechargement de chunk : aucun dépôt n'est effacé. Le refuge et les protections contre les explosions restent applicables.
+
 ## Discrétion et recherche — alpha.8
 
 Les infectés enquêtent sur les bruits : **marche (5 blocs), course (10), casse (12), pose (8), verre (16)**, coffres, combat, tirs et moteurs. Accroupi, les pas restent silencieux ; tourner la caméra ou maintenir Sprint sans avancer ne fait pas de bruit.
@@ -79,7 +85,7 @@ La migration copie `config.yml`, ajoute les recettes et conserve les autres rég
 | Ground Zero généré : ville de 1 200 blocs (25 × 25 îlots) autour du refuge, rues marquées, voitures, barricades, lampadaires ; puis campagne vallonnée, forêts, lacs, fermes, cabanes, 4 barrages militaires, 4 stations-service et le complexe NEXUS ; bordure de 3 072 blocs | Terminé | Paper 26.3 réel : génération de 2 200 × 2 200 blocs, rendus vus du dessus et en coupe ; tests du plan (déterminisme, aucun bâtiment sur la rue ni superposé) |
 | Secteurs : quartier du refuge, résidentiel, centre-ville, zone industrielle, abords de l'hôpital, périphérie, campagne, complexe NEXUS | Terminé | Tests unitaires du plan |
 | Bâtiments meublés et fouillables : maisons (1-2 étages), immeubles (3-5 étages, échelles), commerces, supermarchés, pharmacies, garages, entrepôts, hôpital (3 étages, héliport), postes de police (armurerie), ruines, parcs, fermes, laboratoire | Terminé | Autotest : 129 conteneurs générés retrouvés et identifiés sur 8 îlots |
-| Fouille : butin par type de lieu (12 tables), tiré à la première ouverture et partagé, jamais retiré à la réouverture ; réapprovisionnement après 30 min de scénario actif, seulement vide et quand plus personne n'est dans les parages ; on ne peut rien y déposer ; conteneurs fixés ; un coffre posé par un joueur ne devient jamais un conteneur de fouille | Implémenté | Autotest (tirage unique, remise à zéro) ; **non testé en jeu** |
+| Fouille : butin par type de lieu (12 tables), tiré à la première ouverture et partagé, jamais retiré à la réouverture ; réapprovisionnement après 30 min de scénario actif, seulement vide et quand plus personne n'est dans les parages ; dépôts, entonnoirs et casse par les joueurs autorisés ; réassort sans effacer le stockage ; un coffre posé par un joueur ne devient jamais un conteneur de fouille | Implémenté | Autotest (tirage unique, remise à zéro) ; **non testé en jeu** |
 | Six archétypes : errant, poursuivant (fouille la dernière position connue), sprinteur (rafale annoncée puis essoufflement), hurleur (cri préparé, interrompu par un coup, attire les voisins, 2 renforts plafonnés), briseur (lent, robuste), abomination (frappe au sol annoncée, longue récupération, une seule en vie) | Implémenté | Autotest : statistiques et vitesses réelles ; **comportements non testés en jeu** |
 | 17 apparences indépendantes du comportement (voir le manifeste) | Implémenté | Autotest : 17 apparences sans armure ni effet de jeu |
 | Morsure aléatoire : chaque coup reçu a une chance d'être une morsure (25 à 50 % selon l'archétype, environ 1 sur 3 en moyenne) ; signal discret (barre de boss, message court, son léger) | Implémenté | Configuration testée ; **non testé en jeu** |
@@ -281,7 +287,7 @@ Procédure manuelle J1 sur une instance isolée, avec un client Minecraft Java 2
 Procédure J2 :
 
 1. Sortir du refuge : rues, voitures, maisons ; les infectés apparaissent au sol, en plein jour sans brûler.
-2. Ouvrir un coffre d'une maison : son nom indique le lieu, le butin apparaît ; refermer et rouvrir : même contenu ; tenter d'y déposer un objet : refusé ; le casser : refusé.
+2. Ouvrir un coffre d'une maison : son nom indique le lieu, le butin apparaît ; refermer et rouvrir : même contenu ; y déposer un objet puis le reprendre ; casser le coffre : son contenu tombe une seule fois.
 3. Se laisser toucher plusieurs fois : toutes les attaques ne mordent pas ; à la morsure, barre de boss et message court, sans titre plein écran.
 4. Approcher un sprinteur, un hurleur et un briseur (centre-ville, hôpital, zone industrielle) et vérifier leurs signaux.
 5. Utiliser un bandage : 2 cœurs rendus, la morsure continue.

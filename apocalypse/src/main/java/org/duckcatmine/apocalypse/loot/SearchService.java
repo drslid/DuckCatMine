@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import net.kyori.adventure.text.Component;
-import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
+import org.bukkit.block.Chest;
+import org.bukkit.block.DoubleChest;
 import org.bukkit.block.TileState;
-import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -19,10 +19,6 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.inventory.InventoryAction;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.BlockInventoryHolder;
@@ -32,7 +28,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.duckcatmine.apocalypse.DuckCatApocalypse;
-import org.duckcatmine.apocalypse.Text;
 import org.duckcatmine.apocalypse.config.ApocalypseConfig;
 import org.duckcatmine.apocalypse.scenario.GroundZeroGenerator;
 import org.duckcatmine.apocalypse.scenario.city.CityLayout;
@@ -41,12 +36,10 @@ import org.duckcatmine.apocalypse.scenario.city.PlaceType;
 /**
  * Searchable containers of the generated city (spec §10): loot shared by the world, rolled once at the first opening
  * and kept through reconnections and chunk reloads; an emptied container is restocked after the configured active time,
- * only once nobody is around (its chunk was unloaded). Taking only: nothing can be stored in them, so a refill never
- * erases a player's items. Containers placed by players never become searchable.
+ * only once nobody is around (its chunk was unloaded). Deposits and normal player breaking are allowed; non-empty
+ * storage is never cleared by a refill. Containers placed by players never become searchable.
  */
 public final class SearchService implements Listener {
-    private static final String ADMIN = "duckcat.apocalypse.admin";
-
     private final DuckCatApocalypse plugin;
     private final Random random = new Random();
 
@@ -70,13 +63,26 @@ public final class SearchService implements Listener {
         return CityLayout.of(block.getWorld().getSeed()).placeAt(block.getX(), block.getY(), block.getZ());
     }
 
-    private PlaceType identify(Inventory inventory) {
+    /** Work on physical halves: a player-placed extension must never inherit its neighbour's loot. */
+    private static List<Block> blocks(Inventory inventory) {
+        List<Block> blocks = new ArrayList<>(2);
         InventoryHolder holder = inventory.getHolder(false);
-        return holder instanceof BlockInventoryHolder block ? identify(block.getBlock()) : null;
+        if (holder instanceof DoubleChest chest) {
+            if (chest.getLeftSide(false) instanceof BlockInventoryHolder left) blocks.add(left.getBlock());
+            if (chest.getRightSide(false) instanceof BlockInventoryHolder right) blocks.add(right.getBlock());
+        } else if (holder instanceof BlockInventoryHolder block) blocks.add(block.getBlock());
+        return blocks;
     }
 
-    private static boolean bypass(HumanEntity player) {
-        return player.getGameMode() == GameMode.CREATIVE && player.hasPermission(ADMIN);
+    public static Inventory localInventory(Container container) {
+        return container instanceof Chest chest ? chest.getBlockInventory() : container.getInventory();
+    }
+
+    /** Populate each generated half once. Used for normal and double-chest inventory opens. */
+    public boolean rollInventory(Inventory inventory) {
+        boolean rolled = false;
+        for (Block block : blocks(inventory)) rolled |= roll(block);
+        return rolled;
     }
 
     /** Writes the marker through a snapshot; call before filling the live inventory (the update restores the snapshot's items). */
@@ -94,21 +100,26 @@ public final class SearchService implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onOpen(InventoryOpenEvent event) {
-        if (!(event.getInventory().getHolder(false) instanceof BlockInventoryHolder holder)) return;
-        Block block = holder.getBlock();
-        boolean named = block.getState(false) instanceof TileState tile && tile.getPersistentDataContainer().has(plugin.keys().searchPlace);
-        if (!roll(block, event.getInventory()) || named || !(event.getPlayer() instanceof Player player)) return;
+        List<Block> blocks = blocks(event.getInventory());
+        Block rename = null;
+        for (Block block : blocks) {
+            boolean named = block.getState(false) instanceof TileState tile && tile.getPersistentDataContainer().has(plugin.keys().searchPlace);
+            if (roll(block) && !named) rename = block;
+        }
+        if (rename == null || !(event.getPlayer() instanceof Player player)) return;
+        Block anchor = rename;
         event.setCancelled(true);
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (player.isOnline() && candidate(block) && block.getState(false) instanceof Container container)
+            if (player.isOnline() && candidate(anchor) && anchor.getState(false) instanceof Container container)
                 player.openInventory(container.getInventory());
         });
     }
 
     /** Rolls the loot of a searchable container that is due (first search or restocked); returns true when it did. */
-    public boolean roll(Block block, Inventory inventory) {
+    public boolean roll(Block block) {
         PlaceType place = identify(block);
-        if (place == null || !(block.getState(false) instanceof TileState tile)) return false;
+        if (place == null || !(block.getState(false) instanceof Container tile)) return false;
+        Inventory inventory = localInventory(tile);
         if (tile.getPersistentDataContainer().has(plugin.keys().searchRolled)) {
             if (tile.getPersistentDataContainer().has(new org.bukkit.NamespacedKey(plugin, "stock_v2"))) return false;
             mark(block, place, plugin.clock().now());
@@ -124,7 +135,7 @@ public final class SearchService implements Listener {
     public void reset(Block block) {
         PlaceType place = identify(block);
         if (place == null || !(block.getState(false) instanceof Container container)) return;
-        container.getInventory().clear();
+        localInventory(container).clear();
         mark(block, place, null);
     }
 
@@ -164,43 +175,10 @@ public final class SearchService implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onClick(InventoryClickEvent event) {
-        Inventory top = event.getView().getTopInventory();
-        if (bypass(event.getWhoClicked()) || identify(top) == null) return;
-        boolean inTop = event.getClickedInventory() == top;
-        InventoryAction action = event.getAction();
-        boolean deposit = inTop ? switch (action) {
-            case PLACE_ALL, PLACE_ONE, PLACE_SOME, SWAP_WITH_CURSOR, HOTBAR_SWAP -> true;
-            default -> false;
-        } : action == InventoryAction.MOVE_TO_OTHER_INVENTORY;
-        if (!deposit) return;
-        event.setCancelled(true);
-        if (event.getWhoClicked() instanceof Player player) Text.warn(player, "Conteneur de fouille : on peut y prendre, pas y ranger.");
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onDrag(InventoryDragEvent event) {
-        Inventory top = event.getView().getTopInventory();
-        if (bypass(event.getWhoClicked()) || identify(top) == null) return;
-        for (int slot : event.getRawSlots()) {
-            if (slot < top.getSize()) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-    }
-
-    @EventHandler(ignoreCancelled = true)
-    public void onHopper(InventoryMoveItemEvent event) {
-        if (identify(event.getDestination()) != null || identify(event.getSource()) != null) event.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    /** Native breaking releases the inventory exactly once, including unopened generated loot. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
-        if (bypass(event.getPlayer()) || identify(event.getBlock()) == null) return;
-        event.setCancelled(true);
-        Text.warn(event.getPlayer(), "Ce conteneur de fouille est fixé : fouille-le plutôt.");
+        if (event.isDropItems()) roll(event.getBlock());
     }
 
     @EventHandler(ignoreCancelled = true)

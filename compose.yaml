@@ -103,7 +103,11 @@ services:
       RCON_PASSWORD_FILE: /run/secrets/rcon_password
       BACKUP_INTERVAL: 24h
       INITIAL_DELAY: "2m"
-      PRUNE_BACKUPS_DAYS: "7"
+      BACKUP_ON_STARTUP: "false"
+      # The worker verifies the newest archive before retaining five in total.
+      # mc-backup's built-in pruning can run even after a failed backup.
+      PRUNE_BACKUPS_DAYS: "0"
+      PRUNE_BACKUPS_COUNT: ""
       EXCLUDES: cache,logs,*.tmp,bluemap,apocalypse.db,apocalypse.db-wal,apocalypse.db-shm
       TZ: "${TZ:-Europe/Paris}"
     secrets: [rcon_password]

@@ -11,6 +11,14 @@ const { spawn, spawnSync } = require('node:child_process');
 test('activation, login, session, CSRF and logout', async () => {
   const state = fs.mkdtempSync(path.join(os.tmpdir(), 'duckcatmine-admin-test-'));
   const mcdata = path.join(state, 'mc-data');
+  const backupDir = path.join(state, 'backups');
+  fs.mkdirSync(backupDir);
+  const backupNames = ['manual-20261030-180000.tar.gz', 'world-20261031-180000.tar.gz'];
+  for (let i = 0; i < backupNames.length; i++) {
+    const filename = path.join(backupDir, backupNames[i]);
+    fs.writeFileSync(filename, 'test archive');
+    fs.utimesSync(filename, 100 + i, 100 + i);
+  }
   fs.mkdirSync(path.join(mcdata, 'logs'), { recursive: true });
   fs.writeFileSync(path.join(mcdata, '.papermc-manifest.json'), JSON.stringify({ minecraftVersion: '26.3' }));
   fs.writeFileSync(path.join(mcdata, 'logs', 'latest.log'), [
@@ -24,7 +32,7 @@ test('activation, login, session, CSRF and logout', async () => {
   const port = socket.address().port;
   await new Promise((resolve) => socket.close(resolve));
   const origin = `http://127.0.0.1:${port}`;
-  const env = { ...process.env, STATE_DIR: state, MC_DATA_DIR: mcdata, PUBLIC_ORIGIN: origin, PORT: String(port) };
+  const env = { ...process.env, STATE_DIR: state, MC_DATA_DIR: mcdata, BACKUP_DIR: backupDir, PUBLIC_ORIGIN: origin, PORT: String(port) };
   const rconCommands = [];
   const rconPacket = (id, type, value = '') => {
     const payload = Buffer.from(value);
@@ -96,7 +104,11 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal((await fetch(`${origin}/api/events`)).status, 401);
     const warm = await fetch(`${origin}/api/status`, { headers: { Cookie: cookie } });
     assert.equal(warm.status, 200);
-    assert.equal((await warm.json()).gameVersion, '26.3');
+    const warmStatus = await warm.json();
+    assert.equal(warmStatus.gameVersion, '26.3');
+    assert.equal(warmStatus.backupLimit, 5);
+    assert.equal(warmStatus.backups[0].canDelete, false);
+    assert.equal(warmStatus.backups[1].canDelete, true);
     const collected = rconCommands.length;
     const started = performance.now();
     const simultaneous = await Promise.all(Array.from({ length: 30 }, async () => {
@@ -305,6 +317,24 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal(queued.status, 202);
     const jobId = (await queued.json()).id;
     assert.equal((await fetch(`${origin}/api/jobs/${jobId}`, { headers: { Cookie: cookie } })).status, 200);
+    const deletion = { type: 'backup-delete', backup: backupNames[0], password: 'une-longue-phrase-secrete-123', confirm: 'SUPPRIMER' };
+    assert.equal((await post('/api/jobs', deletion)).status, 401);
+    assert.equal((await post('/api/jobs', deletion, { Cookie: cookie })).status, 403);
+    const backupHeaders = { Cookie: cookie, 'X-CSRF-Token': csrf };
+    assert.equal((await post('/api/jobs', { ...deletion, password: 'incorrect' }, backupHeaders)).status, 403);
+    assert.equal((await post('/api/jobs', { ...deletion, confirm: '' }, backupHeaders)).status, 400);
+    assert.equal((await post('/api/jobs', { ...deletion, backup: '../users.json' }, backupHeaders)).status, 400);
+    assert.equal((await post('/api/jobs', { ...deletion, backup: 'world-19990101-000000.tar.gz' }, backupHeaders)).status, 404);
+    assert.equal((await post('/api/jobs', { ...deletion, backup: backupNames[1] }, backupHeaders)).status, 409);
+    const beforeDelete = rconCommands.length;
+    const deleted = await post('/api/jobs', deletion, backupHeaders);
+    assert.equal(deleted.status, 202);
+    const deletedId = (await deleted.json()).id;
+    const queuedDeletion = JSON.parse(fs.readFileSync(path.join(state, 'jobs', deletedId + '.request'), 'utf8'));
+    assert.equal(queuedDeletion.type, 'backup-delete');
+    assert.equal(queuedDeletion.backup, backupNames[0]);
+    assert.equal(queuedDeletion.expected.size, 12);
+    assert.equal(rconCommands.length, beforeDelete, 'deletion must not contact Minecraft or wait for empty server');
     assert.equal((await post('/api/jobs', { type: 'restart', password: 'incorrect' }, { Cookie: cookie, 'X-CSRF-Token': csrf })).status, 403);
     const restart = await post('/api/jobs', { type: 'restart', password: 'une-longue-phrase-secrete-123' }, { Cookie: cookie, 'X-CSRF-Token': csrf });
     assert.equal(restart.status, 202);

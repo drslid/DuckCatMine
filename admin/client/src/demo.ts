@@ -83,16 +83,19 @@ const state: any = {
     spawn_mobs: 'true',
   },
   pending: {},
+  backupLimit: 5,
   backups: [
     {
       name: 'world-20261020-180000.tar.gz',
       at: '2026-10-20T18:00:00Z',
       size: 384 * 1024 ** 2,
+      canDelete: false,
     },
     {
       name: 'world-20261019-180000.tar.gz',
       at: '2026-10-19T18:00:00Z',
       size: 360 * 1024 ** 2,
+      canDelete: true,
     },
   ],
   metrics: {
@@ -628,6 +631,12 @@ export async function request(url: string, method = 'GET', data: any = {}) {
     return { id: 'demo-policy' };
   }
   if (u.pathname === '/api/jobs') {
+    if (data.type === 'backup-delete') {
+      const backup = state.backups.find((b) => b.name === data.backup);
+      if (!backup?.canDelete) throw new Error('La sauvegarde la plus récente est protégée.');
+      if (data.confirm !== 'SUPPRIMER') throw new Error('Confirmation manquante.');
+      state.backups = state.backups.filter((b) => b.name !== data.backup);
+    }
     if (data.type === 'restart') {
       demoPlugins.push(
         ...demoPending.map((p) => ({

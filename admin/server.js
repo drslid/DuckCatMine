@@ -448,7 +448,7 @@ const statusSnapshot = new SharedSnapshot(async () => {
   return {
     online: answers.length > 0, players: answers[0] || '', tps: answers[1] || '', mspt: answers[2] || '', ...meta,
     ops: readJsonFile('ops.json', []), whitelist: readJsonFile('whitelist.json', []),
-    backups: backups(), properties: properties(), logs: await recentLog(), metrics: systemMetrics(),
+    backups: backups(), backupLimit: 5, backupWarning: backupWarning(), properties: properties(), logs: await recentLog(), metrics: systemMetrics(),
     pending: pendingSettings(), scheduledRestart: scheduledRestart(), observedAt: new Date().toISOString(),
     address: process.env.MC_ADDRESS || new URL(ORIGIN).hostname, mapStart: mapStart(), mapPolicy: mapPolicy(),
     gameVersion: gameVersion(),
@@ -554,13 +554,25 @@ function backups() {
     return fs.readdirSync(BACKUP_DIR)
       .filter((name) => /^(world|manual|pre-restore)-[0-9-]+\.tar\.gz$/.test(name))
       .map((name) => {
-        const stat = fs.statSync(path.join(BACKUP_DIR, name));
-        return { name, size: stat.size, mtimeMs: stat.mtimeMs };
+        try {
+          const stat = fs.lstatSync(path.join(BACKUP_DIR, name));
+          return stat.isFile() && stat.size > 0 ? { name, size: stat.size, mtimeMs: stat.mtimeMs } : null;
+        } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
       })
-      .sort((a, b) => b.mtimeMs - a.mtimeMs)
-      .slice(0, 20)
-      .map(({ name, size, mtimeMs }) => ({ name, size, at: new Date(mtimeMs).toISOString() }));
+      .filter(Boolean)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name))
+      .map(({ name, size, mtimeMs }, index) => ({ name, size, at: new Date(mtimeMs).toISOString(), canDelete: index > 0 }));
   } catch { return []; }
+}
+
+function backupWarning() {
+  try {
+    const verified = JSON.parse(fs.readFileSync(path.join(JOBS_DIR, 'backup-verification.json'), 'utf8'));
+    if (verified.ok || !Array.isArray(verified.identity)) return '';
+    const [name, size, mtimeNs] = verified.identity;
+    const { stat } = backupFile(name);
+    return stat.size === size && Math.abs(stat.mtimeMs - mtimeNs / 1e6) < 1 ? verified.error : '';
+  } catch { return ''; }
 }
 
 function pendingSettings() {
@@ -624,7 +636,7 @@ function backupFile(name) {
   if (!/^(world|manual|pre-restore)-[0-9-]+\.tar\.gz$/.test(name)) throw new HttpError(400, 'Nom de sauvegarde invalide.');
   const filename = path.join(BACKUP_DIR, name);
   let stat;
-  try { stat = fs.statSync(filename); }
+  try { stat = fs.lstatSync(filename); }
   catch (error) { if (error.code === 'ENOENT') throw new HttpError(404, 'Sauvegarde introuvable.'); throw error; }
   if (!stat.isFile()) throw new HttpError(404, 'Sauvegarde introuvable.');
   return { filename, stat };
@@ -1001,8 +1013,17 @@ async function serve(req, res) {
     if (input.type === 'backup') {
       return json(res, 202, { id: enqueueJob('backup', session.username) });
     }
-    if (!['apply', 'restore', 'restart'].includes(input.type)) throw new HttpError(400, 'Opération inconnue.');
+    if (!['apply', 'restore', 'restart', 'backup-delete'].includes(input.type)) throw new HttpError(400, 'Opération inconnue.');
     if (!(await checkPasswordAsync(input.password, readUsers()[session.username]))) throw new HttpError(403, 'Mot de passe incorrect.');
+    if (input.type === 'backup-delete') {
+      if (input.confirm !== 'SUPPRIMER') throw new HttpError(400, 'Confirmation manquante.');
+      const name = String(input.backup || '');
+      const { stat } = backupFile(name);
+      if (!backups().find((backup) => backup.name === name)?.canDelete) throw new HttpError(409, 'La sauvegarde la plus récente est protégée.');
+      return json(res, 202, { id: enqueueJob('backup-delete', session.username, {
+        backup: name, expected: { size: stat.size, mtimeMs: stat.mtimeMs },
+      }) });
+    }
     if (input.type === 'restart') return json(res, 202, { id: scheduledRestart()?.id || enqueueJob('restart', session.username) });
     const players = await rcon('list');
     if (!/\b0 of a max of \d+ players online\b/.test(players)) throw new HttpError(409, 'Attends que tous les joueurs soient déconnectés.');

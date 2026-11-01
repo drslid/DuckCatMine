@@ -1591,6 +1591,20 @@ canvas {
   margin: 0;
   color: var(--accent);
 }
+.backup-heading {
+  flex-wrap: wrap;
+}
+.backup-heading > div {
+  flex: 1 1 240px;
+}
+.backup-heading > button {
+  flex-shrink: 0;
+}
+.backup-warning {
+  color: #f1c478;
+  border-left: 2px solid currentColor;
+  padding-left: 12px;
+}
 .backup-entry {
   display: flex;
   align-items: center;
@@ -1610,6 +1624,14 @@ canvas {
 }
 .backup-entry a {
   font-size: 11px;
+}
+.backup-delete {
+  color: var(--danger, #f48c8c);
+}
+.backup-filename {
+  overflow-wrap: anywhere;
+  color: var(--soft);
+  font-size: 12px;
 }
 .metrics-grid {
   display: grid;

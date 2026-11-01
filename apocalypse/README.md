@@ -4,6 +4,12 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Apparitions extérieures — alpha.10
+
+Les apparitions automatiques restent **dehors** : les intérieurs des bâtiments sont exclus, même après une modification de leur toit. Un toit ajouté par les joueurs bloque aussi les apparitions dessous et sur le toit dans le monde généré Ground Zero. Le même filtre s'applique aux apparitions ordinaires, animaux infectés du directeur, renforts des hurleurs et à chaque membre d'une horde. Les infectés déjà présents peuvent toujours entrer en marchant ou en enfonçant les obstacles.
+
+L'ancien réglage `spawning.indoor-chance` est conservé en lecture pour compatibilité et ne réactive plus les apparitions intérieures. Contrôles bornés aux chunks chargés et aux essais existants, sans recherche de pièces ni balayage de bâtiments en arrière-plan.
+
 ## Coffres de loot utilisables — alpha.9
 
 Les coffres et tonneaux de fouille acceptent les dépôts, glisser-déposer, Maj+clic et entonnoirs. Tu peux les casser : Minecraft fait tomber leur contenu. Un coffre non encore ouvert reçoit son butin une seule fois avant la casse. Les coffres doubles gardent des marqueurs séparés par moitié ; une extension posée par un joueur ne génère pas de loot.
@@ -301,5 +307,5 @@ Procédure J2 :
 - Les infectés n'ouvrent pas les portes : ils les enfoncent (siège), ce qui prend du temps.
 - La faune n'apparaît que dans les tronçons de campagne générés après la mise à jour J4 (le centre déjà généré est urbain et n'en avait pas).
 - Les infectés ne ciblent pas un joueur en mode créatif ou spectateur (règle du serveur) : tester en survie.
-- Les étages des immeubles et de l'hôpital se parcourent par des échelles ; les apparitions intérieures se font au rez-de-chaussée.
+- Les étages des immeubles et de l'hôpital se parcourent par des échelles ; les apparitions automatiques se font uniquement dehors.
 - Le monde est généré à la volée : la première visite d'une zone coûte un peu plus au serveur qu'un monde plat.

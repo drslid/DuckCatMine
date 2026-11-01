@@ -100,4 +100,18 @@ class CityLayoutTest {
         }
         assertTrue(max - min >= 6, "countryside relief " + min + ".." + max);
     }
+    @Test void buildingFootprintsStayExcludedEvenWhenTheirRoofIsChanged() {
+        CityLayout layout=CityLayout.fresh(SEED);
+        int checked=0;
+        for(int a=-4;a<=4;a++) for(int b=-4;b<=4;b++) for(var place:layout.cell(a,b).placements()) {
+            switch(place.kind()) {
+                case HOUSE_SMALL, HOUSE_LARGE, FARMHOUSE, APARTMENT, SHOP, HOSPITAL, WAREHOUSE, POLICE, PHARMACY -> {
+                    assertFalse(layout.openGround((place.minX()+place.maxX())/2,(place.minZ()+place.maxZ())/2),place.toString());checked++;
+                }
+                default -> {}
+            }
+        }
+        assertTrue(checked>20);
+        assertTrue(layout.openGround(0,CityLayout.CELL*3),"open street must remain usable");
+    }
 }

@@ -244,7 +244,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 read.integer("spawning.max-distance", 40, 12, 96),
                 read.integer("spawning.despawn-distance", 72, 32, 192),
                 read.integer("spawning.night-bonus", 2, 0, 16),
-                read.decimal("spawning.indoor-chance", 0.25, 0, 1),
+                read.decimal("spawning.indoor-chance", 0, 0, 1),
                 read.decimal("spawning.density", 1.5, 0.25, 5),
                 read.integer("spawning.per-tick", 2, 1, 5));
         long checkpointMs = read.integer("clock.checkpoint-seconds", 5, 1, 60) * 1000L;

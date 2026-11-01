@@ -61,8 +61,8 @@ spawning:
   despawn-distance: 72
   # Infectés en plus autour de chaque survivant pendant la nuit.
   night-bonus: 2
-  # Part des apparitions dans les bâtiments abandonnés sombres (rez-de-chaussée), jamais dans un lieu éclairé.
-  indoor-chance: 0.25
+  # Ancien réglage conservé pour compatibilité : les apparitions sont désormais toujours extérieures.
+  indoor-chance: 0.0
   # Densité : multiplie le plafond local de chaque secteur (1 = valeurs des secteurs, 2 = deux fois plus d'infectés).
   density: 1.5
   # Nouveaux infectés au plus par survivant et par passage, tant que le plafond local n'est pas atteint.

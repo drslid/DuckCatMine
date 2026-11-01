@@ -423,11 +423,29 @@ final class SelfTest {
             if (stacks == 0 && plugin.settings().place(spot.place().id()).rollsMin() > 0) throw new IllegalStateException("rien tiré");
             return spot.place().label() + " : " + stacks + " pile(s) tirée(s), pas de second tirage, conteneur remis à zéro";
         });
+        check(lines, "apparitions à l'extérieur", () -> {
+            Location street=street(plugin,world);
+            int x=street.getBlockX(),z=street.getBlockZ();
+            Location open=plugin.director().outdoorSpot(world,x,z);
+            if(open==null) throw new IllegalStateException("rue dégagée refusée");
+            Block roof=open.clone().add(0,4,0).getBlock();
+            if(!roof.getType().isAir()) throw new IllegalStateException("zone de test du toit occupée");
+            try {
+                for(Material material:List.of(Material.STONE_BRICKS,Material.GLASS,Material.OAK_LEAVES)) {
+                    roof.setType(material,false);
+                    if(plugin.director().outdoorSpot(world,x,z)!=null) throw new IllegalStateException("apparition acceptée sous le toit "+material);
+                }
+            } finally { roof.setType(Material.AIR,false); }
+            if(plugin.director().outdoorSpot(world,x,z)==null) throw new IllegalStateException("rue non rétablie après retrait du toit");
+            for(var spot:spots) if(plugin.director().outdoorSpot(world,spot.x(),spot.z())!=null) throw new IllegalStateException("intérieur du bâtiment accepté");
+            return "rue acceptée, toits en pierre, verre et feuilles refusés, intérieur des bâtiments exclu ; même filtre pour hordes et renforts";
+        });
         check(lines, "stockage et casse du loot", () -> {
             Location at = street(plugin, world).getBlock().getLocation().add(12,180,0);
             Block first = at.getBlock(), second = first.getRelative(1,0,0);
             if (!first.getType().isAir() || !second.getType().isAir()) throw new IllegalStateException("zone de test occupée");
-            List<org.bukkit.entity.Item> drops = new ArrayList<>();
+            var previousItems = world.getNearbyEntities(at.clone().add(.5,.5,.5),2,2,2).stream()
+                    .filter(e -> e instanceof org.bukkit.entity.Item).map(org.bukkit.entity.Entity::getUniqueId).collect(java.util.stream.Collectors.toSet());
             try {
                 var left = (org.bukkit.block.data.type.Chest) Material.CHEST.createBlockData();
                 left.setFacing(org.bukkit.block.BlockFace.NORTH); left.setType(org.bukkit.block.data.type.Chest.Type.LEFT);
@@ -453,8 +471,8 @@ final class SelfTest {
                 if (org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)first.getState(false)).getItem(0).getAmount()!=5) throw new IllegalStateException("stockage écrasé");
                 if (!first.breakNaturally(ItemStack.of(Material.IRON_AXE))) throw new IllegalStateException("casse refusée");
                 int diamonds=0;
-                for (var entity:world.getNearbyEntities(at.clone().add(.5,.5,.5),2,2,2)) if (entity instanceof org.bukkit.entity.Item item) {
-                    drops.add(item); if(item.getItemStack().getType()==Material.DIAMOND) diamonds+=item.getItemStack().getAmount();
+                for (var entity:world.getNearbyEntities(at.clone().add(.5,.5,.5),2,2,2)) if (entity instanceof org.bukkit.entity.Item item && !previousItems.contains(item.getUniqueId())) {
+                    if(item.getItemStack().getType()==Material.DIAMOND) diamonds+=item.getItemStack().getAmount();
                 }
                 if (diamonds!=5) throw new IllegalStateException("contenu tombé "+diamonds+" / 5 diamants");
                 if (org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)second.getState(false)).getItem(0).getAmount()!=3) throw new IllegalStateException("autre moitié du coffre affectée");
@@ -466,8 +484,12 @@ final class SelfTest {
                 if(org.duckcatmine.apocalypse.loot.SearchService.localInventory((Container)first.getState(false)).getItem(0).getAmount()!=2) throw new IllegalStateException("dépôt avant ouverture perdu");
                 return "coffre double, dépôts conservés au rechargement, 5 diamants tombés une fois, autre moitié intacte, loot avant casse unique";
             } finally {
-                for(var item:drops)item.remove();
-                first.setType(Material.AIR,false);second.setType(Material.AIR,false);
+                for(Block testBlock:List.of(first,second)) {
+                    if(testBlock.getState(false) instanceof Container box) org.duckcatmine.apocalypse.loot.SearchService.localInventory(box).clear();
+                    testBlock.setType(Material.AIR,false);
+                }
+                for(var entity:world.getNearbyEntities(at.clone().add(.5,.5,.5),2,2,2))
+                    if(entity instanceof org.bukkit.entity.Item && !previousItems.contains(entity.getUniqueId())) entity.remove();
             }
         });
         return lines;

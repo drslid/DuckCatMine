@@ -21,8 +21,7 @@ import org.duckcatmine.apocalypse.scenario.city.Sector;
 
 /**
  * Keeps a bounded population around each active survivor: local cap and archetype mix by sector, a little more at
- * night, always on the ground (never on roofs), out of reach, never in the refuge or in unloaded chunks. Indoor spawns
- * only happen in dark abandoned buildings. Hordes and tension cycles come with the threat director.
+ * night, always outside building footprints and below no roof, out of reach, never in the refuge or in unloaded chunks. Hordes and tension cycles come with the threat director.
  */
 public final class SpawnDirector {
     private static final int LOCAL_RADIUS = 40;
@@ -62,7 +61,7 @@ public final class SpawnDirector {
             int cap = plugin.threat().localCap(localCap(rule, spawning, sector) + (night ? spawning.nightBonus() : 0));
             int near = plugin.mobs().countNear(player.getLocation(), LOCAL_RADIUS);
             for (int k = 0; k < spawning.perTick() && near < cap && total < spawning.globalCap(); k++) {
-                Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance(), random.nextDouble() < spawning.indoorChance());
+                Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance());
                 if (spot == null) break;
                 Sector at = sectorAt(spot);
                 if (animalSpawn(at) && plugin.fauna().spawnInfected(spot, wolfFor(at)) != null) {
@@ -112,7 +111,7 @@ public final class SpawnDirector {
         if (!plugin.scenario().isEnabled() || !plugin.scenario().isScenarioWorld(world) || !spawning.enabled()) return;
         Sector sector = sectorAt(player.getLocation());
         for (int k = 0; k < count && plugin.mobs().count() < spawning.globalCap(); k++) {
-            Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance(), false);
+            Location spot = findSpot(world, player, spawning.minDistance(), spawning.maxDistance());
             if (spot != null) plugin.mobs().spawn(ApocalypseConfig.WALKER, pickAppearance(plugin.settings().archetype(ApocalypseConfig.WALKER), sector), spot);
         }
     }
@@ -126,16 +125,15 @@ public final class SpawnDirector {
         ApocalypseConfig.Spawning spawning = settings.spawning();
         World world = player.getWorld();
         if (!plugin.scenario().isEnabled() || !plugin.scenario().isScenarioWorld(world) || !spawning.enabled()) return 0;
-        Location center = findSpot(world, player, spawning.maxDistance(), spawning.maxDistance() + 16, false);
+        Location center = findSpot(world, player, spawning.maxDistance(), spawning.maxDistance() + 16);
         if (center == null) return 0;
         Sector sector = sectorAt(center);
         ApocalypseConfig.SectorRule rule = settings.sector(sector.id());
         Map<String, Double> mix = rule == null || rule.mix().isEmpty() ? Map.of(ApocalypseConfig.WALKER, 1.0) : rule.mix();
         Location goal = player.getLocation();
-        CityLayout layout = layout(world);
         int spawned = 0;
         for (int k = 0; k < size && plugin.mobs().count() < spawning.globalCap(); k++) {
-            Location spot = k == 0 ? center : nearby(world, layout, center);
+            Location spot = k == 0 ? center : nearby(world, center);
             if (spot == null) continue;
             String archetype = pickArchetype(mix);
             if (archetype == null) archetype = ApocalypseConfig.WALKER;
@@ -147,19 +145,30 @@ public final class SpawnDirector {
         return spawned;
     }
 
-    private Location nearby(World world, CityLayout layout, Location center) {
+    private Location nearby(World world, Location center) {
         for (int attempt = 0; attempt < 4; attempt++) {
             int x = center.getBlockX() + random.nextInt(7) - 3, z = center.getBlockZ() + random.nextInt(7) - 3;
-            if (!world.isChunkLoaded(x >> 4, z >> 4) || plugin.scenario().refugeArea().near(x, z, 8)) continue;
-            int top = world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
-            int ground = layout == null ? top : layout.floorAt(x, z, top);
-            if (top > ground + 1) continue;
-            Location spot = new Location(world, x + 0.5, ground + 1, z + 0.5);
-            Block feet = spot.getBlock();
-            if (feet.isPassable() && !feet.isLiquid() && feet.getRelative(BlockFace.UP).isPassable() && feet.getRelative(BlockFace.DOWN).isSolid())
-                return spot;
+            Location spot = outdoorSpot(world,x,z);
+            if (spot != null) return spot;
         }
         return null;
+    }
+
+    /** Common gate for ordinary spawns, animals, howler reinforcements and every member of a horde. */
+    public Location outdoorSpot(World world, int x, int z) {
+        if (!world.isChunkLoaded(x >> 4,z >> 4) || plugin.scenario().refugeArea().near(x,z,8)) return null;
+        CityLayout layout = layout(world);
+        if (layout != null && !layout.openGround(x,z)) return null;
+        int top = world.getHighestBlockYAt(x,z,HeightMap.WORLD_SURFACE);
+        // Use the planned terrain, not the roof height, also for player-built homes in the countryside.
+        int ground = layout == null ? top : layout.floorAt(x,z,layout.groundY(x,z));
+        if (top > ground + 1) return null;
+        Location spot = new Location(world,x+.5,ground+1,z+.5);
+        if (!world.getWorldBorder().isInside(spot)) return null;
+        Block feet = spot.getBlock();
+        if (!feet.isPassable() || feet.isLiquid() || !feet.getRelative(BlockFace.UP).isPassable()
+                || !feet.getRelative(BlockFace.DOWN).isSolid()) return null;
+        return spot;
     }
 
     private String pickArchetype(Map<String, Double> mix) {
@@ -201,8 +210,7 @@ public final class SpawnDirector {
         return Appearance.byId(ids.getFirst());
     }
 
-    private Location findSpot(World world, Player player, double minDistance, double maxDistance, boolean indoorAllowed) {
-        CityLayout layout = layout(world);
+    private Location findSpot(World world, Player player, double minDistance, double maxDistance) {
         Location origin = player.getLocation();
         double facing = Math.toRadians(origin.getYaw() + 90);
         for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
@@ -211,17 +219,8 @@ public final class SpawnDirector {
             double distance = minDistance + random.nextDouble() * (maxDistance - minDistance);
             int x = (int) Math.floor(origin.getX() + Math.cos(angle) * distance);
             int z = (int) Math.floor(origin.getZ() + Math.sin(angle) * distance);
-            if (!world.isChunkLoaded(x >> 4, z >> 4) || plugin.scenario().refugeArea().near(x, z, 8)) continue;
-            int top = world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
-            int ground = layout == null ? top : layout.floorAt(x, z, top);
-            boolean covered = top > ground + 1;
-            if (covered && !indoorAllowed) continue;
-            Location spot = new Location(world, x + 0.5, ground + 1, z + 0.5);
-            if (!world.getWorldBorder().isInside(spot)) continue;
-            Block feet = spot.getBlock();
-            Block below = feet.getRelative(BlockFace.DOWN);
-            if (!feet.isPassable() || feet.isLiquid() || !feet.getRelative(BlockFace.UP).isPassable() || !below.isSolid()) continue;
-            if (covered && feet.getLightFromBlocks() > 7) continue;
+            Location spot = outdoorSpot(world,x,z);
+            if (spot == null) continue;
             if (nearAnySurvivor(world, spot, minDistance)) continue;
             return spot;
         }

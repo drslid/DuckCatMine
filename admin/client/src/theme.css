@@ -929,6 +929,22 @@ canvas {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.web-play-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.web-play-actions > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
 .welcome-landscape svg {
   width: 100%;
   filter: drop-shadow(0 20px 15px #13201855);

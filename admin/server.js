@@ -12,6 +12,7 @@ const scrypt = promisify(crypto.scrypt);
 
 const PORT = Number(process.env.PORT || 3000);
 const ORIGIN = process.env.PUBLIC_ORIGIN || 'http://localhost:3000';
+const WEB_PLAY_URL = webPlayUrl(process.env.WEB_PLAY_ORIGIN);
 const STATE_DIR = process.env.STATE_DIR || path.join(__dirname, 'state');
 const MC_DATA_DIR = process.env.MC_DATA_DIR || path.join(__dirname, '..', 'data');
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, '..', 'backups');
@@ -370,6 +371,25 @@ function readJsonFile(filename, fallback) {
   catch { return fallback; }
 }
 
+function webPlayUrl(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'https:' && !url.username && !url.password && url.pathname === '/' &&
+        !url.search && !url.hash && url.hostname !== new URL(ORIGIN).hostname) return url.origin;
+  } catch {}
+  return null;
+}
+
+function serveWebPlayAuthorization(req, res) {
+  const uuid = req.url?.match(/^\/players\/([0-9a-f]{32})$/)?.[1];
+  if (req.method !== 'GET' || !uuid) return res.writeHead(404).end();
+  const whitelist = readJsonFile('whitelist.json', []);
+  const allowed = Array.isArray(whitelist) && whitelist.some(player =>
+    typeof player?.uuid === 'string' && player.uuid.replaceAll('-', '').toLowerCase() === uuid);
+  res.writeHead(allowed ? 204 : 403, { 'Cache-Control': 'no-store' }).end();
+}
+
 function gameVersion() {
   const manifest = readJsonFile('.papermc-manifest.json', {});
   const version = manifest?.minecraftVersion;
@@ -418,7 +438,7 @@ const statusSnapshot = new SharedSnapshot(async () => {
     backups: backups(), properties: properties(), logs: await recentLog(), metrics: systemMetrics(),
     pending: pendingSettings(), scheduledRestart: scheduledRestart(), observedAt: new Date().toISOString(),
     address: process.env.MC_ADDRESS || new URL(ORIGIN).hostname, mapStart: mapStart(), mapPolicy: mapPolicy(),
-    gameVersion: gameVersion(),
+    gameVersion: gameVersion(), playUrl: WEB_PLAY_URL,
   };
 });
 const eventClients = new Set();
@@ -1277,6 +1297,12 @@ http.createServer((req, res) => {
     json(res, status, { error: status === 500 ? 'Erreur interne.' : error.message });
   });
 }).listen(PORT, '0.0.0.0', () => console.log(`DuckCatMine admin listening on ${PORT}`));
+
+// The launcher calls this listener over the Docker network.
+if (WEB_PLAY_URL) {
+  http.createServer(serveWebPlayAuthorization)
+    .listen(Number(process.env.WEB_PLAY_AUTH_PORT || 3001), '0.0.0.0');
+}
 
 let lastChatEventId = '';
 let eventTickBusy = false;

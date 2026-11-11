@@ -164,6 +164,7 @@ Runtime versions are pinned in [compose.yaml](compose.yaml), plugin URLs and SHA
 - [Android and iOS notifications](https://drslid.github.io/DuckCatMine/guides/notifications/)
 - [Backups, restore and maintenance](https://drslid.github.io/DuckCatMine/guides/sauvegardes-et-maintenance/)
 - [Access model and optional extensions](https://drslid.github.io/DuckCatMine/guides/securite-et-extensions/)
+- [Experimental browser play](webplay/README.md)
 - [Cloud-init example](examples/cloud-init.yaml)
 
 ## Development

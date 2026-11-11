@@ -515,6 +515,29 @@
                     >Minecraft Java {status.gameVersion}</strong
                   > sur PC.
                 </p>{/if}
+              {#if status.playUrl}
+                <div class="web-play-actions">
+                  <a
+                    class="primary"
+                    href={status.playUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Jouer dans le navigateur <Icon name="arrow" size={17} /></a
+                  >
+                  <button
+                    class="join-address"
+                    onclick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(status.playUrl);
+                        toast('Lien de jeu copié.');
+                      } catch {
+                        toast(status.playUrl);
+                      }
+                    }}
+                    >Copier le lien <Icon name="copy" size={17} /></button
+                  >
+                </div>
+              {/if}
             </div>
             <div class="welcome-landscape" aria-hidden="true">
               <svg viewBox="0 0 420 260"

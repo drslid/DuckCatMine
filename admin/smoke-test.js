@@ -23,8 +23,13 @@ test('activation, login, session, CSRF and logout', async () => {
   await new Promise((resolve) => socket.listen(0, '127.0.0.1', resolve));
   const port = socket.address().port;
   await new Promise((resolve) => socket.close(resolve));
+  await new Promise((resolve) => socket.listen(0, '127.0.0.1', resolve));
+  const webPlayPort = socket.address().port;
+  await new Promise((resolve) => socket.close(resolve));
   const origin = `http://127.0.0.1:${port}`;
   const env = { ...process.env, STATE_DIR: state, MC_DATA_DIR: mcdata, PUBLIC_ORIGIN: origin, PORT: String(port) };
+  env.WEB_PLAY_ORIGIN = 'https://play.example.test';
+  env.WEB_PLAY_AUTH_PORT = String(webPlayPort);
   const rconCommands = [];
   const rconPacket = (id, type, value = '') => {
     const payload = Buffer.from(value);
@@ -92,7 +97,19 @@ test('activation, login, session, CSRF and logout', async () => {
     assert.equal((await fetch(`${origin}/api/events`)).status, 401);
     const warm = await fetch(`${origin}/api/status`, { headers: { Cookie: cookie } });
     assert.equal(warm.status, 200);
-    assert.equal((await warm.json()).gameVersion, '26.3');
+    const status = await warm.json();
+    assert.equal(status.gameVersion, '26.3');
+    assert.equal(status.playUrl, env.WEB_PLAY_ORIGIN);
+    const player = '/players/0123456789abcdef0123456789abcdef';
+    const playerAuthorization = `http://127.0.0.1:${webPlayPort}${player}`;
+    assert.equal((await fetch(origin + player)).status, 404);
+    assert.equal((await fetch(playerAuthorization)).status, 403);
+    const whitelist = path.join(mcdata, 'whitelist.json');
+    fs.writeFileSync(whitelist, JSON.stringify([{ uuid: '01234567-89AB-CDEF-0123-456789ABCDEF', name: 'Alex' }]));
+    assert.equal((await fetch(playerAuthorization)).status, 204);
+    fs.writeFileSync(whitelist + '.new', '[]');
+    fs.renameSync(whitelist + '.new', whitelist);
+    assert.equal((await fetch(playerAuthorization)).status, 403);
     const collected = rconCommands.length;
     const started = performance.now();
     const simultaneous = await Promise.all(Array.from({ length: 30 }, async () => {

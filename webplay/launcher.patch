@@ -1,0 +1,84 @@
+diff --git a/relay-service/tcp.mjs b/relay-service/tcp.mjs
+index 3a437be..8271fc8 100644
+--- a/relay-service/tcp.mjs
++++ b/relay-service/tcp.mjs
+@@ -11 +11,5 @@ export async function publicDial(target) {
+-  const socket = tcpConnect({ host: addresses[0].address, port: target.port }); socket.setNoDelay(true);
++  return dialTcp(addresses[0].address, target.port);
++}
++
++export function dialTcp(host, port) {
++  const socket = tcpConnect({ host, port }); socket.setNoDelay(true);
+diff --git a/server/app.mjs b/server/app.mjs
+index 8346ba5..7a3c119 100644
+--- a/server/app.mjs
++++ b/server/app.mjs
+@@ -10,0 +11 @@ import { isWebKit, webkitRuntimePage } from './runtime.mjs';
++import { duckCatPlay } from './duckcat-play.mjs';
+@@ -176 +177,3 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+-  const app = createApp({ origin });
++  const gatewayOptions = duckCatPlay(process.env.DUCKCAT_PLAY_ADDRESS);
++  const auth = new JsonAccountAuth({ origin, authorizeProfile: gatewayOptions.authorizeProfile });
++  const app = createApp({ origin, auth, gatewayOptions });
+diff --git a/server/gateway.mjs b/server/gateway.mjs
+index 3ceb237..c945292 100644
+--- a/server/gateway.mjs
++++ b/server/gateway.mjs
+@@ -81 +81,2 @@ export function createGateway({ auth, origin, fetchImpl = fetch, dial = publicDi
+-  verifier, maxConnections = 64, resolveSrvImpl = resolveSrv, packFetch = nodePackFetch } = {}) {
++  verifier, maxConnections = 64, resolveSrvImpl = resolveSrv, packFetch = nodePackFetch,
++  allowedTarget, authorizeProfile } = {}) {
+@@ -101 +102,2 @@ export function createGateway({ auth, origin, fetchImpl = fetch, dial = publicDi
+-      allowAnyTarget: true, allowedTargets: ['*'] },
++      allowAnyTarget: !allowedTarget,
++      allowedTargets: allowedTarget ? [allowedTarget.hostname + ':' + allowedTarget.port] : ['*'] },
+@@ -167,0 +170 @@ export function createGateway({ auth, origin, fetchImpl = fetch, dial = publicDi
++      if (allowedTarget && (target.hostname !== allowedTarget.hostname || target.port !== allowedTarget.port)) return rejected(socket);
+@@ -171 +174,5 @@ export function createGateway({ auth, origin, fetchImpl = fetch, dial = publicDi
+-      if (target) target = await resolveTarget(target, resolveSrvImpl);
++      if (authorizeProfile && !await authorizeProfile(credential.id)) {
++        auth.revoke(session);
++        return rejected(socket);
++      }
++      if (target && !allowedTarget) target = await resolveTarget(target, resolveSrvImpl);
+diff --git a/server/json-auth.mjs b/server/json-auth.mjs
+index 0c5c681..96bc750 100644
+--- a/server/json-auth.mjs
++++ b/server/json-auth.mjs
+@@ -12,3 +12,6 @@ export class JsonAuthError extends Error {
+-    super(code === 'session-limit'
+-    ? 'Too many active sessions. Try again later.'
+-    : 'Could not verify this Minecraft account. Refresh it in your launcher and import it again.');
++    const messages = {
++      'not-whitelisted': 'Ce compte Java doit être ajouté à la liste blanche de DuckCatMine.',
++      'whitelist-unavailable': 'La vérification de la liste blanche est indisponible. Réessaie dans un instant.',
++      'session-limit': 'Too many active sessions. Try again later.',
++    };
++    super(messages[code] || 'Could not verify this Minecraft account. Refresh it in your launcher and import it again.');
+@@ -69,0 +73 @@ export class JsonAccountAuth {
++  #authorizeProfile;
+@@ -75 +79 @@ export class JsonAccountAuth {
+-  constructor({ origin, fetchImpl = fetch, now = Date.now, maxSessions = 256 }) {
++  constructor({ origin, fetchImpl = fetch, now = Date.now, maxSessions = 256, authorizeProfile }) {
+@@ -86,0 +91 @@ export class JsonAccountAuth {
++    this.#authorizeProfile = authorizeProfile;
+@@ -155,0 +161 @@ export class JsonAccountAuth {
++      if (this.#authorizeProfile && !await this.#authorizeProfile(id)) throw failure('not-whitelisted', 403);
+diff --git a/server/launcher.mjs b/server/launcher.mjs
+index 0505473..8f5bb6f 100644
+--- a/server/launcher.mjs
++++ b/server/launcher.mjs
+@@ -4 +4 @@ export const authPolicy = "default-src 'none'; base-uri 'none'; frame-ancestors
+-const launcherTitle = '<h1 class="testing-title"><span class="title-edition">Web Launcher</span> <span class="title-launcher">For Minecraft: Java Edition</span></h1>';
++const launcherTitle = '<h1 class="testing-title"><span class="title-edition">DuckCatMine</span> <span class="title-launcher">Jouer dans le navigateur</span></h1>';
+@@ -21 +21 @@ export function accountImportPage() {
+-  return installablePage(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>minecraft.wasm.click | Import account</title><link rel="stylesheet" href="/site.css"><link rel="stylesheet" href="/auth/testing.css"></head>
++  return installablePage(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DuckCatMine | Connexion joueur</title><link rel="stylesheet" href="/site.css"><link rel="stylesheet" href="/auth/testing.css"></head>
+@@ -23 +23 @@ export function accountImportPage() {
+-<section class="privacy-card dev-card"><h2>Import your Minecraft account</h2><p>Choose your PrismLauncher accounts.json file. The active account must own Minecraft: Java Edition and have an unexpired Minecraft token.</p><form id="account-import"><label for="account-file" class="account-file-label">Account JSON</label><input id="account-file" name="account" type="file" accept=".json,application/json" required aria-describedby="account-help"><p id="account-help">Only the selected Minecraft token and profile go to this server. Your file and Microsoft refresh tokens stay out of server storage.</p><button id="login-button" class="pixel-button pixel-button-red" type="submit">IMPORT ACCOUNT JSON</button></form><p id="account-status" class="dev-status" role="status" aria-live="polite">Refresh the account in PrismLauncher first if its Minecraft token has expired.</p></section>
++<section class="privacy-card dev-card"><h2>Connecte ton compte Minecraft Java</h2><p>Dans Prism Launcher, connecte le compte inscrit sur la liste blanche. Sélectionne ici son fichier accounts.json.</p><form id="account-import"><label for="account-file" class="account-file-label">Fichier de compte Prism</label><input id="account-file" name="account" type="file" accept=".json,application/json" required aria-describedby="account-help"><p id="account-help">Le serveur reçoit le profil et un jeton Minecraft temporaire.</p><button id="login-button" class="pixel-button pixel-button-red" type="submit">Continuer</button></form><p id="account-status" class="dev-status" role="status" aria-live="polite">Si la session a expiré, actualise ton compte dans Prism Launcher.</p></section>
+@@ -46,0 +47 @@ export function launcherPage(html, session, config) {
++  const quickPlay = config.gateway.allowAnyTarget ? '' : "'--quickPlayMultiplayer', " + JSON.stringify(config.gateway.allowedTargets[0]) + ', ';
+@@ -52 +53 @@ export function launcherPage(html, session, config) {
+-    .replace("'--version', '26.3', '--accessToken', '0', '--userType', 'legacy',", "'--version', '26.3', '--username', __mcWebVerified.session.profile.name, '--uuid', __mcWebVerified.session.profile.id, '--accessToken', '0', '--userType', 'msa',")
++    .replace("'--version', '26.3', '--accessToken', '0', '--userType', 'legacy',", quickPlay + "'--version', '26.3', '--username', __mcWebVerified.session.profile.name, '--uuid', __mcWebVerified.session.profile.id, '--accessToken', '0', '--userType', 'msa',")

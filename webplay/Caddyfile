@@ -1,0 +1,6 @@
+import duckcatmine.caddy
+
+{$WEB_PLAY_HOST} {
+	header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+	reverse_proxy webplay:8080
+}

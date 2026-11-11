@@ -1,0 +1,30 @@
+services:
+  panel:
+    environment:
+      WEB_PLAY_ORIGIN: "https://${WEB_PLAY_HOST:?Set a separate HTTPS hostname for Web Play}"
+
+  https:
+    environment:
+      WEB_PLAY_HOST: "${WEB_PLAY_HOST:?Set a separate HTTPS hostname for Web Play}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/duckcatmine.caddy:ro
+      - ./webplay/Caddyfile:/etc/caddy/Caddyfile:ro
+
+  webplay:
+    build:
+      context: ./webplay
+      additional_contexts:
+        launcher: https://github.com/vano04/minecraft.wasm.click.git#e2ebb808010a3f323c5ed18f1054cf4a8a46b2b7
+        relay: https://github.com/vano04/minecraft.wasm.click.git#5a3296b708ee69a95e23484adafa6a06053b10b2
+    environment:
+      PUBLIC_ORIGIN: "https://${WEB_PLAY_HOST:?Set a separate HTTPS hostname for Web Play}"
+      DUCKCAT_PLAY_ADDRESS: "${MC_ADDRESS:?Set the advertised Minecraft Java address}"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    init: true
+    pids_limit: 128
+    mem_limit: 768m
+    restart: unless-stopped

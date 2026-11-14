@@ -1136,7 +1136,7 @@ session:
 # Voitures abandonnées : clic droit sur une portière pour monter (conducteur, puis passagers), Maj pour descendre.
 # Avancer/reculer et tourner avec les touches de déplacement, saut = frein à main, sprint = klaxon. Vitesses en blocs
 # par tick (0,75 = 54 km/h), plus lentes hors des routes. Le moteur fait du bruit (attire les infectés), consomme de
-# l'essence (litres par bloc) et la voiture s'abîme en percutant murs et infectés. Jerrican : siphonner une autre
+# l'essence (litres par bloc ; une voiture en brûle moitié moins, une camionnette 0,7 fois) et la voiture s'abîme en percutant murs et infectés. Jerrican : siphonner une autre
 # voiture (accroupi + clic droit) puis faire le plein (clic droit). Ferraille en main : réparation.
 vehicles:
   enabled: true

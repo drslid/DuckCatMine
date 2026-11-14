@@ -6,13 +6,14 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 ## Radar GPS, discrétion et camionnettes — alpha.16
 
-- **Radar GPS** (pack 1.4.0) : la carte en main disparaît (elle est retirée des inventaires). En haut à droite, un radar rond, au pixel près, tourne avec toi : **le haut est la direction où tu regardes**, un repère rouge indique le nord. Il couvre **128 blocs** autour de toi : relief, routes, toits, eau et arbres en couleur ; infectés en rouge (boss en rose), survivants en bleu, coffres de fouille pas encore ouverts en vert, caisses en blanc. Des **flèches sur le bord** pointent vers chaque survivant connecté à Ground Zero et vers les caisses hors de portée ; sous le radar, **chrono et distance** de la caisse la plus proche.
+- **Radar GPS** (pack 1.4.0) : la carte en main disparaît (elle est retirée des inventaires). En haut à droite, un radar rond, au pixel près, tourne avec toi : **le haut est la direction où tu regardes**, un « N » rouge sur le bord indique le nord. Il couvre **128 blocs** autour de toi : relief, routes, toits, eau et arbres en couleur ; infectés en rouge (boss en rose), survivants en bleu, coffres de fouille pas encore ouverts en vert, caisses en blanc. Des **flèches sur le bord** pointent vers chaque survivant connecté à Ground Zero et vers les caisses hors de portée ; sous le radar, **chrono et distance** de la caisse la plus proche.
 - **Jauge de repérage** sous le radar : vide quand aucun infecté ne t'a remarqué, verte puis orange puis rouge quand ils sont nombreux à te voir ou à fouiller l'endroit où ils t'ont entendu. Pleine : cache-toi. Sans le pack, la même jauge s'affiche en barre de boss.
 - **Largages** : plus de barre permanente ; seul le message radio s'affiche quand la caisse tombe (puis le radar donne la direction).
 - **Eau en bleu** : avec le pack, la barre d'hydratation est bleue et sans chiffre vert ; le pack est retiré en quittant Ground Zero, la barre d'expérience redevient verte ailleurs.
 - **À l'abri en voiture** : dans une voiture ou une camionnette, seuls le briseur, l'abomination et le Némésis peuvent encore te blesser. La moto ne protège pas.
 - **Camionnettes** : une place de stationnement sur quatre, 4 places (2 dans une voiture). Le premier monté conduit. Plus lente, gros réservoir, consomme plus. Dans les rues déjà visitées, une voiture garée sur quatre devient une camionnette au prochain chargement.
 - **Motos corrigées** : la détection des obstacles utilisait le gabarit d'une voiture, une moto garée derrière une voiture restait bloquée. Les autotests conduisent désormais voiture, moto et camionnette jusqu'au mur.
+- **Plus d'essence (alpha.17)** : voitures et camionnettes garées contiennent deux fois plus d'essence (4 à 28 L), celles déjà garées voient leur réservoir doublé une fois, et elles consomment deux fois moins (camionnette : 0,7 fois la consommation de base). Les motos ne changent pas.
 
 ## Survie étendue — alpha.15
 

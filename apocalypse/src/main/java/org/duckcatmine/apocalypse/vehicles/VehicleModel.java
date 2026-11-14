@@ -26,10 +26,10 @@ public enum VehicleModel {
     /** Cars take a driver and a passenger, vans four people; the first one in drives. */
     public int seatCount() { return this == VAN ? 4 : 2; }
     public double[] seat(int index) { return (this == MOTORBIKE ? BIKE_SEATS : this == VAN ? VAN_SEATS : CAR_SEATS)[index]; }
-    /** Motorbikes: faster and frugal, small tank. Vans: slower, thirsty, big tank. */
+    /** Motorbikes: faster and frugal, small tank. Cars burn half the configured rate. Vans: slower, big tank. */
     public double speedFactor() { return this == MOTORBIKE ? 1.25 : this == VAN ? 0.85 : 1; }
     public double tankFactor() { return this == MOTORBIKE ? 0.35 : this == VAN ? 1.6 : 1; }
-    public double fuelFactor() { return this == MOTORBIKE ? 0.5 : this == VAN ? 1.4 : 1; }
+    public double fuelFactor() { return this == MOTORBIKE ? 0.5 : this == VAN ? 0.7 : 0.5; }
     public float hitboxWidth() { return this == MOTORBIKE ? 1.1f : this == VAN ? 2.6f : 2.3f; }
     public float hitboxHeight() { return this == MOTORBIKE ? 1.3f : this == VAN ? 2.4f : 1.75f; }
     public double halfWidth() { return this == MOTORBIKE ? 0.2 : this == VAN ? 0.85 : 0.75; }

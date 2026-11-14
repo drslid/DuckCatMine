@@ -264,7 +264,11 @@ public final class HudRadarService {
                 if (inside(x, y) && Math.hypot(x - RADIUS, y - RADIUS) > RADIUS - 1) px[y][x] = RIM;
         double[] north = screen(0, -1, yaw);
         double length = Math.hypot(north[0], north[1]);
-        blob(px, north[0] / length * (RADIUS - 2), north[1] / length * (RADIUS - 2), NORTH, 3);
+        int nx = (int) Math.round(RADIUS + north[0] / length * (RADIUS - 5)), ny = (int) Math.round(RADIUS + north[1] / length * (RADIUS - 5));
+        String[] letter = {"#..#", "##.#", "#.##", "#..#", "#..#"};
+        for (int y = -3; y <= 3; y++) for (int x = -3; x <= 2; x++) put(px, nx + x, ny + y, RIM);
+        for (int y = 0; y < letter.length; y++)
+            for (int x = 0; x < 4; x++) if (letter[y].charAt(x) == '#') put(px, nx - 2 + x, ny - 2 + y, NORTH);
         int[][] self = {{0, -2}, {-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {0, 0}, {1, 0}, {-2, 1}, {-1, 1}, {1, 1}, {2, 1}};
         for (int[] p : self) put(px, RADIUS + p[0], RADIUS + p[1], WHITE);
         // Detection gauge under the map: empty when nobody noticed you, full when many infected are onto you.

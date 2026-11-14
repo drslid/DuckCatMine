@@ -68,7 +68,7 @@ import org.duckcatmine.apocalypse.scenario.city.Streets;
  * Chunks generated before cars were entities get their block cars swapped (and street trees added) once, when loaded.
  */
 public final class VehicleService implements Listener {
-    public static final int REVISION = 4;
+    public static final int REVISION = 5;
     private static final double SEAT_HEIGHT = 0.40;
     private static final Set<Material> SIDEWALK = Set.of(Material.STONE_BRICKS, Material.CRACKED_STONE_BRICKS,
             Material.MOSSY_STONE_BRICKS, Material.SMOOTH_STONE);
@@ -317,6 +317,7 @@ public final class VehicleService implements Listener {
             for (CityLayout.VehicleSpot spot : layout.vehicles(cx, cz)) {
                 if (old) convert(world, spot);
                 else if (revision < 4) toVan(spot);
+                if (!old && revision < 5) moreFuel(spot);
                 if (revision == null || revision < 3) motorbike(world, spot);
             }
             if (!isNew && old) plantTrees(world, layout, cx, cz);
@@ -363,7 +364,7 @@ public final class VehicleService implements Listener {
         boolean burnt = Streets.carBurnt(seed);
         boolean flip = ((seed >>> 5) & 1) == 0;
         float yaw = spot.alongX() ? (flip ? 90f : -90f) : (flip ? 0f : 180f);
-        double fuel = burnt || Math.floorMod(seed >>> 40, 100L) < 35 ? 0 : 2 + Math.floorMod(seed >>> 48, 13L);
+        double fuel = burnt || Math.floorMod(seed >>> 40, 100L) < 35 ? 0 : 4 + 2 * Math.floorMod(seed >>> 48, 13L);
         double health = burnt ? 0 : 45 + Math.floorMod(seed >>> 52, 56L);
         Vehicle vehicle = spawn(world, spot.centerX(), y, spot.centerZ(), yaw, burnt ? VehicleModel.WRECK : van(seed) ? VehicleModel.VAN : VehicleModel.SEDAN,
                 Streets.carPaint(seed), fuel, health);
@@ -391,6 +392,17 @@ public final class VehicleService implements Listener {
             if (door instanceof Interaction hitbox) { hitbox.setInteractionWidth(VehicleModel.VAN.hitboxWidth()); hitbox.setInteractionHeight(VehicleModel.VAN.hitboxHeight()); }
             park(vehicle);
             converted++;
+            return;
+        }
+    }
+
+    /** Cars and vans parked before fuel was doubled: double what is left in the tank, once. */
+    private void moreFuel(CityLayout.VehicleSpot spot) {
+        for (Vehicle vehicle : vehicles.values()) {
+            if (!vehicle.model.shields() || vehicle.occupied() || active.contains(vehicle.id)
+                    || Math.abs(vehicle.x - spot.centerX()) > 1.5 || Math.abs(vehicle.z - spot.centerZ()) > 1.5) continue;
+            vehicle.fuel = Math.min(plugin.settings().play().vehicles().tankLitres() * vehicle.model.tankFactor(), vehicle.fuel * 2);
+            save(vehicle);
             return;
         }
     }

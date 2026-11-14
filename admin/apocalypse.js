@@ -14,8 +14,12 @@ const SETTINGS = {
   vehicles: ['boolean'], 'city-chance': ['decimal', 0, 1],
   'leave-seconds': ['integer', 0, 120], intro: ['boolean'], 'team-size': ['integer', 2, 16],
   'indoor-chance': ['decimal', 0, 1],
+  thirst: ['boolean'], 'thirst-minutes': ['decimal', 5, 600], 'bed-respawn': ['boolean'],
+  'supply-drops': ['boolean'], 'drop-min-minutes': ['decimal', 1, 240], 'drop-max-minutes': ['decimal', 1, 240],
+  'drop-lifetime': ['decimal', 1, 120], boss: ['boolean'], 'boss-every-waves': ['integer', 1, 100],
+  survivors: ['boolean'], 'survivor-minutes': ['decimal', 1, 600], horses: ['boolean'],
 };
-const MOB_KINDS=['walker','pursuer','runner','howler','breaker','abomination','spitter','jumper','crawler','stalker','bloated','infected_wolf','infected_livestock'];
+const MOB_KINDS=['walker','pursuer','runner','howler','breaker','abomination','spitter','jumper','crawler','stalker','bloated','infected_wolf','infected_livestock','nemesis','smiler'];
 for(const id of MOB_KINDS){
   for(const [field,min,max] of [['health',1,1024],['damage',0,100],['speed',.05,.6],['armor',0,20],['scale',.4,2],['siege-power',0,500],['bite-chance',0,1]])SETTINGS[`mob-${id}-${field}`]=['decimal',min,max];
   SETTINGS[`mob-${id}-max-alive`]=['integer',0,50];
@@ -51,7 +55,7 @@ function makeApocalypseCommands(HttpError) {
     const action = input.action, value = input.value;
     // Validate the action before the availability check, so unknown tokens never reach RCON.
     const simple = ['status', 'settings', 'enable', 'disable', 'selftest', 'reload'];
-    const known = [...simple, 'pvp', 'destruction', 'threat', 'horde', 'map', 'set', 'preset', 'give', 'evacuate', 'upgrade', 'lives-reset', 'world-create', 'world-bind', 'world-recreate', 'teleport', 'teleport-point', 'renovate', 'departure-start', 'departure-cancel'];
+    const known = [...simple, 'pvp', 'destruction', 'threat', 'horde', 'map', 'set', 'preset', 'give', 'evacuate', 'upgrade', 'lives-reset', 'world-create', 'world-bind', 'world-recreate', 'teleport', 'teleport-point', 'renovate', 'departure-start', 'departure-cancel', 'nemesis', 'drop', 'survivor'];
     if (!known.includes(action)) fail('Action inconnue.');
     if (!status?.installed || status.stale) fail('Ground Zero ne répond pas. Attends la fin du démarrage.', 409);
     const result = (suffix, detail = '') => ({ command: `apocalypse admin ${suffix}`, detail });
@@ -96,6 +100,12 @@ function makeApocalypseCommands(HttpError) {
     }
     if (action === 'horde' || action === 'evacuate') {
       const player = target(value, status, action === 'horde');
+      return result(`${action} ${player}`, player);
+    }
+    if (action === 'nemesis' || action === 'drop' || action === 'survivor') {
+      if (!status.capabilities?.includes(action === 'drop' ? 'supply-drops' : action === 'nemesis' ? 'nemesis' : 'survivors'))
+        fail('Mets le plugin Ground Zero à jour pour cette action.', 409);
+      const player = target(value, status, true);
       return result(`${action} ${player}`, player);
     }
     if (action === 'map') {

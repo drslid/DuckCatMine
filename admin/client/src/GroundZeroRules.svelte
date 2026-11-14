@@ -6,10 +6,10 @@
     dirty = $state<Record<string, boolean>>({});
   let threat = $state<number | undefined>();
   const weapons=[
-    {id:'pistol',name:'Pistolet',note:'Précis, maniable, un tir au clic droit.',shots:120},
-    {id:'shotgun',name:'Fusil à pompe',note:'Une gerbe de huit plombs pour le combat rapproché.',shots:96},
-    {id:'smg',name:'Mitraillette',note:'Maintiens le clic droit pour tirer en rafale.',shots:360},
-    {id:'rocket_launcher',name:'Lance-roquettes',note:'La frappe la plus puissante : explosion sur 6 blocs, sans détruire les constructions. Dix tirs au total, sans recharge ni réparation.',shots:10},
+    {id:'pistol',name:'Pistolet',note:'Précis, maniable, un tir au clic droit. Une balle par tir, F pour recharger.',shots:120},
+    {id:'shotgun',name:'Fusil à pompe',note:'Une gerbe de huit plombs pour le combat rapproché, une balle par tir.',shots:96},
+    {id:'smg',name:'Mitraillette',note:'Maintiens le clic droit pour tirer en rafale. Mêmes balles que le pistolet.',shots:360},
+    {id:'rocket_launcher',name:'Lance-roquettes',note:'La frappe la plus puissante : explosion sur 6 blocs, sans détruire les constructions. Trouvé chargé de 5 à 20 roquettes, F pour recharger.',shots:60},
   ];
   let groups = $derived([
     ...new Set((status.settingsCatalog || []).filter((s:any)=>s.group!=='Bestiaire').map((s: any) => s.group)),

@@ -10,7 +10,14 @@
     // BlueMap's HTML renderer is a pointer-transparent overlay by default.
     style.textContent = '.bm-marker-player{pointer-events:auto!important;cursor:pointer;touch-action:manipulation}'
       + '.dc-infected-dot{display:block;width:8px;height:8px;background:#f57f73;border:1.5px solid #17241c;border-radius:50%;box-shadow:0 0 0 1px #f57f7355;pointer-events:auto}'
-      + '.dc-infected-elite{background:#f4b65f;width:10px;height:10px}.dc-infected-boss{background:#c49af8;width:12px;height:12px;border-radius:3px}';
+      + '.dc-infected-elite{background:#f4b65f;width:10px;height:10px}.dc-infected-boss{background:#c49af8;width:12px;height:12px;border-radius:3px}'
+      + '.dc-infected-nemesis{background:#ff2a2a;width:16px;height:16px;border-radius:3px;box-shadow:0 0 0 3px #ff2a2a66}'
+      + '.dc-drop{display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none}'
+      + '.dc-drop i{display:block;width:14px;height:14px;background:#fff;border:2px solid #17241c;box-shadow:0 0 0 2px #ffffff66}'
+      + '.dc-drop b,.dc-site b,.dc-npc b{font:800 11px system-ui;color:#fff;background:#17241ccc;border-radius:6px;padding:2px 6px;white-space:nowrap}'
+      + '.dc-npc{display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none}.dc-npc i{display:block;width:10px;height:10px;border-radius:50%;background:#ffd54a;border:2px solid #17241c}'
+      + '.dc-npc.sick i{background:#9ccc3c}.dc-site{display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none}'
+      + '.dc-site i{display:block;width:16px;height:16px;background:#7d8790;border:2px solid #17241c;border-radius:3px}';
     window.document.head.appendChild(style);
   }
   // BlueMap versions can consume marker clicks before publishing a 3D interaction event.
@@ -64,7 +71,7 @@
           window.bluemap.mapViewer.markers.add(infectedLayer);
         }
         const marker = entry?.marker || new window.BlueMap.HtmlMarker('dc-infected-' + p.id);
-        const kind = p.type === 'abomination' ? 'dc-infected-boss' : ['howler','breaker','runner','pursuer'].includes(p.type) ? 'dc-infected-elite' : '';
+        const kind = p.type === 'nemesis' ? 'dc-infected-nemesis' : ['abomination','smiler'].includes(p.type) ? 'dc-infected-boss' : ['howler','breaker','runner','pursuer'].includes(p.type) ? 'dc-infected-elite' : '';
         marker.updateFromData({position:{x:p.x,y:p.y+1.5,z:p.z},label,listed:false,sorting:-20,anchor:{x:.5,y:.5},classes:[],
           html:`<span class="dc-infected-dot ${kind}" role="img" aria-label="${escapeLabel(label)}" title="${escapeLabel(label)}"></span>`});
         if (!entry) infectedLayer.add(marker);
@@ -81,10 +88,58 @@
     infectedVisibility();
     if (changed) redraw();
   };
+  // Supply drops (white squares with their countdown), survivors waiting for help, known places.
+  let overlayLayer = null;
+  const overlayMarkers = new Map();
+  let dropClock = null;
+  const finite = n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 30000000;
+  const clockText = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const updateOverlay = data => {
+    if (!scenarioMap || data.world !== scenarioMap) return;
+    if (!overlayLayer) {
+      overlayLayer = new window.BlueMap.MarkerSet('duckcatmine-overlay');
+      overlayLayer.data.toggleable = false;
+      window.bluemap.mapViewer.markers.add(overlayLayer);
+    }
+    const active = new Set();
+    const put = (id, x, y, z, html, label) => {
+      active.add(id);
+      let marker = overlayMarkers.get(id);
+      if (!marker) { marker = new window.BlueMap.HtmlMarker(id); overlayLayer.add(marker); overlayMarkers.set(id, marker); }
+      marker.updateFromData({position:{x,y,z},label,listed:false,sorting:-10,anchor:{x:.5,y:.5},classes:[],html});
+    };
+    const now = Date.now();
+    for (const d of (Array.isArray(data.drops) ? data.drops.slice(0, 16) : [])) {
+      if (!d || typeof d.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(d.id) || ![d.x,d.y,d.z,d.secondsLeft].every(finite)) continue;
+      const ends = now + d.secondsLeft * 1000;
+      put('dc-drop-' + d.id, d.x + .5, d.y + 1.5, d.z + .5,
+        `<span class="dc-drop" data-ends="${ends}"><i role="img" aria-label="Largage"></i><b>Largage · ${clockText(d.secondsLeft)}</b></span>`, 'Largage');
+    }
+    for (const n of (Array.isArray(data.survivors) ? data.survivors.slice(0, 64) : [])) {
+      if (!n || typeof n.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(n.id) || ![n.x,n.y,n.z].every(finite)) continue;
+      const label = `${escapeLabel(String(n.name || 'Survivant').slice(0, 24))}${n.owner ? '' : ' · appelle à l’aide'}`;
+      put('dc-npc-' + n.id, n.x + .5, n.y + 2.2, n.z + .5, `<span class="dc-npc ${n.state === 'infected' ? 'sick' : ''}"><i></i><b>${label}</b></span>`, label);
+    }
+    for (const s of (Array.isArray(data.sites) ? data.sites.slice(0, 16) : [])) {
+      if (!s || typeof s.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(s.id) || ![s.x,s.z].every(finite)) continue;
+      put('dc-site-' + s.id, s.x + .5, 90, s.z + .5, `<span class="dc-site"><i></i><b>${escapeLabel(String(s.label || s.id).slice(0, 40))}</b></span>`, String(s.label || s.id));
+    }
+    for (const [id, marker] of overlayMarkers) if (!active.has(id)) { overlayLayer.remove(marker); overlayMarkers.delete(id); }
+    overlayLayer.visible = overlayMarkers.size > 0 && window.bluemap.mapViewer.map?.data?.id === scenarioMap;
+    if (!dropClock) dropClock = setInterval(() => {
+      for (const el of window.document.querySelectorAll('.dc-drop[data-ends]')) {
+        const left = Math.max(0, Math.round((Number(el.dataset.ends) - Date.now()) / 1000));
+        const text = el.querySelector('b');
+        if (text) text.textContent = `Largage · ${clockText(left)}`;
+      }
+    }, 1000);
+    redraw();
+  };
   window.addEventListener('message', (event) => {
     if (event.source !== window.parent || event.origin !== parentOrigin || event.data?.source !== 'duckcatmine-map-picker') return;
     const data = event.data;
     if (data.type === 'infected') updateInfected(data);
+    if (data.type === 'overlay') updateOverlay(data);
     if (data.type === 'clear') clear();
     if (data.type === 'focus' && /^[a-z0-9_-]{1,48}$/i.test(data.world || '')
         && (!scenarioMap || data.world === scenarioMap)

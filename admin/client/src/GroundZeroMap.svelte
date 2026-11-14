@@ -59,6 +59,14 @@
       });
     }
   });
+  $effect(() => {
+    if (ready)
+      send('overlay', {
+        drops: status.stale ? [] : status.supplyDrops || [],
+        survivors: status.stale ? [] : status.survivorNpcs || [],
+        sites: status.sites || [],
+      });
+  });
   // Status updates only change markers/details. They must never replace the iframe or reset its camera.
   function waitForMap() {
     clearTimeout(waitTimer);

@@ -434,6 +434,44 @@
         Départ groupé et téléportation entre survivants : disponibles après
         activation du nouveau plugin lors d’une relance sauvegardée.
       </p>{/if}
+    {#if status.capabilities?.includes('supply-drops')}
+      <article class="card survival-card" aria-label="Survie en cours">
+        <div>
+          <h2><Icon name="box" size={18} />Ravitaillement</h2>
+          {#if status.supplyDrops?.length}
+            {#each status.supplyDrops as drop}<p class="small">
+                Caisse en X {drop.x}, Z {drop.z} · {drop.landed ? 'disparaît dans' : 'en chute, fenêtre de'}
+                <strong>{Math.floor(drop.secondsLeft / 60)}:{String(drop.secondsLeft % 60).padStart(2, '0')}</strong>
+              </p>{/each}
+          {:else}<p class="muted small">
+              {status.nextSupplyDropSeconds >= 0
+                ? `Prochain message radio dans ~${Math.ceil(status.nextSupplyDropSeconds / 60)} min de jeu.`
+                : 'En attente de survivants hors du refuge.'}
+            </p>{/if}
+        </div>
+        <div>
+          <h2><Icon name="skull" size={18} />Némésis</h2>
+          <p class="small">
+            {#if status.nemesis?.alive}<strong class="danger-text">En chasse</strong> · X {status.nemesis.x}, Z {status.nemesis.z}
+              · {status.nemesis.health} PV
+            {:else}Vague {status.nemesis?.waves ?? 0} · prochaine venue dans
+              <strong>{status.nemesis?.nextIn ?? '—'}</strong> vague(s){/if}
+          </p>
+        </div>
+        <div>
+          <h2><Icon name="users" size={18} />Survivants recrutés</h2>
+          {#if status.survivorNpcs?.length}<ul class="npc-list">
+              {#each status.survivorNpcs as npc}<li>
+                  <strong>{npc.name}</strong> · {({ engineer: 'ingénieur', scientist: 'scientifique', guard: 'garde', explorer: 'explorateur' } as any)[npc.role] || npc.role}
+                  · {npc.owner ? (status.survivors?.find((p: any) => p.uuid === npc.owner)?.name || 'protégé') : 'appelle à l’aide'}
+                  {#if npc.state === 'infected'}<span class="danger-text"> · mordu</span>{/if}
+                  {#if npc.state === 'away'} · en exploration{/if}
+                </li>{/each}
+            </ul>
+          {:else}<p class="muted small">Aucun pour l’instant : écoute le talkie.</p>{/if}
+        </div>
+      </article>
+    {/if}
     <div class="gz-workspace">
       <article class="card map-card">
         <div class="card-heading">
@@ -609,7 +647,7 @@
                     cx={p.x - map.minX}
                     cy={p.z - map.minZ}
                     r={map.size / 180}
-                    fill={p.type === 'abomination' ? '#c49af8' : '#f57f73'}
+                    fill={p.type === 'nemesis' ? '#ff2a2a' : ['abomination', 'smiler'].includes(p.type) ? '#c49af8' : '#f57f73'}
                     ><title>{status.archetypeLabels?.[p.type] || p.type}</title
                     ></circle
                   >{/each}
@@ -877,6 +915,38 @@
                   danger: true,
                 })}><Icon name="skull" size={16} />Envoyer une horde</button
             >
+            {#if status.capabilities?.includes('supply-drops')}<button
+                class="secondary"
+                disabled={!!busy || status.stale || survivor.inRefuge}
+                onclick={() =>
+                  ask({
+                    action: 'drop',
+                    value: survivor.name,
+                    title: 'Largage de ravitaillement',
+                    description: `Annoncer à la radio une caisse de vivres et d’armes près de ${survivor.name}. Elle disparaît si personne ne l’ouvre à temps.`,
+                  })}><Icon name="box" size={16} />Larguer une caisse</button
+              ><button
+                class="secondary"
+                disabled={!!busy || status.stale || survivor.inRefuge}
+                onclick={() =>
+                  ask({
+                    action: 'survivor',
+                    value: survivor.name,
+                    title: 'Appel d’un survivant',
+                    description: `Un survivant appelle à l’aide à 40–90 blocs de ${survivor.name}. Certains sont déjà mordus.`,
+                  })}><Icon name="users" size={16} />Survivant à sauver</button
+              ><button
+                class="secondary"
+                disabled={!!busy || status.stale || survivor.inRefuge || status.nemesis?.alive}
+                onclick={() =>
+                  ask({
+                    action: 'nemesis',
+                    value: survivor.name,
+                    title: 'Faire venir le Némésis',
+                    description: `Le boss arrive à 200 blocs de ${survivor.name} et traque le survivant le plus proche. Il tue d’un coup.`,
+                    danger: true,
+                  })}><Icon name="skull" size={16} />Némésis</button
+              >{/if}
             <button
               class="secondary"
               disabled={!!busy || status.stale}
@@ -1465,5 +1535,26 @@
     .survivor-chip .bite-dot {
       margin-left: auto;
     }
+  }
+  .survival-card {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .survival-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .npc-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .danger-text {
+    color: #ff6b5e;
   }
 </style>

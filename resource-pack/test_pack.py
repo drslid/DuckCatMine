@@ -14,7 +14,11 @@ class PackTest(unittest.TestCase):
             names=set(z.namelist());self.assertEqual(z.testzip(),None)
             self.assertIn('LICENSE.txt',names)
             self.assertTrue(all('..' not in Path(n).parts and not n.startswith('/') for n in names))
-            self.assertEqual({n for n in names if n.startswith('assets/minecraft/')},{'assets/minecraft/items/paper.json'})
+            self.assertEqual({n for n in names if n.startswith('assets/minecraft/')},{'assets/minecraft/items/paper.json','assets/minecraft/textures/gui/sprites/boss_bar/pink_background.png'})
+            radar=json.loads(z.read('assets/duckcatmine/font/radar.json'))['providers']
+            self.assertEqual(len(radar),24);self.assertTrue(all(p['ascent']<=p['height'] for p in radar if p['type']=='bitmap'))
+            for role in ['engineer','scientist','guard','explorer']:
+                for suffix in ['','_infected']:self.assertTrue(z.read(f'assets/duckcatmine/textures/entity/survivor/{role}{suffix}.png').startswith(b'\x89PNG'))
             dispatcher=json.loads(z.read('assets/minecraft/items/paper.json'))['model']
             self.assertEqual(dispatcher['property'],'minecraft:custom_model_data');self.assertEqual(dispatcher['index'],0)
             self.assertEqual(dispatcher['fallback'],{'type':'minecraft:model','model':'minecraft:item/paper'})

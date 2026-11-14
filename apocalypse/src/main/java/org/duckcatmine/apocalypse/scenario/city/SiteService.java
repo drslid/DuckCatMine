@@ -111,10 +111,19 @@ public final class SiteService implements Listener {
                 for (int cz = (site.z() - half) >> 4; cz <= (site.z() + half) >> 4; cz++)
                     if (!world.isChunkLoaded(cx, cz)) {
                         ready = false;
-                        if (loading.add(site.id() + cx + ":" + cz)) world.getChunkAtAsync(cx, cz);
+                        if (loading.add(site.id() + ":" + cx + ":" + cz)) {
+                            int x = cx, z = cz;
+                            world.getChunkAtAsync(cx, cz).thenAccept(chunk -> world.addPluginChunkTicket(x, z, plugin));
+                        }
                     }
             if (!ready) continue;
             built.add(site.id());
+            for (String held : List.copyOf(loading)) {
+                if (!held.startsWith(site.id() + ":")) continue;
+                String[] parts = held.split(":");
+                world.removePluginChunkTicket(Integer.parseInt(parts[1]), Integer.parseInt(parts[2]), plugin);
+                loading.remove(held);
+            }
             if (site.kind().equals("prison")) prison(world, site); else bunker(world, site);
             plugin.database().submit(c -> { Store.putMeta(c, "site:" + site.id(), "built"); return null; });
             plugin.events().add("site", site.label() + " apparu en X " + site.x() + ", Z " + site.z());

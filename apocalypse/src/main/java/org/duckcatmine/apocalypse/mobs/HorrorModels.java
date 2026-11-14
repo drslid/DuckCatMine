@@ -50,6 +50,7 @@ public final class HorrorModels implements Listener,AutoCloseable {
     public boolean available(){return url!=null;}
     public int modelCount(){return rigs.size();}
     public int readyCount(){return ready.size();}
+    public boolean ready(UUID id){return ready.contains(id);}
     public String problem(){return problem;}
     public String hash(){return sha1;}
     public void offer(Player player){

@@ -34,6 +34,14 @@ def png(path: Path, pixels: list[tuple[int, int, int, int]], size=None):
     path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
                      + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b""))
 
+def png_rect(path: Path, pixels, width: int, height: int):
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+    rows = b"".join(b"\0" + bytes(c for px in pixels[y*width:(y+1)*width] for c in px) for y in range(height))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+                     + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b""))
+
 def texture(path: Path, base, eye, seed: int, face=False, kind=""):
     """Original 32 px skin: mottled shading, veins, bruises and scars; the face adds eyes, a torn mouth and teeth."""
     rng = random.Random(seed)
@@ -242,6 +250,13 @@ def build(output: Path, ffmpeg: str):
         for index,(role,(shirt,trousers,hat,accent)) in enumerate(SURVIVORS.items()):
             skin(assets/"textures/entity/survivor"/(role+".png"),shirt,trousers,hat,accent,900+index)
             skin(assets/"textures/entity/survivor"/(role+"_infected.png"),shirt,trousers,hat,accent,900+index,True)
+        # HUD radar font: one 2×2 cell glyph per row, stacked by ascent, and power-of-two spaces for positioning.
+        png(assets/"textures/font/radar_cell.png",[(255,255,255,255)]*4)
+        providers=[{"type":"space","advances":{**{chr(0xE300+b):-(1<<b) for b in range(8)},**{chr(0xE310+b):1<<b for b in range(8)}}}]
+        for r in range(23):providers.append({"type":"bitmap","file":"duckcatmine:font/radar_cell.png","ascent":2-3*r,"height":2,"chars":[chr(0xE200+r)]})
+        write_json(assets/"font/radar.json",{"providers":providers})
+        # The radar rides an empty pink boss bar whose background is transparent in this pack.
+        png_rect(pack/"assets/minecraft/textures/gui/sprites/boss_bar/pink_background.png",[(0,0,0,0)]*(182*5),182,5)
         from weapons import build_weapons
         weapons=build_weapons(assets,ROOT.parent/'admin/public/weapons',png,box,write_json,thumbnail)
         sounds={}

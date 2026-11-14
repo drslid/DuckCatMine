@@ -23,7 +23,7 @@ class PackTest(unittest.TestCase):
             rig=json.loads((ROOT/'apocalypse/src/main/resources/horror-rigs.json').read_text(encoding='utf-8'))
             self.assertEqual(rig['version'],2)
             self.assertEqual(len(rig['parts']),6)
-            for kind in ['spitter','jumper','crawler','stalker','bloated','breaker','abomination']:
+            for kind in ['spitter','jumper','crawler','stalker','bloated','breaker','abomination','nemesis','smiler']:
                 self.assertIn('<title>',(ROOT/'admin/public/horror'/f'{kind}.svg').read_text(encoding='utf-8'))
                 for part in rig['parts']:
                     definition=json.loads(z.read(f'assets/duckcatmine/items/{kind}_{part}.json'))
@@ -39,7 +39,7 @@ class PackTest(unittest.TestCase):
                 for texture in model['textures'].values():self.assertTrue(z.read('assets/duckcatmine/textures/'+texture.split(':')[1]+'.png').startswith(b'\x89PNG'))
                 for box in model['elements']:
                     for lo,hi in zip(box['from'],box['to']):self.assertTrue(-16<=lo<hi<=32)
-            sounds=json.loads(z.read('assets/duckcatmine/sounds.json'));self.assertEqual(len(sounds),11)
+            sounds=json.loads(z.read('assets/duckcatmine/sounds.json'));self.assertEqual(len(sounds),13)
             for sound in sounds.values():
                 self.assertTrue(z.read('assets/duckcatmine/sounds/'+sound['sounds'][0]['name'].split(':')[1]+'.ogg').startswith(b'OggS'))
 

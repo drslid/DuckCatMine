@@ -103,6 +103,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private org.duckcatmine.apocalypse.combat.AlarmService alarms;
     private org.duckcatmine.apocalypse.fauna.HorseService horses;
     private org.duckcatmine.apocalypse.mobs.NemesisService nemesis;
+    private org.duckcatmine.apocalypse.survival.SupplyDropService supplyDrops;
     private final EventLog events = new EventLog();
     private SettingsService tuning;
     private ProtectionService protection;
@@ -184,6 +185,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             alarms = new org.duckcatmine.apocalypse.combat.AlarmService(this);
             horses = new org.duckcatmine.apocalypse.fauna.HorseService(this);
             nemesis = new org.duckcatmine.apocalypse.mobs.NemesisService(this);
+            supplyDrops = new org.duckcatmine.apocalypse.survival.SupplyDropService(this);
             scenario.load();
             director.restore();
             if (scenario.isEnabled()) clock.resume();
@@ -236,6 +238,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(alarms, this);
         events.registerEvents(horses, this);
         events.registerEvents(nemesis, this);
+        events.registerEvents(supplyDrops, this);
         fauna.resumeLoaded();
         throwables.start();
         vehicles.start();
@@ -325,6 +328,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
                 horses.tick();
                 nemesis.tick();
                 nemesis.smilers();
+                supplyDrops.tick();
                 fauna.tick();
                 bags.tick();
                 protection.tick();
@@ -374,6 +378,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         if(rockets!=null)rockets.close();
         if(nemesis!=null)nemesis.close();
         if(alarms!=null)alarms.stop();
+        if(supplyDrops!=null)supplyDrops.stop();
         if (renovator != null) renovator.close();
         if (turrets != null) turrets.close();
         if (ticker != null) ticker.cancel();
@@ -465,6 +470,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public org.duckcatmine.apocalypse.combat.AlarmService alarms(){return alarms;}
     public org.duckcatmine.apocalypse.fauna.HorseService horses(){return horses;}
     public org.duckcatmine.apocalypse.mobs.NemesisService nemesis(){return nemesis;}
+    public org.duckcatmine.apocalypse.survival.SupplyDropService supplyDrops(){return supplyDrops;}
     public org.duckcatmine.apocalypse.mobs.HorrorModels horrorModels(){return horrorModels;}
 
     public SpawnDirector director() {

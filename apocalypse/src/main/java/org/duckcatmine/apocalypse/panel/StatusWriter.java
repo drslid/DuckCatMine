@@ -105,7 +105,7 @@ public final class StatusWriter {
     JsonObject snapshot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
-        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage", "renovation-v3", "radar-100", "distant-spawns", "horror-v1", "horror-v2", "client-facing-v3", "indoor-encounters", "infected-tuning", "weapon-recoil")));
+        root.add("capabilities", gson.toJsonTree(List.of("departure", "teleport", "mouse-driving", "infected-map", "map-teleport", "radar", "survival-kit-v2", "firearms-v2", "city-renovation", "auto-turrets", "stealth-search", "loot-storage", "renovation-v3", "radar-100", "distant-spawns", "horror-v1", "horror-v2", "client-facing-v3", "indoor-encounters", "infected-tuning", "weapon-recoil", "ammo-v1", "supply-drops", "nemesis", "thirst", "survivors")));
         root.addProperty("radarRange",org.duckcatmine.apocalypse.radar.RadarMath.RANGE);
         root.addProperty("weaponModels",true);
         root.addProperty("renovationBlocked",plugin.renovator().blockedByPlayers());
@@ -167,6 +167,19 @@ public final class StatusWriter {
         root.add("archetypes",gson.toJsonTree(plugin.settings().archetypes().values().stream().map(a->Map.of("id",a.id(),"name",a.name())).toList()));
         root.add("infectedPositions", gson.toJsonTree(plugin.mobs().mapPositions(world, org.duckcatmine.apocalypse.mobs.MobService.MAP_LIMIT)));
         root.addProperty("incubatingAnimals", plugin.fauna().incubatingCount());
+        root.add("supplyDrops", gson.toJsonTree(plugin.supplyDrops().snapshot()));
+        root.addProperty("nextSupplyDropSeconds", plugin.supplyDrops().secondsToNext());
+        JsonObject nemesisJson = new JsonObject();
+        nemesisJson.addProperty("waves", plugin.nemesis().waves());
+        nemesisJson.addProperty("nextIn", plugin.nemesis().nextIn());
+        var boss = plugin.nemesis().boss();
+        nemesisJson.addProperty("alive", boss != null);
+        if (boss != null) {
+            nemesisJson.addProperty("x", boss.getLocation().getBlockX());
+            nemesisJson.addProperty("z", boss.getLocation().getBlockZ());
+            nemesisJson.addProperty("health", Math.round(boss.getHealth()));
+        }
+        root.add("nemesis", nemesisJson);
         root.addProperty("activeInfections", plugin.infections().count());
         root.addProperty("activeBags", plugin.bags().count());
         root.addProperty("activeTurrets", plugin.turrets().count());

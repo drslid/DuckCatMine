@@ -15,7 +15,10 @@ public enum PlaceType {
     GAS_STATION("Station-service"),
     FARM("Ferme"),
     LAB("Laboratoire NEXUS"),
-    MILITARY("Barrage militaire");
+    MILITARY("Barrage militaire"),
+    ARMORY("Armurerie"),
+    AIRDROP("Caisse de ravitaillement"),
+    CACHE("Cache au trésor");
 
     private final String label;
 

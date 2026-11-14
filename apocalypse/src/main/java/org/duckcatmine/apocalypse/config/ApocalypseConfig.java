@@ -21,7 +21,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     public static final String INFECTED_LIVESTOCK = "infected_livestock";
     /** Stable archetype IDs: each has its own behaviour in code; config tunes their numbers. */
     public static final Set<String> KNOWN_ARCHETYPES = Set.of(WALKER, "pursuer", "runner", "howler", "breaker", "abomination",
-            INFECTED_WOLF, INFECTED_LIVESTOCK,"spitter","jumper","crawler","stalker","bloated");
+            INFECTED_WOLF, INFECTED_LIVESTOCK,"spitter","jumper","crawler","stalker","bloated","nemesis","smiler");
     public static final Set<String> STATIONS = Set.of("workbench", "workshop", "medical");
     public static final Set<String> WEAPONS = Set.of("club", "blade", "spear", "heavy_club", "fire_axe");
     /** Never handed out at the start of a life, whatever the configuration says. */
@@ -33,7 +33,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     public record Play(Spawn spawn, StartKit kit, Map<String, Recipe> recipes, Map<String, Weapon> weapons, Pistol pistol,
                        Repair repair, Noise noise, Perception perception, Traps traps, Siege siege, Threat threat, Fauna fauna,
                        Social social, Progression progression, boolean intro, int leaveSeconds, Vehicles vehicles,
-                       Explosives explosives) {
+                       Explosives explosives, Survival survival) {
         public Play {
             recipes = Map.copyOf(recipes);
             weapons = Map.copyOf(weapons);
@@ -48,6 +48,15 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     /** Thrown weapons: pipe bomb (fuse, blast radius, damage at the centre) and Molotov cocktail (burning area). */
     public record Explosives(double fuseSeconds, double bombRadius, double bombDamage, double fireRadius, double fireSeconds,
                              double fireDamagePerSecond) {
+    }
+
+    /**
+     * Survival additions: thirst (minutes from full to empty while playing), supply drops (random interval, lifetime),
+     * the boss every N waves, survivors who join, treasure maps and beds as respawn points.
+     */
+    public record Survival(boolean thirst, double thirstMinutes, boolean supplyDrops, double dropMinMinutes, double dropMaxMinutes,
+                           double dropLifetimeMinutes, boolean boss, int bossEveryWaves, boolean survivors, double survivorMinutes,
+                           int survivorsPerPlayer, double survivorInfectedChance, boolean bedRespawn, boolean horses) {
     }
 
     /** Antidote and its components, made more or less common in searched places by {@code loot.medical-boost}. */
@@ -371,7 +380,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
         }
         Pistol pistol = new Pistol(
                 read.decimal("pistol.damage", 8, 1, 40),
-                read.decimal("pistol.range", 40, 8, 120),
+                read.decimal("pistol.range", 80, 8, 160),
                 read.integer("pistol.magazine", 6, 1, 30),
                 read.decimal("pistol.reload-seconds", 2.5, 0.5, 10),
                 read.decimal("pistol.fire-delay-seconds", 0.45, 0.1, 5),
@@ -470,7 +479,21 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                         read.decimal("explosives.pipe-bomb.damage", 26, 1, 100),
                         read.decimal("explosives.molotov.radius", 2.5, 1, 6),
                         read.decimal("explosives.molotov.seconds", 8, 1, 30),
-                        read.decimal("explosives.molotov.damage-per-second", 2, 0, 20)));
+                        read.decimal("explosives.molotov.damage-per-second", 2, 0, 20)),
+                new Survival(read.bool("thirst.enabled", true),
+                        read.decimal("thirst.minutes", 35, 5, 600),
+                        read.bool("supply-drops.enabled", true),
+                        read.decimal("supply-drops.min-minutes", 5, 1, 240),
+                        read.decimal("supply-drops.max-minutes", 15, 1, 240),
+                        read.decimal("supply-drops.lifetime-minutes", 10, 1, 120),
+                        read.bool("boss.enabled", true),
+                        read.integer("boss.every-waves", 10, 1, 100),
+                        read.bool("survivors.enabled", true),
+                        read.decimal("survivors.every-minutes", 15, 1, 600),
+                        read.integer("survivors.per-player", 4, 0, 12),
+                        read.decimal("survivors.infected-chance", 0.4, 0, 1),
+                        read.bool("respawn.bed", true),
+                        read.bool("fauna.horses", true)));
     }
 
     private static final class Reader {

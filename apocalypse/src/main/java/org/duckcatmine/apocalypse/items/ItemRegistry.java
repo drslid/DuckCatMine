@@ -66,7 +66,7 @@ public final class ItemRegistry {
     public static final String SHOTGUN = "shotgun", SMG = "smg", RADAR = "radar";
     public static final String ROCKET_LAUNCHER="rocket_launcher";
     public static final Set<String> GUNS = Set.of(PISTOL, SHOTGUN, SMG,ROCKET_LAUNCHER);
-    public static final String AMMO = "ammo";
+    public static final String AMMO = "ammo", ROCKET = "rocket";
     public static final String DECOY = "decoy";
     public static final String WORKSHOP = "workshop";
     public static final String MEDICAL_STATION = "medical_station";
@@ -80,6 +80,7 @@ public final class ItemRegistry {
     public static final String BOW = "bow";
     public static final String ARROW = "arrow";
     public static final String JERRYCAN = "jerrycan";
+    public static final String WATER = "water", ALARM_CLOCK = "alarm_clock", TIMER = "timer";
     /** Items that become a tracked block when placed (station, defence or claim). */
     public static final Set<String> PLACEABLE = Set.of(WORKSHOP, MEDICAL_STATION, BARRICADE, BARRICADE_REINFORCED, SPIKE_TRAP, BEACON, AUTO_TURRET);
 
@@ -129,17 +130,19 @@ public final class ItemRegistry {
         definitions.put("heavy_club", new Definition("Massue renforcée", NamedTextColor.YELLOW, "minecraft:mace", 1,
                 List.of("Lourde : frappe fort et repousse.")));
         definitions.put(PISTOL, new Definition("Pistolet de fortune", NamedTextColor.GOLD, "minecraft:crossbow", 1,
-                List.of("Clic droit : tirer. Sans munitions, usure par tir.", "Répare à l’atelier avant de casser. Les tirs attirent les infectés.")));
+                List.of("Clic droit : tirer. F : recharger avec tes balles.", "Répare à l’atelier avant de casser. Les tirs attirent les infectés.")));
         definitions.put(SHOTGUN, new Definition("Fusil à pompe", NamedTextColor.GOLD, "minecraft:crossbow", 1,
-                List.of("Clic droit : gerbe de 8 plombs, portée courte.", "Sans munitions · 96 tirs · réparable à l'atelier.")));
+                List.of("Clic droit : gerbe de 8 plombs, portée courte.", "Une balle par tir · F : recharger · réparable à l'atelier.")));
         definitions.put(SMG, new Definition("Mitraillette", NamedTextColor.GOLD, "minecraft:crossbow", 1,
-                List.of("Maintiens le clic droit : tir automatique.", "Sans munitions · 360 tirs · réparable à l'atelier.")));
+                List.of("Maintiens le clic droit : tir automatique.", "Une balle par tir · F : recharger · réparable à l'atelier.")));
         definitions.put(ROCKET_LAUNCHER,new Definition("Lance-roquettes",NamedTextColor.LIGHT_PURPLE,"minecraft:crossbow",1,
-                List.of("Clic droit : roquette explosive, portée 96 blocs.","10 tirs au total · ni recharge ni réparation.","Explosion puissante sur 6 blocs · attention à la proximité !","Aucun dégât aux constructions · règles de PvP respectées.")));
+                List.of("Clic droit : roquette explosive, longue portée.","F : recharger avec tes roquettes (20 au plus).","Explosion puissante sur 6 blocs · attention à la proximité !","Aucun dégât aux constructions · règles de PvP respectées.")));
         definitions.put(RADAR, new Definition("Sonar de survie", NamedTextColor.AQUA, Material.FILLED_MAP, null, 1,
                 List.of("Tiens-le en seconde main (F) : radar sur 100 blocs.", "Accroupi + clic droit : zoom 50 / 100 blocs.", "Bleu : survivants · rouge : infectés.", "Les points extérieurs indiquent les joueurs éloignés.")));
-        definitions.put(AMMO, new Definition("Munitions de pistolet", NamedTextColor.WHITE, "minecraft:copper_nugget", 32,
-                List.of("Pour le pistolet de fortune.")));
+        definitions.put(AMMO, new Definition("Balles", NamedTextColor.WHITE, "minecraft:copper_nugget", 64,
+                List.of("Pistolet, fusil à pompe et mitraillette.", "Arme en main, F pour recharger.")));
+        definitions.put(ROCKET, new Definition("Roquette", NamedTextColor.LIGHT_PURPLE, "minecraft:firework_rocket", 16,
+                List.of("Pour le lance-roquettes.", "Arme en main, F pour recharger.")));
         definitions.put(DECOY, new Definition("Leurre sonore", NamedTextColor.AQUA, Material.SNOWBALL, "minecraft:note_block", 8,
                 List.of("À lancer (clic droit) : sonne quelques secondes", "et attire les infectés vers lui.")));
         definitions.put(WORKSHOP, new Definition("Atelier mécanique", NamedTextColor.AQUA, Material.SMITHING_TABLE, null, 1,
@@ -170,6 +173,14 @@ public final class ItemRegistry {
                 List.of("Pour l'arc de fortune.")));
         definitions.put(JERRYCAN, new Definition("Jerrican", NamedTextColor.RED, "minecraft:bucket", 1,
                 List.of("Accroupi + clic droit sur une voiture : siphonner.", "Clic droit sur une voiture : faire le plein.")));
+        definitions.put(WATER, new Definition("Bouteille d'eau", NamedTextColor.AQUA, "minecraft:potion", 8,
+                List.of("Maintiens le clic droit pour boire : +50 % d'hydratation.", "La bouteille vide se remplit à un point d'eau.")));
+        definitions.put(ALARM_CLOCK, new Definition("Réveil mécanique", NamedTextColor.AQUA, Material.SNOWBALL, "minecraft:clock", 4,
+                List.of("À lancer (clic droit) : sonne fort à l'heure réglée.", "Accroupi + clic droit : régler le délai.",
+                        "Attire les infectés de tout le quartier ; se ramasse ensuite.")));
+        definitions.put(TIMER, new Definition("Minuteur de cuisine", NamedTextColor.AQUA, Material.SNOWBALL, "minecraft:compass", 4,
+                List.of("À lancer (clic droit) : tic-tac discret, puis sonnerie.", "Accroupi + clic droit : régler le délai.",
+                        "Attire les infectés proches ; se ramasse ensuite.")));
     }
 
     public static boolean isMelee(String id) {
@@ -241,10 +252,10 @@ public final class ItemRegistry {
             stack.setData(DataComponentTypes.MAX_DAMAGE, org.duckcatmine.apocalypse.combat.Gun.of(id, config).durability());
             stack.setData(DataComponentTypes.DAMAGE, 0);
             stack.editPersistentDataContainer(data -> {
-                data.set(keys.magazine, PersistentDataType.INTEGER, 0);
+                data.set(keys.magazine, PersistentDataType.INTEGER, org.duckcatmine.apocalypse.combat.Ammo.found(id, ThreadLocalRandom.current()));
+                data.set(keys.ammoReady, PersistentDataType.BOOLEAN, true);
                 data.set(keys.gunId, PersistentDataType.STRING, java.util.UUID.randomUUID().toString());
             });
-            if(ROCKET_LAUNCHER.equals(id))stack.editPersistentDataContainer(data->data.set(keys.charges,PersistentDataType.INTEGER,10));
         }
         if (SMG.equals(id)) {
             stack.setData(DataComponentTypes.CONSUMABLE, Consumable.consumable().consumeSeconds(3600f)
@@ -258,6 +269,11 @@ public final class ItemRegistry {
             stack.setData(DataComponentTypes.DAMAGE, 0);
         }
         if (JERRYCAN.equals(id)) setFuel(stack, 0);
+        if (WATER.equals(id)) {
+            stack.setData(DataComponentTypes.CONSUMABLE, Consumable.consumable().consumeSeconds(1.6f).animation(ItemUseAnimation.DRINK)
+                    .sound(Key.key("minecraft:entity.generic.drink")).hasConsumeParticles(false).build());
+            stack.setData(DataComponentTypes.USE_REMAINDER, io.papermc.paper.datacomponent.item.UseRemainder.useRemainder(ItemStack.of(Material.GLASS_BOTTLE)));
+        }
         if (RADAR.equals(id)) radarConfigurer.accept(stack);
         stack.editPersistentDataContainer(data -> data.set(keys.item, PersistentDataType.STRING, id));
         stack.setAmount(Math.max(1, Math.min(amount, definition.maxStack())));
@@ -284,6 +300,36 @@ public final class ItemRegistry {
 
     public boolean is(ItemStack stack, String id) {
         return id.equals(idOf(stack));
+    }
+
+    /** Weapons from before stored rounds: launchers keep their remaining rockets, guns get a found load once. */
+    public boolean loadLegacyGun(ItemStack stack) {
+        String id = idOf(stack);
+        if (id == null || !GUNS.contains(id) || stack.getPersistentDataContainer().has(keys.ammoReady)) return false;
+        int wear = java.util.Objects.requireNonNullElse(stack.getData(DataComponentTypes.DAMAGE), 0);
+        int rounds = ROCKET_LAUNCHER.equals(id)
+                ? org.duckcatmine.apocalypse.combat.Ammo.legacyRockets(stack.getPersistentDataContainer().get(keys.charges, PersistentDataType.INTEGER), wear)
+                : org.duckcatmine.apocalypse.combat.Ammo.found(id, ThreadLocalRandom.current());
+        if (ROCKET_LAUNCHER.equals(id)) {
+            stack.setData(DataComponentTypes.MAX_DAMAGE, org.duckcatmine.apocalypse.combat.Ammo.LAUNCHER_DURABILITY);
+            stack.setData(DataComponentTypes.DAMAGE, 0);
+        }
+        List<Component> lore = new ArrayList<>();
+        for (String line : definitions.get(id).lore()) lore.add(Component.text(line, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        stack.setData(DataComponentTypes.LORE, ItemLore.lore(lore));
+        stack.editPersistentDataContainer(data -> {
+            data.set(keys.magazine, PersistentDataType.INTEGER, rounds);
+            data.set(keys.ammoReady, PersistentDataType.BOOLEAN, true);
+            data.remove(keys.charges);
+        });
+        return true;
+    }
+
+    /** A searched or dropped item: like {@link #resolve}, with found jerrycans holding some fuel. */
+    public ItemStack loot(String namespaced, int amount) {
+        ItemStack stack = resolve(namespaced, amount);
+        if (stack != null && is(stack, JERRYCAN)) setFuel(stack, ThreadLocalRandom.current().nextInt(6, 21));
+        return stack;
     }
 
     /** Litres in a jerrycan (0 for anything else). */

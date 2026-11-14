@@ -44,11 +44,12 @@ class ApocalypseConfigTest {
         assertEquals(ApocalypseConfig.KNOWN_ARCHETYPES, config.archetypes().keySet(), "every known archetype is configured");
         double sum = 0;
         for (ApocalypseConfig.Archetype archetype : config.archetypes().values()) {
+            if ("nemesis".equals(archetype.id())) continue; // kills in one blow: a bite would never matter
             assertTrue(archetype.biteChance() >= 0.2 && archetype.biteChance() <= 0.5, archetype.id() + " bite chance");
             assertFalse(archetype.guaranteed().isEmpty(), archetype.id() + " guaranteed loot");
             sum += archetype.biteChance();
         }
-        assertEquals(0.33, sum / config.archetypes().size(), 0.04, "about one bite in three on average");
+        assertEquals(0.33, sum / (config.archetypes().size() - 1), 0.04, "about one bite in three on average");
         assertTrue(config.archetype("runner").ability("sprint-speed", 0) > config.archetype("runner").speed());
         assertEquals(1, config.archetype("abomination").maxAlive());
         for (var place : org.duckcatmine.apocalypse.scenario.city.PlaceType.values())
@@ -65,11 +66,11 @@ class ApocalypseConfigTest {
     void newTunablesHaveSafeDefaults() throws Exception {
         ApocalypseConfig config = ApocalypseConfig.parse(bundled());
         assertEquals(1.0, config.infection().biteMultiplier(), 1e-9);
-        assertEquals(2.5, config.spawning().density(), 1e-9);
-        assertEquals(3, config.spawning().perTick());
+        assertEquals(3.5, config.spawning().density(), 1e-9);
+        assertEquals(4, config.spawning().perTick());
         assertEquals(10, config.play().leaveSeconds());
-        assertEquals(30, config.play().perception().investigateSeconds());
-        assertEquals(5, config.play().noise().walk());
+        assertEquals(20, config.play().perception().investigateSeconds());
+        assertEquals(8, config.play().noise().walk());
         assertEquals(12, config.play().noise().blockBreak());
         assertTrue(config.play().noise().walk() < config.play().noise().sprint());
         assertEquals(0.15, config.play().fauna().spawnShare(), 1e-9);

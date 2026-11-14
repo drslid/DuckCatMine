@@ -152,7 +152,7 @@ public final class SearchService implements Listener {
         }
         for (int k = 0; k < rolls && !free.isEmpty(); k++) {
             LootTable.Entry entry = table.loot().pick(random.nextDouble());
-            ItemStack stack = plugin.items().resolve(entry.item(), entry.amount());
+            ItemStack stack = plugin.items().loot(entry.item(), entry.amount());
             if (stack != null) inventory.setItem(free.remove(random.nextInt(free.size())), stack);
         }
     }

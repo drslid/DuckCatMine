@@ -107,16 +107,13 @@ final class SelfTest {
                 ||!identity.equals(pistol.getPersistentDataContainer().get(plugin.keys().gunId,org.bukkit.persistence.PersistentDataType.STRING)))throw new IllegalStateException("Ancien pistolet altéré");
             if(org.duckcatmine.apocalypse.items.GunModels.apply(pistol,ItemRegistry.PISTOL))throw new IllegalStateException("Migration visuelle non idempotente");
             var rocket=plugin.items().create(ItemRegistry.ROCKET_LAUNCHER,1);
-            if(rocket.getData(DataComponentTypes.MAX_DAMAGE)!=10)throw new IllegalStateException("Capacité différente de dix");
-            for(int use=0;use<10;use++){
-                int left=org.duckcatmine.apocalypse.combat.RocketBudget.remaining(rocket.getPersistentDataContainer().get(plugin.keys().charges,org.bukkit.persistence.PersistentDataType.INTEGER),rocket.getData(DataComponentTypes.DAMAGE));
-                if(left!=10-use)throw new IllegalStateException("Compteur de roquettes incorrect");
-                final int remaining=left-1;rocket.editPersistentDataContainer(d->d.set(plugin.keys().charges,org.bukkit.persistence.PersistentDataType.INTEGER,remaining));
-                rocket.setData(DataComponentTypes.DAMAGE,use+1);rocket=ItemStack.deserializeBytes(rocket.serializeAsBytes());
-            }
-            if(org.duckcatmine.apocalypse.combat.RocketBudget.remaining(rocket.getPersistentDataContainer().get(plugin.keys().charges,org.bukkit.persistence.PersistentDataType.INTEGER),0)!=0
-                ||org.duckcatmine.apocalypse.combat.RocketBudget.repairable(ItemRegistry.ROCKET_LAUNCHER))throw new IllegalStateException("Recharge imprévue");
-            return "Anciennes armes mises à jour sans réparation ; dix tirs conservés après sérialisation, onzième refusé";
+            int rockets=plugin.firearms().loaded(rocket);
+            if(rockets<5||rockets>20)throw new IllegalStateException("Lance-roquettes trouvé sans 5 à 20 roquettes");
+            int bullets=plugin.firearms().loaded(plugin.items().create(ItemRegistry.SMG,1));
+            if(bullets<30||bullets>100)throw new IllegalStateException("Arme trouvée sans 30 à 100 balles");
+            rocket=ItemStack.deserializeBytes(rocket.serializeAsBytes());
+            if(plugin.firearms().loaded(rocket)!=rockets)throw new IllegalStateException("Munitions perdues à la sérialisation");
+            return "Anciennes armes mises à jour sans réparation ; "+bullets+" balles et "+rockets+" roquettes conservées après sérialisation";
         });
         check(lines, "base de données", () -> {
             plugin.database().call(c -> {

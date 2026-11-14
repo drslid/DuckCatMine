@@ -51,7 +51,7 @@ public final class LootService implements Listener {
         Player credited = contributor(hits);
         if (credited == null) return;
         for (LootTable.Entry entry : LootRules.roll(archetype.guaranteed(), archetype.bonus(), plugin.settings().loot().bonusRollChance(), random)) {
-            ItemStack stack = plugin.items().resolve(entry.item(), entry.amount());
+            ItemStack stack = plugin.items().loot(entry.item(), entry.amount());
             if (stack != null) event.getDrops().add(stack);
         }
         String run = plugin.sessions().runOf(credited);

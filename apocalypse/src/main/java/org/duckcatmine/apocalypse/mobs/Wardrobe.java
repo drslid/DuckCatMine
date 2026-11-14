@@ -171,6 +171,45 @@ final class Wardrobe {
                 eq.setLeggings(leather(Material.LEATHER_LEGGINGS, rgb(0x2B2B2B)));
                 return 1;
             }
+            case NEMESIS -> {
+                eq.setChestplate(leather(Material.LEATHER_CHESTPLATE, rgb(0x151515)));
+                eq.setLeggings(leather(Material.LEATHER_LEGGINGS, rgb(0x1E1E1E)));
+                eq.setBoots(leather(Material.LEATHER_BOOTS, rgb(0x0E0E0E)));
+                return 1;
+            }
+            case SMILER -> {
+                eq.setHelmet(cosmetic(Material.CARVED_PUMPKIN));
+                eq.setChestplate(leather(Material.LEATHER_CHESTPLATE, rgb(0x3B2F2F)));
+                eq.setLeggings(leather(Material.LEATHER_LEGGINGS, rgb(0x2A2A2A)));
+                return 1;
+            }
+            case ENGINEER -> {
+                eq.setHelmet(leather(Material.LEATHER_HELMET, rgb(0xF1C40F)));
+                eq.setChestplate(leather(Material.LEATHER_CHESTPLATE, rgb(0xE67E22)));
+                eq.setLeggings(leather(Material.LEATHER_LEGGINGS, rgb(0x34495E)));
+                eq.setBoots(leather(Material.LEATHER_BOOTS, rgb(0x5A3A22)));
+                return 0.98 + r.nextDouble() * 0.06;
+            }
+            case SCIENTIST -> {
+                eq.setChestplate(leather(Material.LEATHER_CHESTPLATE, rgb(0xF4F6F7)));
+                eq.setLeggings(leather(Material.LEATHER_LEGGINGS, rgb(0xE5E8E8)));
+                eq.setBoots(leather(Material.LEATHER_BOOTS, rgb(0x2C2C2C)));
+                return 0.96 + r.nextDouble() * 0.06;
+            }
+            case GUARD -> {
+                eq.setHelmet(cosmetic(Material.CHAINMAIL_HELMET));
+                eq.setChestplate(leather(Material.LEATHER_CHESTPLATE, rgb(0x1F3A5F)));
+                eq.setLeggings(leather(Material.LEATHER_LEGGINGS, rgb(0x1C2833)));
+                eq.setBoots(leather(Material.LEATHER_BOOTS, rgb(0x111111)));
+                return 1.02 + r.nextDouble() * 0.06;
+            }
+            case EXPLORER -> {
+                eq.setHelmet(leather(Material.LEATHER_HELMET, rgb(0x7B5B3A)));
+                eq.setChestplate(leather(Material.LEATHER_CHESTPLATE, rgb(0x8E7B56)));
+                eq.setLeggings(leather(Material.LEATHER_LEGGINGS, rgb(0x6B5B3E)));
+                eq.setBoots(leather(Material.LEATHER_BOOTS, rgb(0x4A3420)));
+                return 0.97 + r.nextDouble() * 0.06;
+            }
         }
         return 1;
     }

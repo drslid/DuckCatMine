@@ -26,6 +26,7 @@ public final class Keys {
     /** Generation of Ground Zero in which the player's survivor position is valid. */
     public final NamespacedKey worldEpoch;
     public final NamespacedKey magazine;
+    public final NamespacedKey ammoReady;
     public final NamespacedKey gunId;
     public final NamespacedKey charges;
     public final NamespacedKey weaponDamage;
@@ -63,6 +64,7 @@ public final class Keys {
         slowed = new NamespacedKey(plugin, "slowed");
         worldEpoch = new NamespacedKey(plugin, "world_epoch");
         magazine = new NamespacedKey(plugin, "magazine");
+        ammoReady = new NamespacedKey(plugin, "ammo_ready");
         gunId = new NamespacedKey(plugin, "gun_id");
         charges = new NamespacedKey(plugin, "charges");
         weaponDamage = new NamespacedKey(plugin, "weapon_damage");

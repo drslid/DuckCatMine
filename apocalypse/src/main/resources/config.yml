@@ -1,4 +1,4 @@
-survival-content-version: 7
+survival-content-version: 8
 # DuckCatApocalypse — réglages du scénario Ground Zero.
 # Durées en secondes sauf mention contraire. Une valeur invalide est refusée avec un message précis :
 # au démarrage, les règles de référence s'appliquent ; /apocalypse admin reload garde la dernière
@@ -38,6 +38,8 @@ death:
 
 respawn:
   protection-seconds: 30
+  # Après une mort, réapparition près du dernier lit utilisé (clic droit sur un lit de Ground Zero), s'il existe encore.
+  bed: true
 
 loot:
   contribution-window-seconds: 30
@@ -55,7 +57,7 @@ search:
 spawning:
   enabled: true
   interval-seconds: 3
-  global-cap: 120
+  global-cap: 200
   # Distance horizontale à TOUS les joueurs, vérifiée juste avant chaque apparition.
   min-distance: 110
   max-distance: 190
@@ -65,9 +67,9 @@ spawning:
   # Rencontres dans certains bâtiments abandonnés. Jamais dans les pièces visitées, ni dans les bases protégées.
   indoor-chance: 0.3
   # Densité : multiplie le plafond local de chaque secteur (1 = valeurs des secteurs, 2 = deux fois plus d'infectés).
-  density: 2.5
+  density: 3.5
   # Nouveaux infectés au plus par survivant et par passage, tant que le plafond local n'est pas atteint.
-  per-tick: 3
+  per-tick: 4
 
 # Plafond local autour de chaque survivant et mélange des archétypes (poids relatifs) par secteur.
 sectors:
@@ -76,25 +78,25 @@ sectors:
     mix: {walker: 80, pursuer: 20}
   residential:
     local-cap: 4
-    mix: {walker: 50, pursuer: 18, runner: 8, howler: 4, breaker: 3, spitter: 4, jumper: 4, crawler: 5, stalker: 2, bloated: 2}
+    mix: {walker: 50, pursuer: 18, runner: 8, howler: 4, breaker: 3, spitter: 4, jumper: 4, crawler: 5, stalker: 2, bloated: 2, smiler: 2}
   downtown:
     local-cap: 6
-    mix: {walker: 35, pursuer: 20, runner: 10, howler: 7, breaker: 7, spitter: 6, jumper: 5, crawler: 4, stalker: 3, bloated: 3}
+    mix: {walker: 35, pursuer: 20, runner: 10, howler: 7, breaker: 7, spitter: 6, jumper: 5, crawler: 4, stalker: 3, bloated: 3, smiler: 2}
   industrial:
     local-cap: 5
-    mix: {walker: 30, pursuer: 15, runner: 10, howler: 4, breaker: 22, spitter: 5, jumper: 4, crawler: 4, stalker: 2, bloated: 4}
+    mix: {walker: 30, pursuer: 15, runner: 10, howler: 4, breaker: 22, spitter: 5, jumper: 4, crawler: 4, stalker: 2, bloated: 4, smiler: 1}
   medical:
     local-cap: 6
-    mix: {walker: 28, pursuer: 20, runner: 10, howler: 10, breaker: 5, abomination: 2, spitter: 8, jumper: 4, crawler: 5, stalker: 4, bloated: 4}
+    mix: {walker: 28, pursuer: 20, runner: 10, howler: 10, breaker: 5, abomination: 2, spitter: 8, jumper: 4, crawler: 5, stalker: 4, bloated: 4, smiler: 2}
   outskirts:
     local-cap: 3
-    mix: {walker: 55, pursuer: 20, runner: 8, howler: 4, spitter: 3, jumper: 4, crawler: 3, stalker: 2, bloated: 1}
+    mix: {walker: 55, pursuer: 20, runner: 8, howler: 4, spitter: 3, jumper: 4, crawler: 3, stalker: 2, bloated: 1, smiler: 2}
   countryside:
     local-cap: 2
-    mix: {walker: 55, pursuer: 20, runner: 8, breaker: 5, spitter: 2, jumper: 4, crawler: 3, stalker: 2, bloated: 1}
+    mix: {walker: 55, pursuer: 20, runner: 8, breaker: 5, spitter: 2, jumper: 4, crawler: 3, stalker: 2, bloated: 1, smiler: 1}
   lab:
     local-cap: 7
-    mix: {walker: 15, pursuer: 15, runner: 15, howler: 8, breaker: 12, abomination: 5, spitter: 9, jumper: 7, crawler: 4, stalker: 5, bloated: 5}
+    mix: {walker: 15, pursuer: 15, runner: 15, howler: 8, breaker: 12, abomination: 5, spitter: 9, jumper: 7, crawler: 4, stalker: 5, bloated: 5, smiler: 3}
 
 # Archétypes : comportement et capacités. L'apparence ne change jamais les statistiques.
 # speed est une valeur d'attribut Minecraft (zombie vanilla : 0.23), pas des blocs par seconde.
@@ -116,7 +118,7 @@ archetypes:
     memory-seconds: 6
     siege-power: 3
     points: 10
-    appearances: [citizen, citizen_tall, citizen_short, child, elder, nurse, worker, security, villager, farmer, drifter]
+    appearances: [citizen, citizen_tall, citizen_short, child, elder, nurse, worker, security, villager, farmer, drifter, engineer, scientist, guard, explorer]
     guaranteed-loot:
       - {item: apocalypse:scrap, weight: 50}
       - {item: apocalypse:cloth, weight: 50}
@@ -144,7 +146,7 @@ archetypes:
     memory-seconds: 15
     siege-power: 3
     points: 18
-    appearances: [citizen, citizen_tall, security, paramedic, worker, villager, drifter]
+    appearances: [citizen, citizen_tall, security, paramedic, worker, villager, drifter, engineer, scientist, guard, explorer]
     guaranteed-loot:
       - {item: apocalypse:cloth, weight: 50}
       - {item: apocalypse:scrap, weight: 35}
@@ -398,6 +400,61 @@ archetypes:
     bonus-loot:
       - {item: apocalypse:bandage, weight: 80}
       - {item: apocalypse:antidote, weight: 20}
+  # Boss : jamais dans les mélanges de secteurs, il arrive seul toutes les N vagues (section boss).
+  # Lent comparé à un survivant qui court, ne saute pas, casse les murs, tue d'un coup, environ 5 roquettes pour l'abattre.
+  nemesis:
+    name: Némésis
+    health: 400
+    damage: 100
+    speed: 0.25
+    speed-variation: 0
+    follow-range: 64
+    bite-chance: 0
+    armor: 0
+    knockback-resistance: 1.0
+    scale: 1.5
+    max-alive: 1
+    memory-seconds: 60
+    siege-power: 500
+    points: 3000
+    appearances: [nemesis]
+    abilities:
+      spawn-weight: 0
+      roar-radius: 96
+      roar-cooldown-seconds: 25
+      reinforcements: 6
+    guaranteed-loot:
+      - {item: apocalypse:rocket_launcher, weight: 40}
+      - {item: apocalypse:antidote, weight: 60, amount: 3}
+    bonus-loot:
+      - {item: apocalypse:rocket, weight: 50, amount: 4}
+      - {item: apocalypse:gun_parts, weight: 50, amount: 4}
+  # Le Souriant : énorme tête, sourire diabolique ; la nuit on ne voit presque que son sourire. Lent, tue en deux coups.
+  smiler:
+    name: Souriant
+    health: 40
+    damage: 11
+    speed: 0.13
+    speed-variation: 0.01
+    follow-range: 32
+    bite-chance: 0.3
+    armor: 2
+    knockback-resistance: 0.5
+    scale: 1.1
+    max-alive: 2
+    memory-seconds: 15
+    siege-power: 4
+    points: 140
+    min-threat: 1
+    appearances: [smiler]
+    abilities:
+      spawn-weight: 1
+    guaranteed-loot:
+      - {item: apocalypse:cloth, weight: 50}
+      - {item: apocalypse:alcohol, weight: 50}
+    bonus-loot:
+      - {item: apocalypse:antidote, weight: 30}
+      - {item: apocalypse:ammo, weight: 70, amount: 12}
   # Animaux contaminés et faune générée à distance : mêmes règles de morsure et de butin.
   infected_wolf:
     max-alive: 0
@@ -463,6 +520,12 @@ places:
       - {item: minecraft:leather_boots, weight: 1}
       - {item: minecraft:stone_axe, weight: 2}
       - {item: apocalypse:antidote, weight: 0.6}
+      - {item: apocalypse:ammo, weight: 4, amount: 6}
+      - {item: apocalypse:jerrycan, weight: 2}
+      - {item: apocalypse:water, weight: 7}
+      - {item: minecraft:glass_bottle, weight: 2}
+      - {item: apocalypse:alarm_clock, weight: 2}
+      - {item: apocalypse:timer, weight: 1}
   shop:
     rolls-min: 5
     rolls-max: 9
@@ -482,6 +545,9 @@ places:
       - {item: minecraft:torch, weight: 6, amount: 4}
       - {item: minecraft:string, weight: 4, amount: 3}
       - {item: minecraft:paper, weight: 3, amount: 3}
+      - {item: apocalypse:water, weight: 6}
+      - {item: apocalypse:ammo, weight: 2, amount: 6}
+      - {item: apocalypse:alarm_clock, weight: 2}
   supermarket:
     rolls-min: 7
     rolls-max: 12
@@ -502,6 +568,9 @@ places:
       - {item: apocalypse:bandage, weight: 3}
       - {item: minecraft:torch, weight: 5, amount: 6}
       - {item: minecraft:glass_bottle, weight: 4, amount: 2}
+      - {item: apocalypse:water, weight: 10, amount: 2}
+      - {item: apocalypse:alarm_clock, weight: 2}
+      - {item: apocalypse:timer, weight: 2}
   pharmacy:
     rolls-min: 1
     rolls-max: 3
@@ -552,6 +621,15 @@ places:
       - {item: minecraft:torch, weight: 5, amount: 4}
       - {item: minecraft:bow, weight: 2}
       - {item: minecraft:arrow, weight: 4, amount: 8}
+      - {item: apocalypse:ammo, weight: 24, amount: 24}
+      - {item: apocalypse:rocket, weight: 2, amount: 2}
+      - {item: minecraft:chainmail_helmet, weight: 3}
+      - {item: minecraft:chainmail_leggings, weight: 3}
+      - {item: minecraft:chainmail_boots, weight: 3}
+      - {item: minecraft:iron_chestplate, weight: 2}
+      - {item: minecraft:iron_leggings, weight: 2}
+      - {item: minecraft:iron_boots, weight: 2}
+      - {item: apocalypse:water, weight: 3}
   garage:
     rolls-min: 1
     rolls-max: 3
@@ -570,6 +648,8 @@ places:
       - {item: minecraft:stone_pickaxe, weight: 4}
       - {item: minecraft:iron_pickaxe, weight: 1}
       - {item: minecraft:bucket, weight: 2}
+      - {item: apocalypse:jerrycan, weight: 9}
+      - {item: apocalypse:ammo, weight: 3, amount: 6}
   warehouse:
     rolls-min: 4
     rolls-max: 8
@@ -587,6 +667,9 @@ places:
       - {item: minecraft:redstone, weight: 4, amount: 4}
       - {item: minecraft:glass, weight: 4, amount: 4}
       - {item: minecraft:ladder, weight: 4, amount: 4}
+      - {item: apocalypse:ammo, weight: 4, amount: 8}
+      - {item: apocalypse:jerrycan, weight: 3}
+      - {item: apocalypse:water, weight: 3}
   gas_station:
     rolls-min: 1
     rolls-max: 3
@@ -603,6 +686,8 @@ places:
       - {item: minecraft:coal, weight: 8, amount: 4}
       - {item: minecraft:torch, weight: 8, amount: 4}
       - {item: minecraft:flint_and_steel, weight: 2}
+      - {item: apocalypse:jerrycan, weight: 10}
+      - {item: apocalypse:water, weight: 7}
   farm:
     rolls-min: 1
     rolls-max: 3
@@ -624,6 +709,8 @@ places:
       - {item: minecraft:iron_axe, weight: 1}
       - {item: minecraft:shears, weight: 2}
       - {item: minecraft:bucket, weight: 2}
+      - {item: apocalypse:water, weight: 4}
+      - {item: apocalypse:jerrycan, weight: 3}
   lab:
     rolls-min: 1
     rolls-max: 3
@@ -638,6 +725,7 @@ places:
       - {item: apocalypse:note, weight: 12}
       - {item: apocalypse:gun_parts, weight: 3}
       - {item: minecraft:glass_bottle, weight: 6, amount: 2}
+      - {item: apocalypse:ammo, weight: 3, amount: 12}
   military:
     rolls-min: 1
     rolls-max: 3
@@ -659,6 +747,68 @@ places:
       - {item: minecraft:torch, weight: 4, amount: 4}
       - {item: minecraft:crossbow, weight: 1}
       - {item: minecraft:arrow, weight: 4, amount: 8}
+      - {item: apocalypse:ammo, weight: 24, amount: 32}
+      - {item: apocalypse:rocket, weight: 8, amount: 3}
+      - {item: minecraft:iron_leggings, weight: 2}
+      - {item: minecraft:iron_boots, weight: 2}
+      - {item: apocalypse:water, weight: 5}
+
+  # Armurerie (prison, bunker) : beaucoup d'armes, de munitions et d'armures.
+  armory:
+    rolls-min: 6
+    rolls-max: 11
+    loot:
+      - {item: apocalypse:pistol, weight: 8}
+      - {item: apocalypse:shotgun, weight: 6}
+      - {item: apocalypse:smg, weight: 5}
+      - {item: apocalypse:rocket_launcher, weight: 1}
+      - {item: apocalypse:ammo, weight: 30, amount: 48}
+      - {item: apocalypse:rocket, weight: 6, amount: 4}
+      - {item: apocalypse:pipe_bomb, weight: 4, amount: 2}
+      - {item: apocalypse:molotov, weight: 3, amount: 2}
+      - {item: minecraft:iron_helmet, weight: 6}
+      - {item: minecraft:iron_chestplate, weight: 5}
+      - {item: minecraft:iron_leggings, weight: 5}
+      - {item: minecraft:iron_boots, weight: 6}
+      - {item: minecraft:diamond_helmet, weight: 1}
+      - {item: minecraft:diamond_chestplate, weight: 1}
+      - {item: minecraft:shield, weight: 5}
+      - {item: apocalypse:bandage, weight: 6, amount: 2}
+      - {item: apocalypse:water, weight: 4, amount: 2}
+  # Caisse de ravitaillement larguée : vivres et armes.
+  airdrop:
+    rolls-min: 8
+    rolls-max: 12
+    loot:
+      - {item: apocalypse:pistol, weight: 6}
+      - {item: apocalypse:shotgun, weight: 5}
+      - {item: apocalypse:smg, weight: 4}
+      - {item: apocalypse:rocket_launcher, weight: 1}
+      - {item: apocalypse:ammo, weight: 20, amount: 32}
+      - {item: apocalypse:rocket, weight: 4, amount: 3}
+      - {item: apocalypse:antidote, weight: 6}
+      - {item: apocalypse:bandage, weight: 10, amount: 3}
+      - {item: apocalypse:water, weight: 14, amount: 3}
+      - {item: minecraft:cooked_beef, weight: 12, amount: 4}
+      - {item: minecraft:bread, weight: 12, amount: 4}
+      - {item: minecraft:iron_chestplate, weight: 3}
+      - {item: minecraft:iron_helmet, weight: 3}
+      - {item: apocalypse:pipe_bomb, weight: 3, amount: 2}
+      - {item: apocalypse:jerrycan, weight: 4}
+  # Cache d'une carte au trésor : la tourelle laser est ajoutée en plus de ce butin.
+  cache:
+    rolls-min: 5
+    rolls-max: 8
+    loot:
+      - {item: apocalypse:ammo, weight: 20, amount: 48}
+      - {item: apocalypse:rocket, weight: 6, amount: 4}
+      - {item: apocalypse:smg, weight: 5}
+      - {item: apocalypse:shotgun, weight: 5}
+      - {item: apocalypse:antidote, weight: 8, amount: 2}
+      - {item: minecraft:diamond_chestplate, weight: 2}
+      - {item: minecraft:diamond_helmet, weight: 2}
+      - {item: minecraft:iron_leggings, weight: 4}
+      - {item: minecraft:golden_apple, weight: 4, amount: 2}
 
 clock:
   checkpoint-seconds: 5
@@ -743,7 +893,7 @@ recipes:
     result: {item: apocalypse:pistol}
     ingredients: {"apocalypse:gun_parts": 2, "apocalypse:scrap": 4, "apocalypse:spring": 1, "apocalypse:tape": 2}
     noise: medium
-    usage: Clic droit pour tirer, sans munitions. Répare avant la fin de la barre d’usure.
+    usage: Clic droit pour tirer, F pour recharger avec des balles. Répare avant la fin de la barre d’usure.
   auto_turret:
     station: workshop
     result: {item: apocalypse:auto_turret}
@@ -755,25 +905,31 @@ recipes:
     result: {item: apocalypse:shotgun}
     ingredients: {"apocalypse:gun_parts": 3, "apocalypse:scrap": 6, "apocalypse:spring": 2, "apocalypse:tape": 2}
     noise: medium
-    usage: Fusil à pompe, gerbe de 8 plombs à courte portée. Sans munitions, 96 tirs.
+    usage: Fusil à pompe, gerbe de 8 plombs à courte portée. Une balle par tir, 96 tirs avant réparation.
   smg:
     station: workshop
     result: {item: apocalypse:smg}
     ingredients: {"apocalypse:gun_parts": 4, "apocalypse:scrap": 8, "apocalypse:spring": 3, "apocalypse:tape": 3}
     noise: medium
-    usage: Maintiens le clic droit pour tirer en automatique. Sans munitions, 360 tirs.
+    usage: Maintiens le clic droit pour tirer en automatique. Une balle par tir.
   rocket_launcher:
     station: workshop
     result: {item: apocalypse:rocket_launcher}
     ingredients: {"apocalypse:gun_parts": 8, "apocalypse:scrap": 16, "apocalypse:propellant": 6, "apocalypse:spring": 4, "apocalypse:tape": 4}
     noise: high
-    usage: "10 roquettes au total, sans recharge ni réparation. Explosion puissante sur 6 blocs, aucun dégât aux constructions."
+    usage: "Trouvé chargé de 5 à 20 roquettes, rechargeable. Explosion de 6 blocs, sans dégât aux constructions."
   ammo:
     station: workshop
-    result: {item: apocalypse:ammo, amount: 8}
+    result: {item: apocalypse:ammo, amount: 12}
     ingredients: {"apocalypse:casings": 8, "apocalypse:propellant": 2, "apocalypse:scrap": 2}
     noise: medium
-    usage: Petit lot coûteux de munitions de pistolet.
+    usage: Balles pour le pistolet, le fusil à pompe et la mitraillette.
+  rocket:
+    station: workshop
+    result: {item: apocalypse:rocket}
+    ingredients: {"apocalypse:propellant": 3, "apocalypse:scrap": 3, "apocalypse:gun_parts": 1}
+    noise: medium
+    usage: Une roquette pour le lance-roquettes.
   bandage:
     station: medical
     result: {item: apocalypse:bandage, amount: 2}
@@ -856,7 +1012,7 @@ weapons:
 # Pistolet de fortune : clic droit pour tirer, touche d'échange de main (F) pour recharger.
 pistol:
   damage: 8.0
-  range: 40
+  range: 80
   magazine: 6
   reload-seconds: 2.5
   fire-delay-seconds: 0.45
@@ -872,8 +1028,8 @@ repair:
 noise:
   gunshot: 48
   explosion: 64
-  sprint: 10
-  walk: 5
+  sprint: 32
+  walk: 8
   block-break: 12
   block-place: 8
   glass: 16
@@ -890,7 +1046,7 @@ perception:
   dark-detection: 12
   dark-light-level: 4
   # Délai depuis la dernière vue ou le dernier bruit : ensuite la recherche et le siège cessent.
-  investigate-seconds: 30
+  investigate-seconds: 20
 
 traps:
   damage: 6
@@ -937,6 +1093,8 @@ fauna:
   max-infected: 20
   max-per-ten-minutes: 10
   species: [wolf, cow, sheep, pig]
+  # Chevaux sauvages dans les forêts hors de la ville. Un cheval mordu meurt de l'infection.
+  horses: true
   # Part des nouveaux infectés qui sont des animaux déjà contaminés (chiens errants en ville, bétail et loups à
   # la campagne), en plus des animaux contaminés par morsure.
   spawn-share: 0.15
@@ -988,3 +1146,30 @@ vehicles:
 explosives:
   pipe-bomb: {fuse-seconds: 3.5, radius: 5.0, damage: 26}
   molotov: {radius: 2.5, seconds: 8, damage-per-second: 2.0}
+
+# Soif : la barre d'expérience devient la jauge d'hydratation (100 = désaltéré). Elle se vide en `minutes` de jeu
+# actif (environ trois vagues). Bouteille d'eau +50, eau du robinet en bouteille de verre +35. À sec : lenteur puis dégâts.
+thirst:
+  enabled: true
+  minutes: 35
+
+# Ravitaillement : message radio militaire puis caisse larguée au hasard (carré blanc sur la carte du site), toutes les
+# min à max minutes de jeu ; elle disparaît après lifetime-minutes si personne ne l'a ouverte.
+supply-drops:
+  enabled: true
+  min-minutes: 5
+  max-minutes: 15
+  lifetime-minutes: 10
+
+# Boss : le Némésis arrive à 200 blocs d'un survivant toutes les every-waves vagues (pics de horde et hordes de la nuit).
+boss:
+  enabled: true
+  every-waves: 10
+
+# Survivants à recruter : un appel radio toutes les every-minutes environ ; certains sont déjà mordus (infected-chance).
+# Ingénieur (armes), scientifique (antidotes), garde (protège un endroit), explorateur (ramène du matériel).
+survivors:
+  enabled: true
+  every-minutes: 15
+  per-player: 4
+  infected-chance: 0.4

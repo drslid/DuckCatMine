@@ -12,7 +12,7 @@ public final class SurvivalUpgrade {
     public static boolean migrate(YamlConfiguration config, YamlConfiguration defaults) {
         config.setDefaults(defaults);
         int version = config.isSet("survival-content-version") ? config.getInt("survival-content-version") : 1;
-        if (version >= 7) return false;
+        if (version >= 8) return false;
         if (version < 2) {
             for (String id : List.of("shotgun", "smg")) {
                 String path = "recipes." + id;
@@ -78,10 +78,49 @@ public final class SurvivalUpgrade {
             if(config.getDouble("spawning.density")==1.5)config.set("spawning.density",2.5);
             if(config.getInt("spawning.per-tick")==2)config.set("spawning.per-tick",3);
         }
-        config.set("survival-content-version", 7);
+        if(version<8){
+            // More infected and the stealth rules asked for: 20 s of silence, walking heard nearby, running heard from far away.
+            // Only the previous reference values move; an administrator's own tuning stays.
+            if(config.getDouble("spawning.density")==2.5)config.set("spawning.density",3.5);
+            if(config.getInt("spawning.global-cap")==120)config.set("spawning.global-cap",200);
+            if(config.getInt("spawning.per-tick")==3)config.set("spawning.per-tick",4);
+            if(config.getDouble("perception.investigate-seconds")==30)config.set("perception.investigate-seconds",20);
+            if(config.getDouble("noise.walk")==5)config.set("noise.walk",8);
+            if(config.getDouble("noise.sprint")==10)config.set("noise.sprint",32);
+            if(config.getDouble("pistol.range")==40)config.set("pistol.range",80);
+            for(String place:List.of("house","shop","supermarket","police","garage","warehouse","gas_station","farm","lab","military")){
+                String path="places."+place+".loot";
+                if(!config.isSet(path))continue;
+                List<Map<?,?>> loot=new ArrayList<>(config.getMapList(path));
+                for(Map<?,?> entry:defaults.getMapList(path))
+                    if(loot.stream().noneMatch(old->java.util.Objects.equals(old.get("item"),entry.get("item"))))loot.add(entry);
+                config.set(path,loot);
+            }
+            for(String path:List.of("places.armory","places.airdrop","places.cache","recipes.rocket","archetypes.nemesis","archetypes.smiler"))
+                if(!config.isSet(path))copy(config,defaults,path);
+            for(String id:List.of("pistol","shotgun","smg","rocket_launcher","ammo")){
+                String usage=config.getString("recipes."+id+".usage","");
+                if(usage.contains("ans munitions")||usage.startsWith("10 roquettes")||usage.startsWith("Petit lot"))
+                    config.set("recipes."+id+".usage",defaults.getString("recipes."+id+".usage"));
+            }
+            if(config.getInt("recipes.ammo.result.amount",8)==8)config.set("recipes.ammo.result.amount",12);
+            for(String id:List.of("walker","pursuer")){
+                String path="archetypes."+id+".appearances";
+                if(!config.isSet(path))continue;
+                List<String> looks=new ArrayList<>(config.getStringList(path));
+                for(String look:List.of("engineer","scientist","guard","explorer"))if(!looks.contains(look))looks.add(look);
+                config.set(path,looks);
+            }
+            for(String sector:List.of("residential","downtown","industrial","medical","outskirts","countryside","lab")){
+                String path="sectors."+sector+".mix.smiler";
+                if(!config.isSet(path)&&defaults.isSet(path))config.set(path,defaults.getDouble(path));
+            }
+        }
+        config.set("survival-content-version", 8);
         return true;
     }
     private static void copy(YamlConfiguration target,YamlConfiguration defaults,String path){
+        if(!defaults.isConfigurationSection(path))return;
         defaults.getConfigurationSection(path).getValues(true).forEach((key,value)->{
             if(!(value instanceof ConfigurationSection))target.set(path+"."+key,value);
         });

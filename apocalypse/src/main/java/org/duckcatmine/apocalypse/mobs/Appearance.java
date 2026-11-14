@@ -25,7 +25,13 @@ public enum Appearance {
     HOWLER("Hurleur"),
     HEAVY_WORKER("Colosse de chantier"),
     HEAVY_SECURITY("Colosse anti-émeute"),
-    ABOMINATION("Abomination");
+    ABOMINATION("Abomination"),
+    NEMESIS("Némésis"),
+    SMILER("Souriant"),
+    ENGINEER("Ingénieur infecté"),
+    SCIENTIST("Scientifique infecté"),
+    GUARD("Garde infecté"),
+    EXPLORER("Explorateur infecté");
 
     private final String label;
 

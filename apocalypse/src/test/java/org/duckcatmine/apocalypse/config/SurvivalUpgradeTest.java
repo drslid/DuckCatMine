@@ -37,9 +37,9 @@ class SurvivalUpgradeTest {
         c.set("recipes.pistol.usage","Ma recette conservée");
         String loot=c.getMapList("places.police.loot").toString();
         assertTrue(SurvivalUpgrade.migrate(c,defaults()));
-        assertEquals(7,c.getInt("survival-content-version"));
+        assertEquals(8,c.getInt("survival-content-version"));
         assertEquals(2,c.getInt("places.house.rolls-min"));
-        assertEquals(loot,c.getMapList("places.police.loot").toString());
+        assertTrue(c.getMapList("places.police.loot").toString().startsWith(loot.substring(0,loot.length()-1)));
         assertEquals("Ma recette conservée",c.getString("recipes.pistol.usage"));
         assertEquals("apocalypse:auto_turret",c.getString("recipes.auto_turret.result.item"));
         ApocalypseConfig.parse(c);
@@ -48,8 +48,8 @@ class SurvivalUpgradeTest {
         var c=defaults(); c.set("survival-content-version",3); c.set("perception.investigate-seconds",20);
         c.set("noise.walk",null); c.set("noise.block-break",7); c.set("spawning.global-cap",42);
         assertTrue(SurvivalUpgrade.migrate(c,defaults()));
-        assertEquals(30,c.getDouble("perception.investigate-seconds"));
-        assertEquals(5,c.getDouble("noise.walk")); assertEquals(7,c.getDouble("noise.block-break"));
+        assertEquals(20,c.getDouble("perception.investigate-seconds"));
+        assertEquals(8,c.getDouble("noise.walk")); assertEquals(7,c.getDouble("noise.block-break"));
         assertEquals(42,c.getInt("spawning.global-cap"));
         c.set("survival-content-version",3); c.set("perception.investigate-seconds",45);
         SurvivalUpgrade.migrate(c,defaults()); assertEquals(45,c.getDouble("perception.investigate-seconds"));
@@ -75,5 +75,22 @@ class SurvivalUpgradeTest {
         assertEquals(28,parsed.archetype("breaker").siegePower());assertEquals(20,parsed.play().perception().investigateSeconds());
         assertEquals(150,parsed.spawning().globalCap());assertEquals("apocalypse:rocket_launcher",parsed.play().recipes().get("rocket_launcher").result().item());
         assertTrue(ApocalypseConfig.RARE_ITEMS.contains("apocalypse:rocket_launcher"));assertFalse(SurvivalUpgrade.migrate(c,defaults()));
+    }
+    @Test void versionSevenAddsSurvivalContentOnce() throws Exception {
+        var c=defaults();c.set("survival-content-version",7);c.set("spawning.density",2.5);c.set("spawning.global-cap",120);
+        c.set("perception.investigate-seconds",30);c.set("noise.sprint",10);c.set("pistol.range",40);
+        c.set("archetypes.nemesis",null);c.set("archetypes.smiler",null);c.set("places.airdrop",null);c.set("recipes.rocket",null);
+        c.set("sectors.downtown.mix.smiler",null);c.set("recipes.smg.usage","Sans munitions, 360 tirs.");c.set("recipes.pistol.usage","Ma recette");
+        c.set("places.police.loot",java.util.List.of(java.util.Map.of("item","apocalypse:pistol","weight",5)));
+        assertTrue(SurvivalUpgrade.migrate(c,defaults()));var parsed=ApocalypseConfig.parse(c);
+        assertEquals(3.5,parsed.spawning().density());assertEquals(200,parsed.spawning().globalCap());
+        assertEquals(20,parsed.play().perception().investigateSeconds());assertEquals(32,parsed.play().noise().sprint());
+        assertEquals(80,parsed.play().pistol().range());assertNotNull(parsed.archetype("nemesis"));assertNotNull(parsed.archetype("smiler"));
+        assertNotNull(parsed.place("airdrop"));assertTrue(parsed.play().recipes().containsKey("rocket"));
+        assertTrue(parsed.sector("downtown").mix().containsKey("smiler"));assertEquals("Ma recette",c.getString("recipes.pistol.usage"));
+        assertFalse(c.getString("recipes.smg.usage").contains("ans munitions"));
+        assertTrue(c.getMapList("places.police.loot").stream().anyMatch(e->"apocalypse:ammo".equals(e.get("item"))));
+        assertTrue(c.getStringList("archetypes.walker.appearances").contains("engineer"));
+        String first=c.saveToString();assertFalse(SurvivalUpgrade.migrate(c,defaults()));assertEquals(first,c.saveToString());
     }
 }

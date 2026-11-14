@@ -40,10 +40,12 @@ import org.duckcatmine.apocalypse.Text;
 import org.duckcatmine.apocalypse.config.ApocalypseConfig;
 import org.duckcatmine.apocalypse.items.ItemRegistry;
 
-/** Server-side firearms: wall-blocked rays, ordinary damage protections, no ammo, finite wear. */
+/** Server-side firearms: wall-blocked rays, ordinary damage protections, rounds stored in the weapon, finite wear. */
 public final class FirearmService implements Listener {
+    private record Reload(String gunId, long until) {}
     private final DuckCatApocalypse plugin;
     private final Map<UUID, Long> nextShot = new HashMap<>();
+    private final Map<UUID, Reload> reloads = new HashMap<>();
     private final Set<UUID> automatic = new HashSet<>();
     private BukkitTask firing;
     private int visualTicks;
@@ -99,8 +101,11 @@ public final class FirearmService implements Listener {
         ItemStack weapon = player.getInventory().getItemInMainHand();
         int damage = java.util.Objects.requireNonNullElse(weapon.getData(DataComponentTypes.DAMAGE), 0);
         int max = java.util.Objects.requireNonNullElse(weapon.getData(DataComponentTypes.MAX_DAMAGE), stats.durability());
-        if(ItemRegistry.ROCKET_LAUNCHER.equals(stats.id())){fireRocket(player,weapon,damage,now);return;}
         if (damage >= max) { Text.warn(player, "Arme hors d'usage : répare-la à l'atelier mécanique."); nextShot.put(player.getUniqueId(), now + 1500); return; }
+        if (reloads.containsKey(player.getUniqueId())) return;
+        int rounds = loaded(weapon);
+        if (rounds <= 0) { reload(player); return; }
+        if(ItemRegistry.ROCKET_LAUNCHER.equals(stats.id())){fireRocket(player,weapon,damage,max,rounds,now);return;}
         nextShot.put(player.getUniqueId(), now + stats.delayMs());
         Location eye = player.getEyeLocation();
         // Sum pellets by target: one damage event per shot, no invulnerability-frame exploit.
@@ -134,6 +139,7 @@ public final class FirearmService implements Listener {
             Text.warn(player, stats.label() + " cassé. Répare la prochaine arme avant la fin de sa barre d'usure.");
         } else {
             weapon.setData(DataComponentTypes.DAMAGE, damage + 1);
+            setLoaded(weapon, rounds - 1);
             player.getInventory().setItemInMainHand(weapon);
         }
         plugin.noise().emit(player.getLocation(), plugin.settings().play().noise().gunshot(), player);
@@ -155,23 +161,87 @@ public final class FirearmService implements Listener {
             Gun gun = held(player);
             if (gun == null || !plugin.sessions().isSurvivor(player)) continue;
             ItemStack item = player.getInventory().getItemInMainHand();
-            int max = java.util.Objects.requireNonNullElse(item.getData(DataComponentTypes.MAX_DAMAGE), gun.durability());
-            int wear = java.util.Objects.requireNonNullElse(item.getData(DataComponentTypes.DAMAGE), 0);
-            int left=ItemRegistry.ROCKET_LAUNCHER.equals(gun.id())?RocketBudget.remaining(item.getPersistentDataContainer().get(plugin.keys().charges,PersistentDataType.INTEGER),wear):Math.max(0,max-wear);
-            player.sendActionBar(Component.text(gun.label()+" · "+left+(ItemRegistry.ROCKET_LAUNCHER.equals(gun.id())?" / 10 roquettes":" tirs · sans munitions"),NamedTextColor.GOLD));
+            Reload reload = reloads.get(player.getUniqueId());
+            String unit = Gun.ROCKETS.equals(gun.ammo()) ? " roquettes" : " balles";
+            player.sendActionBar(Component.text(gun.label() + " · " + loaded(item) + "/" + gun.capacity() + unit + " · réserve "
+                    + stock(player, gun.ammo()) + (reload != null ? " · rechargement…" : ""), NamedTextColor.GOLD));
         }
+        long now = plugin.clock().now();
+        for (var entry : Map.copyOf(reloads).entrySet()) if (now >= entry.getValue().until()) finishReload(entry.getKey(), entry.getValue());
     }
 
-    private void fireRocket(Player player,ItemStack weapon,int wear,long now){
-        int left=RocketBudget.remaining(weapon.getPersistentDataContainer().get(plugin.keys().charges,PersistentDataType.INTEGER),wear);
-        if(left<=0){Text.warn(player,"Lance-roquettes épuisé : ses 10 tirs ont été utilisés.");nextShot.put(player.getUniqueId(),now+1500);return;}
+    public int loaded(ItemStack weapon) {
+        Integer rounds = weapon == null || weapon.isEmpty() ? null : weapon.getPersistentDataContainer().get(plugin.keys().magazine, PersistentDataType.INTEGER);
+        return rounds == null ? 0 : Math.max(0, rounds);
+    }
+
+    private void setLoaded(ItemStack weapon, int rounds) {
+        weapon.editPersistentDataContainer(data -> data.set(plugin.keys().magazine, PersistentDataType.INTEGER, Math.max(0, rounds)));
+    }
+
+    private int stock(Player player, String ammo) {
+        int total = 0;
+        for (ItemStack stack : player.getInventory().getStorageContents()) if (plugin.items().is(stack, ammo)) total += stack.getAmount();
+        return total;
+    }
+
+    /** Starts a timed reload of the held weapon from the inventory; firing is blocked meanwhile. */
+    public boolean reload(Player player) {
+        ItemStack weapon = player.getInventory().getItemInMainHand();
+        Gun gun = held(player);
+        if (gun == null || reloads.containsKey(player.getUniqueId())) return false;
+        if (loaded(weapon) >= gun.capacity()) { Text.info(player, gun.label() + " déjà plein."); return false; }
+        if (stock(player, gun.ammo()) == 0) {
+            Text.warn(player, Gun.ROCKETS.equals(gun.ammo()) ? "Plus de roquettes : fouille les zones militaires et l'armurerie."
+                    : "Plus de balles : fouille les postes de police et l'armurerie.");
+            nextShot.put(player.getUniqueId(), plugin.clock().now() + 1000);
+            player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, .8f, 1.4f);
+            return false;
+        }
+        String id = weapon.getPersistentDataContainer().get(plugin.keys().gunId, PersistentDataType.STRING);
+        reloads.put(player.getUniqueId(), new Reload(id, plugin.clock().now() + gun.reloadMs()));
+        player.playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, 1f, .8f);
+        plugin.noise().emit(player.getLocation(), 6, player);
+        return true;
+    }
+
+    private void finishReload(UUID id, Reload reload) {
+        reloads.remove(id);
+        Player player = plugin.getServer().getPlayer(id);
+        if (player == null) return;
+        ItemStack weapon = player.getInventory().getItemInMainHand();
+        Gun gun = held(player);
+        if (gun == null || !java.util.Objects.equals(reload.gunId(), weapon.getPersistentDataContainer().get(plugin.keys().gunId, PersistentDataType.STRING))) {
+            Text.warn(player, "Rechargement interrompu.");
+            return;
+        }
+        int moved = Ammo.reload(loaded(weapon), gun.capacity(), stock(player, gun.ammo()));
+        int left = moved;
+        for (ItemStack stack : player.getInventory().getStorageContents()) {
+            if (left == 0) break;
+            if (!plugin.items().is(stack, gun.ammo())) continue;
+            int take = Math.min(left, stack.getAmount());
+            stack.setAmount(stack.getAmount() - take);
+            left -= take;
+        }
+        setLoaded(weapon, loaded(weapon) + moved - left);
+        player.getInventory().setItemInMainHand(weapon);
+        player.playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_END, 1f, 1f);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onSwap(PlayerSwapHandItemsEvent event) {
+        if (held(event.getPlayer()) == null || !plugin.sessions().isSurvivor(event.getPlayer())) return;
+        event.setCancelled(true);
+        reload(event.getPlayer());
+    }
+
+    private void fireRocket(Player player,ItemStack weapon,int wear,int max,int rounds,long now){
         if(!plugin.rockets().launch(player)){Text.warn(player,"Trop de roquettes en vol ou zone non disponible. Réessaie dans un instant.");nextShot.put(player.getUniqueId(),now+300);return;}
         nextShot.put(player.getUniqueId(),now+2000);
         recoil(player,ItemRegistry.ROCKET_LAUNCHER);
-        weapon.editPersistentDataContainer(data->data.set(plugin.keys().charges,PersistentDataType.INTEGER,left-1));
-        weapon.setData(DataComponentTypes.MAX_DAMAGE,10);weapon.setData(DataComponentTypes.DAMAGE,10-left+1);
-        if(left==1){player.getInventory().setItemInMainHand(null);player.playSound(player.getLocation(),Sound.ENTITY_ITEM_BREAK,1,1);Text.warn(player,"Les 10 roquettes sont épuisées.");}
-        else player.getInventory().setItemInMainHand(weapon);
+        if(wear+1>=max){player.getInventory().setItemInMainHand(null);player.playSound(player.getLocation(),Sound.ENTITY_ITEM_BREAK,1,1);Text.warn(player,"Lance-roquettes hors d'usage.");}
+        else{weapon.setData(DataComponentTypes.DAMAGE,wear+1);setLoaded(weapon,rounds-1);player.getInventory().setItemInMainHand(weapon);}
         plugin.noise().emit(player.getLocation(),plugin.settings().play().noise().explosion(),player);plugin.protection().endByAction(player);
     }
     public static void recoil(Player player,String weapon){
@@ -182,7 +252,8 @@ public final class FirearmService implements Listener {
     private void refreshInventory(org.bukkit.inventory.Inventory inventory){
         for(int slot=0;slot<inventory.getSize();slot++){
             ItemStack item=inventory.getItem(slot);
-            if(org.duckcatmine.apocalypse.items.GunModels.apply(item,plugin.items().idOf(item)))inventory.setItem(slot,item);
+            boolean changed=org.duckcatmine.apocalypse.items.GunModels.apply(item,plugin.items().idOf(item));
+            if(plugin.items().loadLegacyGun(item)||changed)inventory.setItem(slot,item);
         }
     }
     @EventHandler public void onOpen(org.bukkit.event.inventory.InventoryOpenEvent event){
@@ -190,10 +261,11 @@ public final class FirearmService implements Listener {
     }
     @EventHandler public void onItem(org.bukkit.event.entity.ItemSpawnEvent event){
         ItemStack item=event.getEntity().getItemStack();
-        if(org.duckcatmine.apocalypse.items.GunModels.apply(item,plugin.items().idOf(item)))event.getEntity().setItemStack(item);
+        boolean changed=org.duckcatmine.apocalypse.items.GunModels.apply(item,plugin.items().idOf(item));
+        if(plugin.items().loadLegacyGun(item)||changed)event.getEntity().setItemStack(item);
     }
 
-    public void forget(UUID id) { automatic.remove(id); nextShot.remove(id); }
+    public void forget(UUID id) { automatic.remove(id); nextShot.remove(id); reloads.remove(id); }
 
     // ------------------------------------------------------------------ decoy
 

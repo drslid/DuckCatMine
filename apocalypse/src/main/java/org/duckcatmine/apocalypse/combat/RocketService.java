@@ -11,7 +11,7 @@ import org.duckcatmine.apocalypse.items.GunModels;
 
 /** Visible finite rockets, swept collision each tick, no vanilla explosion or chunk generation. */
 public final class RocketService implements AutoCloseable {
-    public static final double DAMAGE=80,RADIUS=6,RANGE=96,SPEED=1.2;
+    public static final double DAMAGE=80,RADIUS=6,RANGE=192,SPEED=1.2;
     public static final int MAX_ACTIVE=8;
     private static final class Shot {
         final UUID owner;final ItemDisplay display;final Vector velocity;final boolean trial;

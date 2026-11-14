@@ -234,7 +234,7 @@ public final class MobService {
             Tracked state = entry.getValue();
             ApocalypseConfig.Archetype archetype = plugin.settings().archetype(state.archetype);
             if (archetype == null) continue;
-            if (plugin.director().approaching(mob)) continue;
+            if (plugin.director().approaching(mob) || NemesisService.NEMESIS.equals(state.archetype)) continue;
             perceive(mob, state, archetype, now);
             Location remembered = state.hunt.goal(now);
             if (remembered != null && state.hunt.confirmed(now)) plugin.siege().consider(mob, archetype, remembered, state.lastMovedAt, now);
@@ -423,12 +423,42 @@ public final class MobService {
         }
     }
 
+    /** Three screams: a call for reinforcements, a far-reaching alert, or a piercing shriek that dazes nearby survivors. */
     private void scream(Mob howler, double radius, int reinforcements) {
         Location origin = howler.getLocation();
-        howler.getWorld().playSound(origin, Sound.ENTITY_GHAST_SCREAM, 4f, 0.5f);
-        howler.getWorld().spawnParticle(Particle.SONIC_BOOM, howler.getEyeLocation(), 1);
-        plugin.noise().emitInfected(origin, radius);
-        if (reinforcements > 0 && howler.getTarget() instanceof Player player) plugin.director().reinforce(player, reinforcements);
+        Player target = howler.getTarget() instanceof Player player ? player : null;
+        int kind = random.nextInt(3);
+        switch (kind) {
+            case 0 -> {
+                howler.getWorld().playSound(origin, Sound.ENTITY_GHAST_SCREAM, 4f, 0.5f);
+                howler.getWorld().spawnParticle(Particle.SONIC_BOOM, howler.getEyeLocation(), 1);
+                plugin.noise().emitInfected(origin, radius);
+                if (reinforcements > 0 && target != null) plugin.director().reinforce(target, reinforcements);
+            }
+            case 1 -> {
+                howler.getWorld().playSound(origin, Sound.ENTITY_ENDER_DRAGON_GROWL, 5f, 1.5f);
+                howler.getWorld().playSound(origin, Sound.ENTITY_WARDEN_ROAR, 3f, 1.3f);
+                howler.getWorld().spawnParticle(Particle.SONIC_BOOM, howler.getEyeLocation().add(0, 0.6, 0), 3, 0.6, 0.3, 0.6, 0);
+                plugin.noise().emitInfected(origin, radius * 2);
+                plugin.threat().loudNoise();
+            }
+            default -> {
+                howler.getWorld().playSound(origin, Sound.ENTITY_GHAST_HURT, 4f, 1.8f);
+                howler.getWorld().playSound(origin, Sound.ENTITY_VEX_CHARGE, 3f, 0.6f);
+                plugin.noise().emitInfected(origin, radius * 0.75);
+                for (Player player : howler.getWorld().getPlayers()) {
+                    if (!plugin.sessions().isSurvivor(player) || player.getLocation().distanceSquared(origin) > 144 || plugin.protection().isProtected(player)) continue;
+                    player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.DARKNESS, 80, 0, false, false, true));
+                    player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SLOWNESS, 40, 1, false, false, true));
+                }
+                if (target != null) plugin.director().reinforce(target, 1);
+            }
+        }
+        if (target != null) target.sendActionBar(Component.text(switch (kind) {
+            case 0 -> "Un hurleur appelle des renforts !";
+            case 1 -> "Un hurleur donne l'alerte : tout le quartier l'a entendu.";
+            default -> "Un cri strident te vrille les tympans !";
+        }, NamedTextColor.RED));
     }
 
     /** Telegraphed ground slam: visible wind-up, area damage that is never a bite, long recovery. */

@@ -326,7 +326,7 @@ public final class SpawnDirector {
         for (UUID id : plugin.mobs().trackedIds()) {
             Entity entity = plugin.getServer().getEntity(id);
             if (!(entity instanceof Mob mob) || !(mob instanceof Zombie || plugin.fauna().spawnedByDirector(mob))
-                    || !mob.getWorld().equals(world)) continue;
+                    || !mob.getWorld().equals(world) || plugin.nemesis().isBoss(mob)) continue;
             boolean near = false;
             for (Player player : world.getPlayers()) {
                 double dx=mob.getX()-player.getX(),dz=mob.getZ()-player.getZ();

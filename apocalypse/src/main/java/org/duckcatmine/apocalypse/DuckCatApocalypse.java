@@ -98,6 +98,11 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private ProgressService progress;
     private IntroService intro;
     private StatusWriter status;
+    private org.duckcatmine.apocalypse.survival.ThirstService thirst;
+    private org.duckcatmine.apocalypse.survival.BedSpawns beds;
+    private org.duckcatmine.apocalypse.combat.AlarmService alarms;
+    private org.duckcatmine.apocalypse.fauna.HorseService horses;
+    private org.duckcatmine.apocalypse.mobs.NemesisService nemesis;
     private final EventLog events = new EventLog();
     private SettingsService tuning;
     private ProtectionService protection;
@@ -174,6 +179,11 @@ public final class DuckCatApocalypse extends JavaPlugin {
             intro = new IntroService(this);
             status = new StatusWriter(this);
             tuning = new SettingsService(this);
+            thirst = new org.duckcatmine.apocalypse.survival.ThirstService(this);
+            beds = new org.duckcatmine.apocalypse.survival.BedSpawns(this);
+            alarms = new org.duckcatmine.apocalypse.combat.AlarmService(this);
+            horses = new org.duckcatmine.apocalypse.fauna.HorseService(this);
+            nemesis = new org.duckcatmine.apocalypse.mobs.NemesisService(this);
             scenario.load();
             director.restore();
             if (scenario.isEnabled()) clock.resume();
@@ -181,6 +191,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             bags.load();
             siege.load();
             threat.load();
+            nemesis.load();
             teams.load();
         } catch (PersistenceException e) {
             getLogger().log(Level.SEVERE, "Base du scénario inaccessible", e);
@@ -220,6 +231,11 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(progress, this);
         events.registerEvents(intro, this);
         events.registerEvents(departures, this);
+        events.registerEvents(thirst, this);
+        events.registerEvents(beds, this);
+        events.registerEvents(alarms, this);
+        events.registerEvents(horses, this);
+        events.registerEvents(nemesis, this);
         fauna.resumeLoaded();
         throwables.start();
         vehicles.start();
@@ -297,6 +313,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             horrorModels.tick();
             firearms.tick();
             turrets.tick();
+            alarms.tick();
             sessions.tickLeaves();
             if (ticks % TICKS_PER_SECOND == 0) {
                 noise.tick();
@@ -304,6 +321,10 @@ public final class DuckCatApocalypse extends JavaPlugin {
                 if(scenario.world()!=null)director.indoor().observe(scenario.world());
                 siege.tick();
                 threat.tick();
+                thirst.tick();
+                horses.tick();
+                nemesis.tick();
+                nemesis.smilers();
                 fauna.tick();
                 bags.tick();
                 protection.tick();
@@ -351,6 +372,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
         if(horrorModels!=null)horrorModels.close();
         if(horror!=null)horror.close();
         if(rockets!=null)rockets.close();
+        if(nemesis!=null)nemesis.close();
+        if(alarms!=null)alarms.stop();
         if (renovator != null) renovator.close();
         if (turrets != null) turrets.close();
         if (ticker != null) ticker.cancel();
@@ -437,6 +460,11 @@ public final class DuckCatApocalypse extends JavaPlugin {
         return mobs;
     }
     public org.duckcatmine.apocalypse.mobs.HorrorService horror(){return horror;}
+    public org.duckcatmine.apocalypse.survival.ThirstService thirst(){return thirst;}
+    public org.duckcatmine.apocalypse.survival.BedSpawns beds(){return beds;}
+    public org.duckcatmine.apocalypse.combat.AlarmService alarms(){return alarms;}
+    public org.duckcatmine.apocalypse.fauna.HorseService horses(){return horses;}
+    public org.duckcatmine.apocalypse.mobs.NemesisService nemesis(){return nemesis;}
     public org.duckcatmine.apocalypse.mobs.HorrorModels horrorModels(){return horrorModels;}
 
     public SpawnDirector director() {

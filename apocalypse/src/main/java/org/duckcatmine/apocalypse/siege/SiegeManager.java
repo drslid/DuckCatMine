@@ -193,6 +193,16 @@ public final class SiegeManager implements Listener {
         }
     }
 
+    /** A boss blow: an attackable block breaks at once. Protected blocks, containers and natural ground still resist. */
+    public boolean smash(Block block) {
+        if (!enabled() || block.isPassable() || block.isLiquid()) return false;
+        String category = category(block);
+        if (category == null || protectedBlock(block)) return false;
+        Block key = block.getBlockData() instanceof Door door && door.getHalf() == Bisected.Half.TOP ? block.getRelative(0, -1, 0) : block;
+        destroy(damage.computeIfAbsent(key, b -> new Damage(b, category, 1)));
+        return true;
+    }
+
     private void destroy(Damage state) {
         Block block = state.block;
         World world = block.getWorld();

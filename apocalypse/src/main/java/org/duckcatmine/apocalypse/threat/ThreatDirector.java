@@ -168,6 +168,7 @@ public final class ThreatDirector {
             case PEAK -> {
                 hordes++;
                 for (Player player : active) horde(player, "Une horde approche…");
+                plugin.nemesis().wave(active);
             }
             case RELIEF -> {
                 for (Player player : active)
@@ -187,6 +188,7 @@ public final class ThreatDirector {
         if (rules().nightHorde()) {
             hordes++;
             for (Player player : active) horde(player, null);
+            plugin.nemesis().wave(active);
         }
     }
 

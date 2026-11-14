@@ -110,7 +110,9 @@ public final class DeathService implements Listener {
         event.setNewTotalExp(0);
         if (outcome.bag() != null) plugin.bags().register(outcome.bag(), items);
         awaitingRespawn.put(id, outcome.seq());
-        drops.put(id, plugin.drops().pick(player.getWorld()));
+        var world = player.getWorld();
+        drops.put(id, plugin.beds().respawnPoint(player, world)
+                .thenCompose(bed -> bed != null ? CompletableFuture.completedFuture(bed) : plugin.drops().pick(world)));
         plugin.infections().end(id);
         plugin.protection().clear(id);
         plugin.progress().endLife(player);

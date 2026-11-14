@@ -79,7 +79,19 @@ public final class SettingsService {
                     "Introduction à la première entrée", "Monde", c -> c.play().intro()),
             new Setting("team-size", "teams.max-size", Kind.INTEGER, 2, 16,
                     "Taille maximale d'une équipe", "Monde", c -> c.play().social().teamMaxSize()),
-            new Setting("indoor-chance","spawning.indoor-chance",Kind.DECIMAL,0,1,"Part des rencontres dans les bâtiments abandonnés","Infectés",c->c.spawning().indoorChance())));
+            new Setting("indoor-chance","spawning.indoor-chance",Kind.DECIMAL,0,1,"Part des rencontres dans les bâtiments abandonnés","Infectés",c->c.spawning().indoorChance()),
+            new Setting("thirst", "thirst.enabled", Kind.BOOLEAN, 0, 1, "Soif (jauge dans la barre d'expérience)", "Survie", c -> c.play().survival().thirst()),
+            new Setting("thirst-minutes", "thirst.minutes", Kind.DECIMAL, 5, 600, "Soif : minutes de jeu pour vider la jauge", "Survie", c -> c.play().survival().thirstMinutes()),
+            new Setting("bed-respawn", "respawn.bed", Kind.BOOLEAN, 0, 1, "Réapparaître au dernier lit utilisé", "Survie", c -> c.play().survival().bedRespawn()),
+            new Setting("supply-drops", "supply-drops.enabled", Kind.BOOLEAN, 0, 1, "Largages de ravitaillement", "Survie", c -> c.play().survival().supplyDrops()),
+            new Setting("drop-min-minutes", "supply-drops.min-minutes", Kind.DECIMAL, 1, 240, "Largage : délai minimum (min)", "Survie", c -> c.play().survival().dropMinMinutes()),
+            new Setting("drop-max-minutes", "supply-drops.max-minutes", Kind.DECIMAL, 1, 240, "Largage : délai maximum (min)", "Survie", c -> c.play().survival().dropMaxMinutes()),
+            new Setting("drop-lifetime", "supply-drops.lifetime-minutes", Kind.DECIMAL, 1, 120, "Largage : minutes avant disparition", "Survie", c -> c.play().survival().dropLifetimeMinutes()),
+            new Setting("boss", "boss.enabled", Kind.BOOLEAN, 0, 1, "Némésis toutes les N vagues", "Survie", c -> c.play().survival().boss()),
+            new Setting("boss-every-waves", "boss.every-waves", Kind.INTEGER, 1, 100, "Némésis : nombre de vagues entre deux venues", "Survie", c -> c.play().survival().bossEveryWaves()),
+            new Setting("survivors", "survivors.enabled", Kind.BOOLEAN, 0, 1, "Survivants à recruter", "Survie", c -> c.play().survival().survivors()),
+            new Setting("survivor-minutes", "survivors.every-minutes", Kind.DECIMAL, 1, 600, "Survivants : un appel toutes les N minutes", "Survie", c -> c.play().survival().survivorMinutes()),
+            new Setting("horses", "fauna.horses", Kind.BOOLEAN, 0, 1, "Chevaux sauvages hors de la ville", "Faune", c -> c.play().survival().horses())));
         for(String id:ApocalypseConfig.KNOWN_ARCHETYPES.stream().sorted().toList()){
             mob(list,id,"health","Vie maximale",1,1024,a->a.health());
             mob(list,id,"damage","Dégâts par coup",0,100,a->a.damage());
@@ -127,11 +139,11 @@ public final class SettingsService {
                 Map.entry("threat-per-hour", 1.5), Map.entry("fauna-share", 0.1)));
         presets.put("normal", Map.ofEntries(Map.entry("infection-seconds", 60), Map.entry("bite-multiplier", 1.0),
                 Map.entry("medical-boost", 3.0), Map.entry("bag-seconds", 300), Map.entry("protection-seconds", 30),
-                Map.entry("density", 2.5), Map.entry("per-tick", 3), Map.entry("global-cap", 120), Map.entry("night-bonus", 2),
+                Map.entry("density", 3.5), Map.entry("per-tick", 4), Map.entry("global-cap", 200), Map.entry("night-bonus", 2),
                 Map.entry("threat-per-hour", 3.0), Map.entry("fauna-share", 0.15)));
         presets.put("nightmare", Map.ofEntries(Map.entry("infection-seconds", 45), Map.entry("bite-multiplier", 1.5),
                 Map.entry("medical-boost", 1.5), Map.entry("bag-seconds", 180), Map.entry("protection-seconds", 15),
-                Map.entry("density", 3.5), Map.entry("per-tick", 4), Map.entry("global-cap", 180), Map.entry("night-bonus", 4),
+                Map.entry("density", 5.0), Map.entry("per-tick", 5), Map.entry("global-cap", 300), Map.entry("night-bonus", 4),
                 Map.entry("threat-per-hour", 6.0), Map.entry("fauna-share", 0.25)));
         return presets;
     }

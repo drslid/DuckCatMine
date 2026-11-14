@@ -377,7 +377,8 @@ public final class FaunaService implements Listener {
     public LivingEntity prey(Mob infected) {
         if (!rules().enabled() || random.nextInt(4) != 0) return null;
         for (Entity entity : infected.getNearbyEntities(PREY_RADIUS, 4, PREY_RADIUS)) {
-            if (entity instanceof Animals animal && healthy(animal) && infected.hasLineOfSight(animal)) return animal;
+            if (entity instanceof Animals animal && (healthy(animal) || plugin.horses().healthy(animal)) && animal.getPassengers().isEmpty()
+                    && infected.hasLineOfSight(animal)) return animal;
         }
         return null;
     }

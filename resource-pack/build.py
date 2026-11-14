@@ -25,7 +25,8 @@ def write_json(path: Path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
-def png(path: Path, pixels: list[tuple[int, int, int, int]], size=32):
+def png(path: Path, pixels: list[tuple[int, int, int, int]], size=None):
+    size = size or int(len(pixels) ** 0.5)
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
     rows = b"".join(b"\0" + bytes(c for px in pixels[y*size:(y+1)*size] for c in px) for y in range(size))
@@ -97,6 +98,48 @@ def blood(path: Path, seed: int):
             color = (max(0, min(255, 104 + v + (24 if (x * y + seed) % 13 == 0 else 0))), max(0, 18 + v // 3), max(0, 24 + v // 3))
             pixels.append((*color, 255))
     png(path, pixels)
+
+SURVIVORS = {  # shirt, trousers, hat (or None), accent
+    "engineer": ((230, 126, 34), (52, 73, 94), (241, 196, 15), (250, 220, 60)),
+    "scientist": ((244, 246, 247), (90, 98, 110), None, (120, 190, 230)),
+    "guard": ((31, 58, 95), (28, 40, 51), (120, 124, 128), (230, 200, 80)),
+    "explorer": ((142, 123, 86), (107, 91, 62), (123, 91, 58), (70, 110, 60)),
+}
+
+def skin(path: Path, shirt, trousers, hat, accent, seed: int, infected=False):
+    """Original 64×64 player skin for a survivor; the infected variant is pale green with blood stains."""
+    rng = random.Random(seed)
+    flesh = (112, 140, 96) if infected else rng.choice([(222, 182, 150), (198, 150, 112), (150, 104, 74), (240, 200, 170)])
+    hair = rng.choice([(48, 34, 24), (92, 60, 30), (20, 20, 22), (170, 130, 70)])
+    img = [[(0, 0, 0, 0)] * 64 for _ in range(64)]
+    def fill(x0, y0, x1, y1, color, jitter=8):
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                d = rng.randrange(-jitter, jitter + 1)
+                img[y][x] = (*[max(0, min(255, c + d)) for c in color], 255)
+    fill(0, 0, 32, 16, flesh, 5)                      # head
+    fill(8, 0, 16, 8, hair); fill(24, 8, 32, 16, hair) # top and back of the head
+    for x0 in (0, 16): fill(x0, 8, x0 + 8, 10, hair)   # sides
+    fill(8, 8, 16, 10, hair)                           # fringe
+    for x in (10, 13): img[12][x] = (255, 255, 255, 255); img[12][x + 1] = ((140, 30, 30, 255) if infected else (40, 60, 90, 255))
+    for x in range(10, 14): img[14][x] = (110, 50, 50, 255)
+    if hat:
+        fill(8, 0, 16, 8, hat, 4); fill(8, 8, 16, 9, hat, 4); fill(0, 8, 8, 9, hat, 4); fill(16, 8, 32, 9, hat, 4)
+        fill(40, 0, 48, 8, hat, 4); fill(40, 8, 64, 10, hat, 4)  # hat layer brim
+    fill(16, 16, 40, 32, shirt)                        # body
+    fill(40, 16, 56, 32, shirt); fill(32, 48, 48, 64, shirt)  # arms (sleeves)
+    fill(40, 28, 56, 32, flesh, 5); fill(32, 60, 48, 64, flesh, 5)  # hands
+    fill(0, 16, 16, 32, trousers); fill(16, 48, 32, 64, trousers)   # legs
+    fill(0, 29, 16, 32, (40, 32, 26)); fill(16, 61, 32, 64, (40, 32, 26))  # shoes
+    fill(20, 20, 28, 21, accent, 3)                    # collar / badge line
+    if accent and hat is None: fill(21, 22, 23, 25, accent, 2)  # pen in the lab coat pocket
+    if infected:
+        for _ in range(60):
+            x, y = rng.randrange(64), rng.randrange(16, 64)
+            if img[y][x][3]: img[y][x] = (110, 20, 24, 255)
+        for _ in range(20):
+            x, y = rng.randrange(8, 16), rng.randrange(8, 16); img[y][x] = (90, 30, 30, 255)
+    png(path, [px for row in img for px in row], size=64)
 
 def box(start, end, texture="#skin", angle=0, axis="z", origin=(8, 16, 8), front=None, light=0):
     faces = {face: {"uv": [0, 0, 16, 16], "texture": texture} for face in ["north", "south", "east", "west", "up", "down"]}
@@ -196,6 +239,9 @@ def build(output: Path, ffmpeg: str):
                 write_json(assets/"items"/(model+".json"),{"model":{"type":"minecraft:model","model":"duckcatmine:item/"+model}})
                 write_json(assets/"models/item"/(model+".json"),{"gui_light":"side","textures":{key:"duckcatmine:item/horror/"+kind+"_"+key for key in TEXTURE_KEYS},"elements":rebase(elements,rig["models"][kind]["pivots"][part])})
             preview.append({"id":kind,"name":label,"skin":base,"eyes":eye,"parts":parts,"pivots":rig["models"][kind]["pivots"]})
+        for index,(role,(shirt,trousers,hat,accent)) in enumerate(SURVIVORS.items()):
+            skin(assets/"textures/entity/survivor"/(role+".png"),shirt,trousers,hat,accent,900+index)
+            skin(assets/"textures/entity/survivor"/(role+"_infected.png"),shirt,trousers,hat,accent,900+index,True)
         from weapons import build_weapons
         weapons=build_weapons(assets,ROOT.parent/'admin/public/weapons',png,box,write_json,thumbnail)
         sounds={}

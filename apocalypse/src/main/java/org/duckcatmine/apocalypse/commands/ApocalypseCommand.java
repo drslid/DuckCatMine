@@ -232,16 +232,17 @@ public final class ApocalypseCommand implements TabExecutor {
                 Text.good(sender, "Approche en préparation : jusqu’à " + size + " infecté(s), à au moins 150 blocs de tous les joueurs.");
             }
             case "destruction" -> destruction(sender, args, actor);
-            case "nemesis", "drop" -> {
+            case "nemesis", "drop", "survivor" -> {
                 Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : null;
                 if (target == null || !plugin.sessions().isSurvivor(target) || plugin.scenario().inRefuge(target.getLocation())) {
                     Text.error(sender, "/apocalypse admin " + action + " <joueur> — le joueur doit être dans Ground Zero, hors du refuge.");
                     return;
                 }
                 if (action.equals("drop")) plugin.supplyDrops().launch(target, 0);
+                else if (action.equals("survivor")) plugin.survivors().call(target, 0);
                 else if (!plugin.nemesis().summon(target)) { Text.error(sender, "Un Némésis chasse déjà (ou arrive)."); return; }
                 audit(actor, "admin_" + action, target.getName());
-                Text.good(sender, action.equals("drop") ? "Largage annoncé près de " + target.getName() + "." : "Le Némésis arrive à 200 blocs de " + target.getName() + ".");
+                Text.good(sender, action.equals("survivor") ? "Un survivant appelle à l'aide près de " + target.getName() + "." : action.equals("drop") ? "Largage annoncé près de " + target.getName() + "." : "Le Némésis arrive à 200 blocs de " + target.getName() + ".");
             }
             case "upgrade" -> {
                 int radius;
@@ -548,14 +549,14 @@ public final class ApocalypseCommand implements TabExecutor {
             options.add("skip");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
             if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat",
-                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives", "teleport", "teleport-point", "renovate", "departure", "nemesis", "drop"));
+                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives", "teleport", "teleport-point", "renovate", "departure", "nemesis", "drop", "survivor"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("departure")) options.addAll(List.of("start", "cancel"));
             else if ((args.length == 3 || args.length == 4) && args[1].equalsIgnoreCase("teleport"))
                 Bukkit.getOnlinePlayers().stream().filter(plugin.sessions()::isSurvivor).forEach(p -> options.add(p.getName()));
             else if (args.length == 3 && args[1].equalsIgnoreCase("set"))
                 org.duckcatmine.apocalypse.config.SettingsService.CATALOG.forEach(setting -> options.add(setting.key()));
             else if (args.length == 3 && args[1].equalsIgnoreCase("preset")) options.addAll(org.duckcatmine.apocalypse.config.SettingsService.PRESETS.keySet());
-            else if (args.length == 3 && (args[1].equalsIgnoreCase("evacuate") || args[1].equalsIgnoreCase("nemesis") || args[1].equalsIgnoreCase("drop"))) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
+            else if (args.length == 3 && (args[1].equalsIgnoreCase("evacuate") || args[1].equalsIgnoreCase("nemesis") || args[1].equalsIgnoreCase("drop") || args[1].equalsIgnoreCase("survivor"))) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
             else if (args.length == 3 && args[1].equalsIgnoreCase("lives")) options.add("reset");
             else if (args.length == 4 && args[1].equalsIgnoreCase("lives")) options.add("confirm");
             else if (args.length == 3 && args[1].equalsIgnoreCase("horde")) Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));

@@ -82,7 +82,7 @@ public final class PlacedBlocks implements Listener {
 
     public void put(Block block, Placed placed) {
         block.getChunk().getPersistentDataContainer().set(key(block), PersistentDataType.STRING, placed.encode());
-        if (ItemRegistry.AUTO_TURRET.equals(placed.kind())) plugin.turrets().track(block, placed);
+        if (ItemRegistry.TURRETS.contains(placed.kind())) plugin.turrets().track(block, placed);
         else plugin.turrets().untrack(block);
         if (ItemRegistry.BEACON.equals(placed.kind())) claims.put(claimKey(block), claim(block, placed));
     }
@@ -137,7 +137,7 @@ public final class PlacedBlocks implements Listener {
             String value = data.get(key, PersistentDataType.STRING);
             if (value == null) continue;
             Placed placed = Placed.decode(value);
-            if (!ItemRegistry.BEACON.equals(placed.kind()) && !ItemRegistry.AUTO_TURRET.equals(placed.kind())) continue;
+            if (!ItemRegistry.BEACON.equals(placed.kind()) && !ItemRegistry.TURRETS.contains(placed.kind())) continue;
             String[] position = key.getKey().substring(3).split("_");
             Block block = chunk.getBlock(Integer.parseInt(position[0]), Integer.parseInt(position[1]), Integer.parseInt(position[2]));
             if (ItemRegistry.BEACON.equals(placed.kind())) {
@@ -158,8 +158,8 @@ public final class PlacedBlocks implements Listener {
             Text.warn(player, "Impossible ici : seulement dans Ground Zero, hors du refuge.");
             return;
         }
-        if (ItemRegistry.AUTO_TURRET.equals(id)) {
-            String problem = plugin.turrets().placementProblem(block);
+        if (ItemRegistry.TURRETS.contains(id)) {
+            String problem = plugin.turrets().placementProblem(block, id);
             if (problem != null) { event.setCancelled(true); Text.warn(player, problem); return; }
         }
         if (ItemRegistry.SPIKE_TRAP.equals(id) && !block.getRelative(BlockFace.DOWN).isSolid()) {
@@ -175,6 +175,8 @@ public final class PlacedBlocks implements Listener {
         Integer charges = event.getItemInHand().getPersistentDataContainer().get(plugin.keys().charges, PersistentDataType.INTEGER);
         put(block, new Placed(id, player.getUniqueId(), charges == null ? 0 : charges));
         if (ItemRegistry.AUTO_TURRET.equals(id)) Text.good(player,"Mini-arbalète posée : infectés à 8 blocs. Clic droit main vide pour mettre en pause.");
+        if (ItemRegistry.LASER_TURRET.equals(id) || ItemRegistry.LASER_TURRET_GOLD.equals(id))
+            Text.good(player, "Tourelle laser posée. Clic droit main vide pour la mettre en pause.");
         if (ItemRegistry.BEACON.equals(id))
             Text.good(player, "Base revendiquée (rayon " + CLAIM_RADIUS + ") : aucun siège ici quand toi et ton équipe êtes absents.");
     }
@@ -183,12 +185,12 @@ public final class PlacedBlocks implements Listener {
     public void onBreak(BlockBreakEvent event) {
         Placed placed = get(event.getBlock());
         if (placed == null) return;
-        if (ItemRegistry.AUTO_TURRET.equals(placed.kind()) && !plugin.turrets().canManage(event.getPlayer(), placed.owner())) {
+        if (ItemRegistry.TURRETS.contains(placed.kind()) && !plugin.turrets().canManage(event.getPlayer(), placed.owner())) {
             event.setCancelled(true); Text.warn(event.getPlayer(), "Seuls le propriétaire, son équipe ou un administrateur peuvent récupérer cette mini-arbalète."); return;
         }
         event.setDropItems(false);
         // Wait for all protection listeners before returning an automatic turret to its owner.
-        if (ItemRegistry.AUTO_TURRET.equals(placed.kind())) return;
+        if (ItemRegistry.TURRETS.contains(placed.kind())) return;
         ItemStack item = plugin.items().create(placed.kind(), 1);
         if (item != null && ItemRegistry.SPIKE_TRAP.equals(placed.kind())) {
             if (placed.data() <= 0) item = null;

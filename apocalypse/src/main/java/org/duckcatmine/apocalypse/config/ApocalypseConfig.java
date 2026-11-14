@@ -27,7 +27,8 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
     /** Never handed out at the start of a life, whatever the configuration says. */
     public static final Set<String> RARE_ITEMS = Set.of("apocalypse:rocket_launcher","apocalypse:antidote", "apocalypse:serum", "apocalypse:inhibitor",
             "apocalypse:auto_turret", "apocalypse:shotgun", "apocalypse:smg", "apocalypse:syringe", "apocalypse:gun_parts", "apocalypse:pistol", "apocalypse:ammo", "apocalypse:casings",
-            "apocalypse:propellant", "apocalypse:spring", "apocalypse:pipe_bomb");
+            "apocalypse:propellant", "apocalypse:spring", "apocalypse:pipe_bomb", "apocalypse:rocket", "apocalypse:laser_turret",
+            "apocalypse:laser_turret_gold", "apocalypse:treasure_fragment", "apocalypse:treasure_map");
 
     /** Gameplay rules added after the core survival loop. {@code leaveSeconds}: countdown to leave outside the refuge. */
     public record Play(Spawn spawn, StartKit kit, Map<String, Recipe> recipes, Map<String, Weapon> weapons, Pistol pistol,

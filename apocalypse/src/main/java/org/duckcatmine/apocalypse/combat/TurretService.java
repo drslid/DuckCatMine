@@ -86,13 +86,18 @@ public final class TurretService implements Listener {
     }
     public boolean isTurret(Block block) {
         var placed = plugin.placed().get(block);
-        return placed != null && ItemRegistry.AUTO_TURRET.equals(placed.kind());
+        return placed != null && ItemRegistry.TURRETS.contains(placed.kind());
     }
-    public String placementProblem(Block block) {
+    private static boolean laser(String kind) { return !ItemRegistry.AUTO_TURRET.equals(kind); }
+    private static double range(String kind) { return ItemRegistry.LASER_TURRET_GOLD.equals(kind) ? 26 : ItemRegistry.LASER_TURRET.equals(kind) ? 16 : RANGE; }
+    private static Material base(String kind) {
+        return ItemRegistry.LASER_TURRET_GOLD.equals(kind) ? Material.GOLD_BLOCK : ItemRegistry.LASER_TURRET.equals(kind) ? Material.IRON_BLOCK : Material.DISPENSER;
+    }
+    public String placementProblem(Block block, String kind) {
         if (!block.getRelative(BlockFace.DOWN).isSolid() || !block.getRelative(BlockFace.UP).getType().isAir())
-            return "Pose la mini-arbalète sur un sol solide, avec un bloc libre au-dessus.";
-        if (plugin.placed().count(block.getChunk(), p -> ItemRegistry.AUTO_TURRET.equals(p.kind())) >= PER_CHUNK)
-            return "Déjà 4 mini-arbalètes dans cette zone de 16 × 16 blocs.";
+            return "Pose la tourelle sur un sol solide, avec un bloc libre au-dessus.";
+        if (plugin.placed().count(block.getChunk(), p -> ItemRegistry.TURRETS.contains(p.kind())) >= PER_CHUNK)
+            return "Déjà 4 tourelles dans cette zone de 16 × 16 blocs.";
         return null;
     }
     /** Called every five ticks. At most sixteen bases acquire a target per call, with fair rotation. */
@@ -115,19 +120,21 @@ public final class TurretService implements Listener {
             Position pos = turret.pos;
             if (!pos.world().isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) { remove(pos); continue; }
             Block block = pos.world().getBlockAt(pos.x(), pos.y(), pos.z());
-            if (block.getType() != Material.DISPENSER || !isTurret(block)) { plugin.placed().remove(block); continue; }
-            if (turret.model == null || !turret.model.isValid()) turret.model = model(pos.muzzle());
+            String kind = turret.placed.kind();
+            if (block.getType() != base(kind) || !isTurret(block)) { plugin.placed().remove(block); continue; }
+            if (turret.model == null || !turret.model.isValid()) turret.model = model(pos.muzzle(), kind);
             if (turret.placed.data() != 0 || now < turret.nextShot || plugin.scenario().inRefuge(pos.muzzle())) continue;
-            LivingEntity target = target(pos.muzzle());
+            LivingEntity target = target(pos.muzzle(), range(kind));
             if (target == null) continue;
+            if (laser(kind)) { turret.nextShot = now + (ItemRegistry.LASER_TURRET_GOLD.equals(kind) ? 700 : 900); beam(turret, target); continue; }
             turret.nextShot = now + COOLDOWN;
             shoot(turret, target, now);
         }
     }
-    private LivingEntity target(Location origin) {
+    private LivingEntity target(Location origin, double range) {
         LivingEntity best = null;
-        double nearest = RANGE * RANGE;
-        for (Entity entity : origin.getWorld().getNearbyEntities(origin, RANGE, RANGE, RANGE)) {
+        double nearest = range * range;
+        for (Entity entity : origin.getWorld().getNearbyEntities(origin, range, range, range)) {
             if (!(entity instanceof LivingEntity living) || living.isDead() || !plugin.mobs().isScenarioMob(living)
                     || plugin.scenario().inRefuge(living.getLocation())) continue;
             Location aim = aim(living);
@@ -193,9 +200,28 @@ public final class TurretService implements Listener {
         origin.getWorld().playSound(origin, Sound.ITEM_CROSSBOW_SHOOT, .7f, 1.15f);
         plugin.noise().emit(origin, 8, owner);
     }
-    private static ItemDisplay model(Location at) {
-        ItemStack item = ItemStack.of(Material.CROSSBOW);
-        CrossbowMeta meta = (CrossbowMeta) item.getItemMeta(); meta.addChargedProjectile(ItemStack.of(Material.ARROW)); item.setItemMeta(meta);
+    /** Laser: an instant beam (blue for silver, violet for gold), no projectile, unlimited shots. */
+    private void beam(Turret turret, LivingEntity target) {
+        Location origin = turret.pos.muzzle();
+        boolean gold = ItemRegistry.LASER_TURRET_GOLD.equals(turret.placed.kind());
+        var direction = aim(target).toVector().subtract(origin.toVector());
+        double length = direction.length();
+        direction.normalize();
+        turret.model.setRotation(origin.clone().setDirection(direction).getYaw(), origin.clone().setDirection(direction).getPitch());
+        var color = gold ? org.bukkit.Color.fromRGB(176, 64, 255) : org.bukkit.Color.fromRGB(40, 170, 255);
+        for (double d = 0.4; d < length; d += 0.35)
+            origin.getWorld().spawnParticle(org.bukkit.Particle.DUST, origin.clone().add(direction.clone().multiply(d)), 1, 0, 0, 0, 0,
+                    new org.bukkit.Particle.DustOptions(color, gold ? 1.1f : 0.85f));
+        origin.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, aim(target), 6, 0.15, 0.15, 0.15, 0.05);
+        origin.getWorld().playSound(origin, Sound.BLOCK_BEACON_POWER_SELECT, 0.6f, gold ? 1.5f : 2f);
+        Player owner = Bukkit.getPlayer(turret.placed.owner());
+        target.damage(gold ? 9 : 6, owner != null && plugin.sessions().isSurvivor(owner) && owner.getWorld().equals(origin.getWorld()) ? owner : null);
+        turret.fired++;
+        plugin.noise().emit(origin, 6, null);
+    }
+    private static ItemDisplay model(Location at, String kind) {
+        ItemStack item = ItemStack.of(ItemRegistry.LASER_TURRET_GOLD.equals(kind) ? Material.BLAZE_ROD : ItemRegistry.LASER_TURRET.equals(kind) ? Material.END_ROD : Material.CROSSBOW);
+        if (!laser(kind)) { CrossbowMeta meta = (CrossbowMeta) item.getItemMeta(); meta.addChargedProjectile(ItemStack.of(Material.ARROW)); item.setItemMeta(meta); }
         return at.getWorld().spawn(at, ItemDisplay.class, display -> {
             display.setItemStack(item);
             display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
@@ -223,15 +249,16 @@ public final class TurretService implements Listener {
         if (!event.getPlayer().getInventory().getItemInMainHand().isEmpty()) return;
         event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
         var placed = plugin.placed().get(event.getClickedBlock());
-        if (!canManage(event.getPlayer(), placed.owner())) { Text.info(event.getPlayer(), "Mini-arbalète automatique · portée 8 blocs · propriété d'une autre équipe."); return; }
+        String label = laser(placed.kind()) ? "Tourelle laser" : "Mini-arbalète";
+        if (!canManage(event.getPlayer(), placed.owner())) { Text.info(event.getPlayer(), label + " · portée " + (int) range(placed.kind()) + " blocs · propriété d'une autre équipe."); return; }
         int paused = placed.data() == 0 ? 1 : 0;
         plugin.placed().put(event.getClickedBlock(), new PlacedBlocks.Placed(placed.kind(), placed.owner(), paused));
-        Text.good(event.getPlayer(), paused == 0 ? "Mini-arbalète activée : surveillance des infectés à 8 blocs." : "Mini-arbalète en pause. Clic droit main vide pour reprendre.");
+        Text.good(event.getPlayer(), paused == 0 ? label + " activée : infectés à " + (int) range(placed.kind()) + " blocs." : label + " en pause. Clic droit main vide pour reprendre.");
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(org.bukkit.event.block.BlockBreakEvent event) {
         if (!isTurret(event.getBlock())) return;
-        ItemStack item = plugin.items().create(ItemRegistry.AUTO_TURRET,1);
+        ItemStack item = plugin.items().create(plugin.placed().get(event.getBlock()).kind(),1);
         plugin.placed().remove(event.getBlock());
         event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation().add(.5,.5,.5),item);
     }

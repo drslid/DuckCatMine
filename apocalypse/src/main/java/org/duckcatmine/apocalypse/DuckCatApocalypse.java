@@ -104,6 +104,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private org.duckcatmine.apocalypse.fauna.HorseService horses;
     private org.duckcatmine.apocalypse.mobs.NemesisService nemesis;
     private org.duckcatmine.apocalypse.survival.SupplyDropService supplyDrops;
+    private org.duckcatmine.apocalypse.survivors.SurvivorService survivors;
+    private org.duckcatmine.apocalypse.survival.TreasureService treasures;
     private final EventLog events = new EventLog();
     private SettingsService tuning;
     private ProtectionService protection;
@@ -186,6 +188,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
             horses = new org.duckcatmine.apocalypse.fauna.HorseService(this);
             nemesis = new org.duckcatmine.apocalypse.mobs.NemesisService(this);
             supplyDrops = new org.duckcatmine.apocalypse.survival.SupplyDropService(this);
+            survivors = new org.duckcatmine.apocalypse.survivors.SurvivorService(this);
+            treasures = new org.duckcatmine.apocalypse.survival.TreasureService(this);
             scenario.load();
             director.restore();
             if (scenario.isEnabled()) clock.resume();
@@ -194,6 +198,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             siege.load();
             threat.load();
             nemesis.load();
+            survivors.load();
             teams.load();
         } catch (PersistenceException e) {
             getLogger().log(Level.SEVERE, "Base du scénario inaccessible", e);
@@ -239,6 +244,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(horses, this);
         events.registerEvents(nemesis, this);
         events.registerEvents(supplyDrops, this);
+        events.registerEvents(survivors, this);
+        events.registerEvents(treasures, this);
         fauna.resumeLoaded();
         throwables.start();
         vehicles.start();
@@ -329,6 +336,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
                 nemesis.tick();
                 nemesis.smilers();
                 supplyDrops.tick();
+                survivors.tick();
+                treasures.tick();
                 fauna.tick();
                 bags.tick();
                 protection.tick();
@@ -379,6 +388,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         if(nemesis!=null)nemesis.close();
         if(alarms!=null)alarms.stop();
         if(supplyDrops!=null)supplyDrops.stop();
+        if(survivors!=null)survivors.stop();
         if (renovator != null) renovator.close();
         if (turrets != null) turrets.close();
         if (ticker != null) ticker.cancel();
@@ -471,6 +481,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     public org.duckcatmine.apocalypse.fauna.HorseService horses(){return horses;}
     public org.duckcatmine.apocalypse.mobs.NemesisService nemesis(){return nemesis;}
     public org.duckcatmine.apocalypse.survival.SupplyDropService supplyDrops(){return supplyDrops;}
+    public org.duckcatmine.apocalypse.survivors.SurvivorService survivors(){return survivors;}
     public org.duckcatmine.apocalypse.mobs.HorrorModels horrorModels(){return horrorModels;}
 
     public SpawnDirector director() {

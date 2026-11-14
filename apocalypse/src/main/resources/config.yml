@@ -526,6 +526,7 @@ places:
       - {item: minecraft:glass_bottle, weight: 2}
       - {item: apocalypse:alarm_clock, weight: 2}
       - {item: apocalypse:timer, weight: 1}
+      - {item: apocalypse:treasure_fragment, weight: 1}
   shop:
     rolls-min: 5
     rolls-max: 9
@@ -548,6 +549,7 @@ places:
       - {item: apocalypse:water, weight: 6}
       - {item: apocalypse:ammo, weight: 2, amount: 6}
       - {item: apocalypse:alarm_clock, weight: 2}
+      - {item: apocalypse:treasure_fragment, weight: 0.6}
   supermarket:
     rolls-min: 7
     rolls-max: 12
@@ -571,6 +573,7 @@ places:
       - {item: apocalypse:water, weight: 10, amount: 2}
       - {item: apocalypse:alarm_clock, weight: 2}
       - {item: apocalypse:timer, weight: 2}
+      - {item: apocalypse:treasure_fragment, weight: 0.6}
   pharmacy:
     rolls-min: 1
     rolls-max: 3
@@ -630,6 +633,7 @@ places:
       - {item: minecraft:iron_leggings, weight: 2}
       - {item: minecraft:iron_boots, weight: 2}
       - {item: apocalypse:water, weight: 3}
+      - {item: apocalypse:treasure_fragment, weight: 1.5}
   garage:
     rolls-min: 1
     rolls-max: 3
@@ -650,6 +654,7 @@ places:
       - {item: minecraft:bucket, weight: 2}
       - {item: apocalypse:jerrycan, weight: 9}
       - {item: apocalypse:ammo, weight: 3, amount: 6}
+      - {item: apocalypse:treasure_fragment, weight: 1}
   warehouse:
     rolls-min: 4
     rolls-max: 8
@@ -670,6 +675,7 @@ places:
       - {item: apocalypse:ammo, weight: 4, amount: 8}
       - {item: apocalypse:jerrycan, weight: 3}
       - {item: apocalypse:water, weight: 3}
+      - {item: apocalypse:treasure_fragment, weight: 1}
   gas_station:
     rolls-min: 1
     rolls-max: 3
@@ -688,6 +694,7 @@ places:
       - {item: minecraft:flint_and_steel, weight: 2}
       - {item: apocalypse:jerrycan, weight: 10}
       - {item: apocalypse:water, weight: 7}
+      - {item: apocalypse:treasure_fragment, weight: 1}
   farm:
     rolls-min: 1
     rolls-max: 3
@@ -711,6 +718,7 @@ places:
       - {item: minecraft:bucket, weight: 2}
       - {item: apocalypse:water, weight: 4}
       - {item: apocalypse:jerrycan, weight: 3}
+      - {item: apocalypse:treasure_fragment, weight: 1.2}
   lab:
     rolls-min: 1
     rolls-max: 3
@@ -752,6 +760,7 @@ places:
       - {item: minecraft:iron_leggings, weight: 2}
       - {item: minecraft:iron_boots, weight: 2}
       - {item: apocalypse:water, weight: 5}
+      - {item: apocalypse:treasure_fragment, weight: 2}
 
   # Armurerie (prison, bunker) : beaucoup d'armes, de munitions et d'armures.
   armory:

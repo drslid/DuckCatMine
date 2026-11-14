@@ -75,6 +75,9 @@ public final class ItemRegistry {
     public static final String SPIKE_TRAP = "spike_trap";
     public static final String BEACON = "beacon";
     public static final String AUTO_TURRET = "auto_turret";
+    public static final String LASER_TURRET = "laser_turret", LASER_TURRET_GOLD = "laser_turret_gold";
+    public static final Set<String> TURRETS = Set.of(AUTO_TURRET, LASER_TURRET, LASER_TURRET_GOLD);
+    public static final String TREASURE_FRAGMENT = "treasure_fragment", TREASURE_MAP = "treasure_map";
     public static final String PIPE_BOMB = "pipe_bomb";
     public static final String MOLOTOV = "molotov";
     public static final String BOW = "bow";
@@ -82,7 +85,8 @@ public final class ItemRegistry {
     public static final String JERRYCAN = "jerrycan";
     public static final String WATER = "water", ALARM_CLOCK = "alarm_clock", TIMER = "timer";
     /** Items that become a tracked block when placed (station, defence or claim). */
-    public static final Set<String> PLACEABLE = Set.of(WORKSHOP, MEDICAL_STATION, BARRICADE, BARRICADE_REINFORCED, SPIKE_TRAP, BEACON, AUTO_TURRET);
+    public static final Set<String> PLACEABLE = Set.of(WORKSHOP, MEDICAL_STATION, BARRICADE, BARRICADE_REINFORCED, SPIKE_TRAP, BEACON, AUTO_TURRET,
+            LASER_TURRET, LASER_TURRET_GOLD);
 
     private final Keys keys;
     private final Map<String, Definition> definitions = new LinkedHashMap<>();
@@ -158,6 +162,16 @@ public final class ItemRegistry {
         definitions.put(AUTO_TURRET, new Definition("Mini-arbalète automatique", NamedTextColor.AQUA, Material.DISPENSER, "minecraft:crossbow", 1,
                 List.of("À poser sur un sol solide, hors du refuge.", "Infectés à 8 blocs · un tir / 1,25 s · sans munitions.",
                         "Clic droit main vide : activer / mettre en pause.", "Casse-la pour la récupérer (propriétaire ou équipe).")));
+        definitions.put(LASER_TURRET, new Definition("Tourelle laser d'argent", NamedTextColor.AQUA, Material.IRON_BLOCK, null, 1,
+                List.of("Rayon laser bleu sur les infectés à 16 blocs.", "Munitions infinies · un tir / 0,9 s.",
+                        "Clic droit main vide : activer / mettre en pause.", "Trésor : introuvable ailleurs.")));
+        definitions.put(LASER_TURRET_GOLD, new Definition("Tourelle laser d'or", NamedTextColor.LIGHT_PURPLE, Material.GOLD_BLOCK, null, 1,
+                List.of("Rayon laser violet sur les infectés à 26 blocs.", "Munitions infinies · un tir / 0,7 s, plus puissant.",
+                        "Clic droit main vide : activer / mettre en pause.", "Trésor très rare.")));
+        definitions.put(TREASURE_FRAGMENT, new Definition("Fragment de carte au trésor", NamedTextColor.GOLD, "minecraft:map", 16,
+                List.of("Trois fragments forment une carte.", "Clic droit pour les assembler.")));
+        definitions.put(TREASURE_MAP, new Definition("Carte au trésor", NamedTextColor.GOLD, "minecraft:filled_map", 1,
+                List.of("Tiens-la en main : direction et distance de la cache.", "Une cache de défense t'y attend.")));
         definitions.put(BEACON, new Definition("Balise de base", NamedTextColor.AQUA, Material.LODESTONE, null, 1,
                 List.of("Revendique ta base (rayon 12) pour toi et ton équipe.", "Pas de siège quand vous êtes tous absents.")));
         definitions.put(PIPE_BOMB, new Definition("Bombe artisanale", NamedTextColor.RED, Material.SNOWBALL, "minecraft:tnt", 4,

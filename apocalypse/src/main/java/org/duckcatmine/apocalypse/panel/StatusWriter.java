@@ -180,6 +180,7 @@ public final class StatusWriter {
             nemesisJson.addProperty("health", Math.round(boss.getHealth()));
         }
         root.add("nemesis", nemesisJson);
+        root.add("survivorNpcs", gson.toJsonTree(plugin.survivors().snapshot()));
         root.addProperty("activeInfections", plugin.infections().count());
         root.addProperty("activeBags", plugin.bags().count());
         root.addProperty("activeTurrets", plugin.turrets().count());

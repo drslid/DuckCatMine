@@ -195,6 +195,18 @@ public final class SupplyDropService implements Listener {
         plugin.noise().emit(block.getLocation(), 40, null);
     }
 
+    /** Self-test only: a landed crate filled from the airdrop table; returns the number of stacks. */
+    public int trialFill(Block block) {
+        block.setType(Material.CHEST);
+        if (!(block.getState() instanceof Chest chest)) return 0;
+        fill(chest.getBlockInventory());
+        int stacks = 0;
+        for (ItemStack item : ((Chest) block.getState()).getBlockInventory().getContents()) if (item != null && !item.isEmpty()) stacks++;
+        ((Chest) block.getState()).getBlockInventory().clear();
+        block.setType(Material.AIR);
+        return stacks;
+    }
+
     private void fill(Inventory inventory) {
         var place = plugin.settings().place("airdrop");
         if (place == null) return;

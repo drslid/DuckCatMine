@@ -1,6 +1,6 @@
 # Ground Zero · pack original
 
-Sept silhouettes de créatures articulées et quatre armes originales (cracheur, bondisseur, rampant, traqueur, boursouflé, briseur et abomination), textures de 32 pixels et onze sons synthétisés. Aucun asset de Minecraft ni modèle téléchargé n’est redistribué. Licence GPL-3.0-only, comme le projet.
+Neuf silhouettes de créatures articulées (cracheur, bondisseur, rampant, traqueur, boursouflé, briseur, abomination, Némésis et Souriant), quatre armes originales, quatre skins de survivants (et leur version mordue), la police du radar en haut à droite de l’écran, textures de 32 pixels et treize sons synthétisés. Aucun asset de Minecraft ni modèle téléchargé n’est redistribué. Licence GPL-3.0-only, comme le reste du projet.
 
 Le pack prêt à servir se trouve dans `admin/public/packs/`, avec son manifeste SHA-1. Chaque créature possède six articulations (torse, tête, bras et jambes), pour la marche, la course et les attaques. Les pivots partagés avec le plugin sont définis dans `apocalypse/src/main/resources/horror-rigs.json`. Il cible **Minecraft Java 26.3, format de ressources 97.1**. Les miniatures du panneau sont calculées à partir des mêmes modèles et textures.
 

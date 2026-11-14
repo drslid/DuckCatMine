@@ -127,6 +127,13 @@ public final class NemesisService implements Listener, AutoCloseable {
         });
     }
 
+    /** Self-test only: a configured Nemesis that is not the hunting boss. */
+    public Mob trial(Location at) {
+        Zombie mob = plugin.mobs().spawn(NEMESIS, Appearance.NEMESIS, at);
+        if (mob != null) configure(mob);
+        return mob;
+    }
+
     private void configure(Mob mob) {
         set(mob, Attribute.JUMP_STRENGTH, 0);
         set(mob, Attribute.STEP_HEIGHT, 1.1);

@@ -404,7 +404,7 @@ archetypes:
   # Lent comparé à un survivant qui court, ne saute pas, casse les murs, tue d'un coup, environ 5 roquettes pour l'abattre.
   nemesis:
     name: Némésis
-    health: 400
+    health: 380
     damage: 100
     speed: 0.25
     speed-variation: 0

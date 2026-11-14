@@ -365,6 +365,44 @@ final class SelfTest {
         });
         check(lines, "rénovation sans perte", () -> plugin.renovator().testPreservation(street(plugin,world).getBlock().getLocation().add(30,200,20)));
         check(lines, "voiture", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 200, 0)));
+        check(lines, "némésis", () -> {
+            Location at = street(plugin, world).getBlock().getLocation().add(-6.5, 200, 0.5);
+            for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) at.clone().add(dx, -1, dz).getBlock().setType(Material.STONE, false);
+            org.bukkit.entity.Mob boss = plugin.nemesis().trial(at);
+            if (boss == null) throw new IllegalStateException("non apparu");
+            try {
+                var jump = boss.getAttribute(org.bukkit.attribute.Attribute.JUMP_STRENGTH);
+                var scale = boss.getAttribute(org.bukkit.attribute.Attribute.SCALE);
+                double health = boss.getHealth();
+                if (health < 300 || jump == null || jump.getValue() > 0.001 || scale == null || scale.getValue() < 1.4)
+                    throw new IllegalStateException("vie " + boss.getHealth() + ", saut " + (jump == null ? "?" : jump.getValue()) + ", échelle " + (scale == null ? "?" : scale.getValue()));
+                int rockets = 0;
+                while (!boss.isDead() && rockets < 8) {
+                    plugin.throwables().explode(boss.getLocation().add(0, 1, 0), org.duckcatmine.apocalypse.combat.RocketService.RADIUS,
+                            org.duckcatmine.apocalypse.combat.RocketService.DAMAGE, null);
+                    boss.setNoDamageTicks(0);
+                    rockets++;
+                }
+                if (!boss.isDead() || rockets < 4 || rockets > 6) throw new IllegalStateException("abattu en " + rockets + " roquettes");
+                return String.format(java.util.Locale.ROOT, "%.0f", health) + " PV, ne saute pas, " + String.format(java.util.Locale.ROOT, "%.1f", 1.95 * scale.getValue()) + " blocs de haut, abattu en " + rockets + " roquettes";
+            } finally {
+                if (boss.isValid()) boss.remove();
+                plugin.mobs().forget(boss.getUniqueId());
+                for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) at.clone().add(dx, -1, dz).getBlock().setType(Material.AIR, false);
+            }
+        });
+        check(lines, "largage", () -> {
+            Block block = street(plugin, world).getBlock().getLocation().add(-12, 200, 0).getBlock();
+            int stacks = plugin.supplyDrops().trialFill(block);
+            if (stacks < 8 || !block.getType().isAir()) throw new IllegalStateException(stacks + " piles");
+            return stacks + " piles de vivres et d'armes, caisse retirée";
+        });
+        check(lines, "survivants", () -> {
+            Location at = street(plugin, world).getBlock().getLocation().add(-18.5, 200, 0.5);
+            for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) at.clone().add(dx, -1, dz).getBlock().setType(Material.STONE, false);
+            try { return plugin.survivors().trial(at); }
+            finally { for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) at.clone().add(dx, -1, dz).getBlock().setType(Material.AIR, false); }
+        });
         check(lines, "bombe artisanale", () -> {
             Location center = street(plugin, world).getBlock().getLocation().add(8.5, 205, 0.5);
             Block glass = center.clone().add(1, -1, 0).getBlock();

@@ -4,6 +4,35 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Survie étendue — alpha.15
+
+**Ils sont plus nombreux.** Densité ×3,5 (au lieu de ×2,5), plafond de 200 infectés, 4 renforts par passage ; réglable sur le site (Ground Zero → Règles). Discrétion : **20 secondes** sans être vu ni entendu et ils passent leur chemin ; la marche s’entend à 8 blocs, la course à **32 blocs**. Seules les anciennes valeurs de référence sont remplacées : un réglage personnalisé reste tel quel.
+
+| Nouveauté | Comment ça marche |
+|---|---|
+| Munitions | Pistolet, fusil à pompe et mitraillette partagent les **balles** ; le lance-roquettes utilise des **roquettes**. Une arme trouvée contient 30 à 100 balles (5 à 20 roquettes). **F** recharge depuis l’inventaire (100 balles ou 20 roquettes au plus). Balles surtout à la police, à l’armurerie et aux barrages militaires. Les armes déjà possédées reçoivent une fois leur chargement ; les anciens lance-roquettes gardent leurs tirs restants. |
+| Portée ×2 | Pistolet 80 blocs, fusil à pompe 36, mitraillette 64, lance-roquettes 192. |
+| Soif | La barre d’expérience devient la jauge d’hydratation (100 = désaltéré). Elle se vide en ~35 min de jeu (environ trois vagues), plus vite en courant. Bouteille d’eau +50 (la bouteille vide se remplit à un point d’eau, +35), lait +20. Sous 25 : lenteur ; sous 10 : faiblesse ; à sec : dégâts. |
+| Lit | Clic droit sur un lit de Ground Zero : ta prochaine vie commence à côté, s’il est encore debout. On ne dort pas (le cycle jour/nuit continue). |
+| Réveil et minuteur | Leurres à lancer. Accroupi + clic droit pour régler le délai (réveil : 30 s à 5 min, très fort ; minuteur : 10 s à 1 min, tic-tac puis sonnerie). Ils se ramassent ensuite. Trouvés dans les maisons et magasins. |
+| Ravitaillement | Toutes les 5 à 15 minutes de jeu, message radio militaire et caisse parachutée à 60–150 blocs d’un survivant : **carré blanc** sur la carte du site, barre blanche et chrono dans le jeu. **10 minutes** pour l’ouvrir, sinon elle disparaît. |
+| Némésis | Toutes les **10 vagues** (pics de horde et hordes de la nuit), il arrive à 200 blocs d’un survivant et traque le plus proche. Près de 3 blocs de haut, ne saute pas, casse murs, portes et barricades, **tue d’un coup**, rugit pour appeler les infectés. Un survivant qui court le distance. Environ **5 roquettes** pour l’abattre. Barre de vie rouge à moins de 128 blocs. |
+| Le Souriant | Nouvel infecté lent à la tête énorme et au sourire diabolique : la nuit, on ne voit presque que son sourire lumineux (sans pack : une tête de citrouille flottante). **Tue en deux coups**, l’armure ne protège pas. |
+| Hurleurs | Trois cris : appel de renforts, alerte qui porte deux fois plus loin et avance le prochain pic, cri strident qui assombrit la vue et ralentit les survivants proches. |
+| Survivants | Un appel au talkie toutes les ~15 min : un survivant attend à 40–90 blocs (4 au plus par joueur). Clic droit pour le recruter, puis clic droit pour ses missions. **Ingénieur** : fabrique une arme, des balles ou des roquettes avec ce que tu déposes dans son sac (45 s). **Scientifique** : antidote ou bandages. **Garde** : se poste où tu es et tire sur les infectés avec l’arme de la 1re case de son sac (balles prises dans son sac). **Explorateur** : part 5 minutes et ramène du matériel (risque de morsure ou de disparition). « Me suivre / Rester ici », « Renvoyer ». Un survivant **mordu** (40 % le sont déjà à l’appel) refuse toute mission : soigne-le avec un antidote dans les 5 minutes, sinon il devient un infecté vêtu de son métier. Il peut aussi mourir. |
+| Infectés de métier | Des errants et poursuivants portent la tenue d’ingénieur, de scientifique, de garde ou d’explorateur. |
+| Cartes au trésor | Trois **fragments** (fouilles) forment une carte : tiens-la en main pour la direction et la distance. La cache, marquée d’un X rouge à la campagne, contient une **tourelle laser d’argent** (bleue, 16 blocs, munitions infinies) ou, plus rarement, **d’or** (violette, 26 blocs, plus puissante), et un gros butin. |
+| Chevaux | Sellés, dans les bois hors de la ville : monte et pars. Un cheval mordu meurt après une courte agonie, il ne se transforme jamais. |
+| Motos | Une place de stationnement sur cinq a une moto derrière la voiture : 2 places, 25 % plus rapide, petit réservoir, frugale. Jerricans pleins dans les maisons, garages et stations-service. |
+| Prison, bunkers, caves | Une **prison** au nord-ouest de la ville (armurerie : armes, munitions, armures), cinq **bunkers** cachés à la campagne (trappe en fer, armurerie, lits) et des **caves** sous un tiers des maisons (trappe dans le sol). Construits une fois, à l’approche d’un survivant, sans régénérer le monde. |
+| Police | Plus d’armures (mailles, fer) et beaucoup de balles. |
+| Radar en haut à droite | Avec le pack : mini-carte colorée en haut à droite de l’écran, nord en haut. Infectés en points rouges, survivants en bleu, coffres de fouille pas encore ouverts en vert. Sans le pack, le sonar en main reste disponible. |
+| Bestiaire plus détaillé | Côtes, colonne vertébrale, mâchoires, vêtements déchirés, sang et yeux lumineux sur les mutants ; textures retravaillées. |
+
+Administration : `/apocalypse admin nemesis|drop|survivor <joueur>`, `/apocalypse admin site [id]`, et les mêmes boutons sur la fiche d’un survivant du site. Nouveaux réglages dans **Règles → Survie** (soif, lit, largages, Némésis, survivants) et **Faune** (chevaux). La migration de contenu 8 sauvegarde `config.yml`, ajoute les nouveaux butins, recettes (roquette) et infectés, sans toucher aux réglages personnalisés. Le pack passe en **1.3.0** (~340 Ko) : nouveaux modèles, sons (rugissement du Némésis, rire du Souriant), skins des survivants, police du radar.
+
+À vérifier avec un client Minecraft : rendu du radar (position selon la taille de l’interface), skins des survivants, sourire du Souriant la nuit. Les autotests serveur couvrent le Némésis (5 à 6 roquettes), les caisses, les survivants (sac, morsure, transformation) et les munitions.
+
 ## Sens de marche des mutants — alpha.14
 
 Le rendu compense le demi-tour ajouté par le client Minecraft aux entités d’affichage d’objets. La correction porte sur le maillage, sans retourner les pivots ni modifier la marche, les collisions ou les vitesses. Les tests incluent désormais cette étape du client 26.3, dans les quatre directions et pour les six articulations. Le pack reste inchangé.

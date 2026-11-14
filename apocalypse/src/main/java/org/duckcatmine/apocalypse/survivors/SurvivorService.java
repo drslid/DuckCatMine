@@ -197,6 +197,33 @@ public final class SurvivorService implements Listener {
     private boolean female(Entity e) { return Boolean.TRUE.equals(e.getPersistentDataContainer().get(woman, PersistentDataType.BOOLEAN)); }
     private String label(Entity e) { Role r = roleOf(e); return nameOf(e) + (r == null ? "" : " (" + r.label(female(e)).toLowerCase(Locale.ROOT) + ")"); }
 
+    /** Self-test only: appearance, bag round trip, a bite, then the transformation into an infected of the same trade. */
+    public String trial(Location at) {
+        Mannequin m = create(at, Role.ENGINEER, true, false);
+        try {
+            if (roleOf(m) != Role.ENGINEER || m.customName() == null) throw new IllegalStateException("survivant sans métier");
+            ItemStack[] items = storage(m);
+            items[3] = plugin.items().create("scrap", 5);
+            setStorage(m, items);
+            if (storage(m)[3] == null || storage(m)[3].getAmount() != 5) throw new IllegalStateException("sac non conservé");
+            var recipe = plugin.settings().play().recipes().get("pistol");
+            if (recipe == null || has(storage(m), recipe.ingredients())) throw new IllegalStateException("recette vérifiée à tort");
+            m.getPersistentDataContainer().set(state, PersistentDataType.STRING, "infected");
+            m.getPersistentDataContainer().set(until, PersistentDataType.LONG, plugin.clock().now() - 1);
+            dress(m);
+            turn(m);
+            if (m.isValid()) throw new IllegalStateException("survivant non transformé");
+            for (Entity e : at.getWorld().getNearbyEntities(at, 2, 2, 2)) {
+                if (plugin.mobs().isScenarioMob(e) && "engineer".equals(plugin.mobs().appearanceOf(e))) { e.remove(); plugin.mobs().forget(e.getUniqueId()); return "ingénieure créée, sac relu, mordue puis transformée en infectée vêtue de son métier"; }
+            }
+            throw new IllegalStateException("infecté du métier absent");
+        } finally {
+            if (m.isValid()) m.remove();
+            for (Entity e : at.getWorld().getNearbyEntities(at, 2, 2, 2)) if (e instanceof org.bukkit.entity.Item) e.remove();
+            registry.remove(m.getUniqueId().toString());
+        }
+    }
+
     // ------------------------------------------------------------------ calls for help
 
     /** Every second. */

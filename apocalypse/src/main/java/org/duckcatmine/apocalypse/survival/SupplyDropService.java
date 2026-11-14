@@ -91,7 +91,6 @@ public final class SupplyDropService implements Listener {
                 drop.world.spawnParticle(Particle.END_ROD, top.clone().add(0, 2, 0), 3, 0.05, 2, 0.05, 0);
             }
         }
-        updateBars(world, now);
         if (!rules.supplyDrops()) return;
         List<Player> active = new ArrayList<>();
         for (Player p : world.getPlayers())

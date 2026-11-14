@@ -54,10 +54,7 @@ final class SelfTest {
                 rolls.add(kit.toString());
             }
             if (rolls.size() < 2) throw new IllegalStateException("butin non aléatoire");
-            var radar = plugin.items().create(ItemRegistry.RADAR, 1);
-            if (!(radar.getItemMeta() instanceof org.bukkit.inventory.meta.MapMeta meta) || meta.getMapView() == null
-                    || meta.getMapView().getRenderers().size() != 1 || !meta.getMapView().getRenderers().getFirst().isContextual()) throw new IllegalStateException("sonar non lié à une carte contextuelle");
-            return "40 kits complets et variés, radar individuel sans mod";
+            return "40 kits complets et variés, sans carte en main";
         });
         check(lines, "bâtiments praticables v3", () -> {
             org.duckcatmine.apocalypse.scenario.city.CityRenovator.writePreview(plugin.getDataFolder().toPath().resolve("building-preview.json"));
@@ -365,6 +362,10 @@ final class SelfTest {
         });
         check(lines, "rénovation sans perte", () -> plugin.renovator().testPreservation(street(plugin,world).getBlock().getLocation().add(30,200,20)));
         check(lines, "voiture", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 200, 0)));
+        check(lines, "moto", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 206, 0),
+                org.duckcatmine.apocalypse.vehicles.VehicleModel.MOTORBIKE));
+        check(lines, "camionnette", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 212, 0),
+                org.duckcatmine.apocalypse.vehicles.VehicleModel.VAN));
         check(lines, "némésis", () -> {
             Location at = street(plugin, world).getBlock().getLocation().add(-6.5, 200, 0.5);
             for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) at.clone().add(dx, -1, dz).getBlock().setType(Material.STONE, false);

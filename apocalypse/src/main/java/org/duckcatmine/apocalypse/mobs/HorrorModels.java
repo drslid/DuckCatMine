@@ -61,7 +61,12 @@ public final class HorrorModels implements Listener,AutoCloseable {
         fallbackAll();ready.remove(event.getPlayer().getUniqueId());requested.remove(event.getPlayer().getUniqueId());
         Bukkit.getScheduler().runTaskLater(plugin,()->{if(event.getPlayer().isOnline())offer(event.getPlayer());},20);
     }
-    @EventHandler(priority=EventPriority.LOWEST)public void onWorld(PlayerChangedWorldEvent event){fallbackAll();offer(event.getPlayer());}
+    @EventHandler(priority=EventPriority.LOWEST)public void onWorld(PlayerChangedWorldEvent event){
+        fallbackAll();Player player=event.getPlayer();
+        // Outside Ground Zero the vanilla look returns, including the green experience bar.
+        if(!plugin.scenario().isScenarioWorld(player.getWorld())&&requested.remove(player.getUniqueId())){ready.remove(player.getUniqueId());player.removeResourcePack(PACK_ID);}
+        offer(player);
+    }
     @EventHandler public void onQuit(PlayerQuitEvent event){ready.remove(event.getPlayer().getUniqueId());requested.remove(event.getPlayer().getUniqueId());}
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)public void onStrike(org.bukkit.event.entity.EntityDamageByEntityEvent event){
         Rig rig=rigs.get(event.getDamager().getUniqueId());if(rig!=null)rig.strikingUntil=plugin.clock().now()+450;

@@ -252,6 +252,7 @@ public final class FirearmService implements Listener {
     private void refreshInventory(org.bukkit.inventory.Inventory inventory){
         for(int slot=0;slot<inventory.getSize();slot++){
             ItemStack item=inventory.getItem(slot);
+            if(plugin.items().is(item,ItemRegistry.RADAR)){inventory.setItem(slot,null);continue;}
             boolean changed=org.duckcatmine.apocalypse.items.GunModels.apply(item,plugin.items().idOf(item));
             if(plugin.items().loadLegacyGun(item)||changed)inventory.setItem(slot,item);
         }

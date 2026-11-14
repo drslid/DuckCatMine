@@ -129,10 +129,9 @@ public final class DropService {
         List<ItemStack> given = rollKit();
         for (ItemStack stack : given)
             player.getInventory().addItem(stack).values().forEach(rest -> player.getWorld().dropItemNaturally(player.getLocation(), rest));
-        plugin.radar().give(player);
         player.getPersistentDataContainer().set(marker, org.bukkit.persistence.PersistentDataType.STRING, run);
         player.saveData();
-        Text.good(player, "Kit de survie : arme, nourriture, soins, outils et butin aléatoire. Le sonar est dans ta seconde main (F).");
+        Text.good(player, "Kit de survie : arme, nourriture, soins, outils et butin aléatoire. Le radar s'affiche en haut à droite (pack Ground Zero).");
     }
 
     /** Pure inventory roll, also exercised by the Paper self-test without touching a player. */

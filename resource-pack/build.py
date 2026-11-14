@@ -5,7 +5,7 @@ import argparse, base64, hashlib, html, json, math, random, shutil, struct, subp
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 FORMAT = [97, 1]  # Minecraft Java 26.3, verified against its version.json and Mojang release notes.
 ROSTER = {
     "spitter": ("Cracheur d’acide", (83, 106, 62), (215, 244, 82)),
@@ -250,13 +250,25 @@ def build(output: Path, ffmpeg: str):
         for index,(role,(shirt,trousers,hat,accent)) in enumerate(SURVIVORS.items()):
             skin(assets/"textures/entity/survivor"/(role+".png"),shirt,trousers,hat,accent,900+index)
             skin(assets/"textures/entity/survivor"/(role+"_infected.png"),shirt,trousers,hat,accent,900+index,True)
-        # HUD radar font: one 2×2 cell glyph per row, stacked by ascent, and power-of-two spaces for positioning.
-        png(assets/"textures/font/radar_cell.png",[(255,255,255,255)]*4)
+        # HUD radar font: one 1 px glyph per row (stacked by ascent), power-of-two spaces, 3×5 digits under the map.
+        png(assets/"textures/font/radar_cell.png",[(255,255,255,255)])
+        rows=61
         providers=[{"type":"space","advances":{**{chr(0xE300+b):-(1<<b) for b in range(8)},**{chr(0xE310+b):1<<b for b in range(8)}}}]
-        for r in range(23):providers.append({"type":"bitmap","file":"duckcatmine:font/radar_cell.png","ascent":2-3*r,"height":2,"chars":[chr(0xE200+r)]})
+        for r in range(rows):providers.append({"type":"bitmap","file":"duckcatmine:font/radar_cell.png","ascent":1-r,"height":1,"chars":[chr(0xE200+r)]})
+        glyphs=["111101101101111","010110010010111","111001111100111","111001111001111","101101111001001","111100111001111",
+                "111100111101111","111001010010010","111101111101111","111101111001111","000010000010000","000111111101101","111110101011111"]
+        strip=[(255,255,255,255) if glyphs[i//3][y*3+i%3]=="1" else (0,0,0,0) for y in range(5) for i in range(len(glyphs)*3)]
+        png_rect(assets/"textures/font/radar_digits.png",strip,len(glyphs)*3,5)
+        providers.append({"type":"bitmap","file":"duckcatmine:font/radar_digits.png","ascent":-rows,"height":5,"chars":["".join(chr(0xE400+i) for i in range(len(glyphs)))]})
         write_json(assets/"font/radar.json",{"providers":providers})
         # The radar rides an empty pink boss bar whose background is transparent in this pack.
         png_rect(pack/"assets/minecraft/textures/gui/sprites/boss_bar/pink_background.png",[(0,0,0,0)]*(182*5),182,5)
+        # In Ground Zero the experience bar is the water gauge: blue instead of green (the pack is removed outside).
+        def bar(fill,edge):
+            return [edge if y in (0,4) or x in (0,181) else fill for y in range(5) for x in range(182)]
+        png_rect(pack/"assets/minecraft/textures/gui/sprites/hud/experience_bar_background.png",bar((24,38,64,255),(10,16,30,255)),182,5)
+        png_rect(pack/"assets/minecraft/textures/gui/sprites/hud/experience_bar_progress.png",
+                 [(150,215,255,255) if y==1 else px for y,row in enumerate([bar((56,140,240,255),(18,62,130,255))[i*182:(i+1)*182] for i in range(5)]) for px in row],182,5)
         from weapons import build_weapons
         weapons=build_weapons(assets,ROOT.parent/'admin/public/weapons',png,box,write_json,thumbnail)
         sounds={}

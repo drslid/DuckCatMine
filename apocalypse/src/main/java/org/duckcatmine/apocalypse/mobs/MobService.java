@@ -288,6 +288,22 @@ public final class MobService {
         }
     }
 
+    /** How many infected are onto a survivor: seeing it counts fully, investigating a noise nearby counts partly. */
+    public double awareness(Player player) {
+        long now = plugin.clock().now();
+        double score = 0;
+        Location at = player.getLocation();
+        for (Map.Entry<UUID, Tracked> entry : tracked.entrySet()) {
+            if (!(Bukkit.getEntity(entry.getKey()) instanceof Mob mob) || !mob.getWorld().equals(at.getWorld())
+                    || mob.getLocation().distanceSquared(at) > 96 * 96) continue;
+            if (mob.getTarget() == player) { score += NemesisService.NEMESIS.equals(entry.getValue().archetype) ? 3 : 1; continue; }
+            Location goal = entry.getValue().hunt.goal(now);
+            if (goal != null && goal.getWorld().equals(at.getWorld()) && goal.distanceSquared(at) < 20 * 20)
+                score += entry.getValue().hunt.confirmed(now) ? 0.7 : 0.4;
+        }
+        return score;
+    }
+
     /** Read-only snapshot for administration and the Paper self-test. */
     public Location searchGoal(Entity entity) {
         Tracked state = tracked.get(entity.getUniqueId());

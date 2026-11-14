@@ -68,7 +68,7 @@ import org.duckcatmine.apocalypse.scenario.city.Streets;
  * Chunks generated before cars were entities get their block cars swapped (and street trees added) once, when loaded.
  */
 public final class VehicleService implements Listener {
-    public static final int REVISION = 3;
+    public static final int REVISION = 4;
     private static final double SEAT_HEIGHT = 0.40;
     private static final Set<Material> SIDEWALK = Set.of(Material.STONE_BRICKS, Material.CRACKED_STONE_BRICKS,
             Material.MOSSY_STONE_BRICKS, Material.SMOOTH_STONE);
@@ -141,6 +141,19 @@ public final class VehicleService implements Listener {
 
     public boolean isRiding(Player player) {
         return riderToCar.containsKey(player.getUniqueId());
+    }
+
+    /** Inside a car or a van, only the heavyweight infected can still hurt you. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onShielded(org.bukkit.event.entity.EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        UUID id = riderToCar.get(player.getUniqueId());
+        Vehicle vehicle = id == null ? null : vehicles.get(id);
+        if (vehicle == null || !vehicle.model.shields()) return;
+        Entity source = event.getDamageSource().getCausingEntity();
+        if (source == null && event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent hit) source = hit.getDamager();
+        String kind = source == null ? null : plugin.mobs().archetypeOf(source);
+        if (kind != null && !VehicleModel.HEAVY_INFECTED.contains(kind)) event.setCancelled(true);
     }
 
     /** Only synchronous passenger moves of a registered seat, in the same world and next to its new position. */
@@ -303,7 +316,8 @@ public final class VehicleService implements Listener {
             boolean old = revision == null || revision < 2;
             for (CityLayout.VehicleSpot spot : layout.vehicles(cx, cz)) {
                 if (old) convert(world, spot);
-                motorbike(world, spot);
+                else if (revision < 4) toVan(spot);
+                if (revision == null || revision < 3) motorbike(world, spot);
             }
             if (!isNew && old) plantTrees(world, layout, cx, cz);
         } catch (RuntimeException e) {
@@ -351,10 +365,34 @@ public final class VehicleService implements Listener {
         float yaw = spot.alongX() ? (flip ? 90f : -90f) : (flip ? 0f : 180f);
         double fuel = burnt || Math.floorMod(seed >>> 40, 100L) < 35 ? 0 : 2 + Math.floorMod(seed >>> 48, 13L);
         double health = burnt ? 0 : 45 + Math.floorMod(seed >>> 52, 56L);
-        Vehicle vehicle = spawn(world, spot.centerX(), y, spot.centerZ(), yaw, burnt ? VehicleModel.WRECK : VehicleModel.SEDAN,
+        Vehicle vehicle = spawn(world, spot.centerX(), y, spot.centerZ(), yaw, burnt ? VehicleModel.WRECK : van(seed) ? VehicleModel.VAN : VehicleModel.SEDAN,
                 Streets.carPaint(seed), fuel, health);
         park(vehicle);
         converted++;
+    }
+
+    private static boolean van(long seed) {
+        return Math.floorMod(seed >>> 13, 4L) == 0 && !Streets.carBurnt(seed);
+    }
+
+    /** Parked cars of already converted streets: one in four becomes a van, same paint, fuel and state. */
+    private void toVan(CityLayout.VehicleSpot spot) {
+        if (!van(spot.seed())) return;
+        for (Vehicle vehicle : List.copyOf(vehicles.values())) {
+            if (vehicle.model != VehicleModel.SEDAN || vehicle.occupied() || active.contains(vehicle.id)
+                    || Math.abs(vehicle.x - spot.centerX()) > 1.5 || Math.abs(vehicle.z - spot.centerZ()) > 1.5) continue;
+            for (UUID id : vehicle.parts) { Entity part = Bukkit.getEntity(id); if (part != null) part.remove(); }
+            vehicle.parts.clear();
+            vehicle.body = null;
+            unpark(vehicle);
+            vehicle.model = VehicleModel.VAN;
+            spawnParts(vehicle);
+            Entity door = vehicle.interaction == null ? null : Bukkit.getEntity(vehicle.interaction);
+            if (door instanceof Interaction hitbox) { hitbox.setInteractionWidth(VehicleModel.VAN.hitboxWidth()); hitbox.setInteractionHeight(VehicleModel.VAN.hitboxHeight()); }
+            park(vehicle);
+            converted++;
+            return;
+        }
     }
 
     /** One parking spot in five also gets a motorbike, parked just behind the car along the street. */
@@ -366,7 +404,7 @@ public final class VehicleService implements Listener {
         Block feet = world.getBlockAt((int) Math.floor(x), y, (int) Math.floor(z));
         if (!feet.isPassable() || !feet.getRelative(0, 1, 0).isPassable() || !feet.getRelative(0, -1, 0).isSolid()) return;
         for (Entity near : world.getNearbyEntities(new Location(world, x, y, z), 1.2, 2, 1.2)) if (tag(near, NamespacedKeyKind.ID) != null) return;
-        float yaw = spot.alongX() ? 90f : 0f;
+        float yaw = spot.alongX() ? -90f : 0f; // facing away from the car parked in front of it
         double fuel = Math.floorMod(seed >>> 23, 100L) < 30 ? 0 : 1 + Math.floorMod(seed >>> 29, 8L);
         Vehicle vehicle = spawn(world, x, y, z, yaw, VehicleModel.MOTORBIKE, Streets.carPaint(seed >>> 3), fuel, 50 + Math.floorMod(seed >>> 37, 51L));
         park(vehicle);
@@ -512,7 +550,7 @@ public final class VehicleService implements Listener {
 
     private Location seatLocation(Vehicle vehicle, int seat) {
         double[] at = vehicle.model.seat(seat);
-        Location location = local(vehicle, at[0], vehicle.model == VehicleModel.MOTORBIKE ? 0.62 : SEAT_HEIGHT, at[1]);
+        Location location = local(vehicle, at[0], vehicle.model == VehicleModel.MOTORBIKE ? 0.62 : vehicle.model == VehicleModel.VAN ? 0.8 : SEAT_HEIGHT, at[1]);
         // Keep the invisible mount's rotation fixed: changing it would rotate the player's camera every tick.
         location.setYaw(0);
         return location;
@@ -851,6 +889,10 @@ public final class VehicleService implements Listener {
      * removed. Checks the body, the barrier blocks of a parked car, acceleration, the collision and the damage.
      */
     public String selfTest(Location base) {
+        return selfTest(base, VehicleModel.SEDAN);
+    }
+
+    public String selfTest(Location base, VehicleModel model) {
         World world = base.getWorld();
         List<Block> built = new ArrayList<>();
         Vehicle vehicle = null;
@@ -870,14 +912,14 @@ public final class VehicleService implements Listener {
                     built.add(wall);
                 }
             }
-            vehicle = spawn(world, base.getBlockX() + 0.5, base.getBlockY(), base.getBlockZ() + 0.5, 0f, VehicleModel.SEDAN,
+            vehicle = spawn(world, base.getBlockX() + 0.5, base.getBlockY(), base.getBlockZ() + 0.5, 0f, model,
                     Material.RED_CONCRETE, 10, 100);
             int parts = vehicle.parts.size();
-            if (parts != VehicleModel.SEDAN.parts(Material.RED_CONCRETE).size() || vehicle.interaction == null)
+            if (parts != model.parts(Material.RED_CONCRETE).size() || vehicle.interaction == null)
                 throw new IllegalStateException(parts + " pièces, portière " + vehicle.interaction);
             park(vehicle);
             int barriers = vehicle.barriers.size();
-            if (barriers < 12) throw new IllegalStateException("voiture garée peu solide : " + barriers + " blocs barrière");
+            if (barriers < (model == VehicleModel.MOTORBIKE ? 3 : 12)) throw new IllegalStateException(model.label() + " garée peu solide : " + barriers + " blocs barrière");
             unpark(vehicle);
             testSeat = world.spawn(seatLocation(vehicle,0),ItemDisplay.class);
             passenger = world.spawn(seatLocation(vehicle,0),ArmorStand.class, entity -> { entity.setGravity(false); entity.setVisible(false); });
@@ -893,7 +935,7 @@ public final class VehicleService implements Listener {
             }
             double travelled = vehicle.z - startZ;
             if (travelled < 8) throw new IllegalStateException("n'a roulé que " + Math.round(travelled) + " blocs");
-            if (vehicle.z > base.getZ() + 16 - 2.0) throw new IllegalStateException("a traversé le mur (z " + vehicle.z + ")");
+            if (vehicle.z > base.getZ() + 16 - model.halfLength()) throw new IllegalStateException("a traversé le mur (z " + vehicle.z + ")");
             if (vehicle.health >= 100) throw new IllegalStateException("choc sans dégât");
             if (vehicle.fuel >= 10) throw new IllegalStateException("aucune essence consommée");
             if (!testSeat.getPassengers().contains(passenger) || Math.abs(passenger.getLocation().getYaw()-63f) > .01
@@ -924,19 +966,21 @@ public final class VehicleService implements Listener {
     private double probe(Vehicle vehicle, double nx, double nz, float yaw, double speed) {
         double rad = Math.toRadians(yaw), fx = -Math.sin(rad), fz = Math.cos(rad), lx = Math.cos(rad), lz = Math.sin(rad);
         double best = Double.NEGATIVE_INFINITY;
-        for (double a : new double[]{-0.75, 0.75}) {
-            for (double b : new double[]{-1.35, 1.35}) {
+        // Footprint of the model (a sedan gives the original 0.75 × 1.85 probes); a car-sized probe jams motorbikes.
+        double width = vehicle.model.halfWidth(), length = vehicle.model.halfLength();
+        for (double a : new double[]{-width, width}) {
+            for (double b : new double[]{-(length - 0.5), length - 0.5}) {
                 double support = support(vehicle, nx + fx * b + lx * a, nz + fz * b + lz * a);
                 if (Double.isNaN(support)) return Double.NaN;
                 best = Math.max(best, support);
             }
         }
-        double edge = speed >= 0 ? 2.1 : -2.1;
-        for (double a : new double[]{-0.9, 0, 0.9}) {
+        double edge = speed >= 0 ? length + 0.25 : -(length + 0.25);
+        for (double a : new double[]{-(width + 0.15), 0, width + 0.15}) {
             if (Double.isNaN(support(vehicle, nx + fx * edge + lx * a, nz + fz * edge + lz * a))) return Double.NaN;
         }
-        for (double a : new double[]{-0.95, 0.95}) {
-            for (double b : new double[]{-1.2, 1.2}) {
+        for (double a : new double[]{-(width + 0.2), width + 0.2}) {
+            for (double b : new double[]{-(length - 0.65), length - 0.65}) {
                 if (Double.isNaN(support(vehicle, nx + fx * b + lx * a, nz + fz * b + lz * a))) return Double.NaN;
             }
         }

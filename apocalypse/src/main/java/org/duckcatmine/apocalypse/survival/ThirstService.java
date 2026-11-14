@@ -54,7 +54,8 @@ public final class ThirstService implements Listener {
     public void set(Player player, double value) {
         double clamped = Math.max(0, Math.min(1, value));
         player.setExp((float) Math.min(0.9999, clamped));
-        player.setLevel((int) Math.round(clamped * 100));
+        // No level number: vanilla always draws it in green over the (blue, with the pack) water bar.
+        player.setLevel(0);
     }
 
     /** Every second. */

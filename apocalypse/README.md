@@ -4,6 +4,16 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Radar GPS, discrétion et camionnettes — alpha.16
+
+- **Radar GPS** (pack 1.4.0) : la carte en main disparaît (elle est retirée des inventaires). En haut à droite, un radar rond, au pixel près, tourne avec toi : **le haut est la direction où tu regardes**, un repère rouge indique le nord. Il couvre **128 blocs** autour de toi : relief, routes, toits, eau et arbres en couleur ; infectés en rouge (boss en rose), survivants en bleu, coffres de fouille pas encore ouverts en vert, caisses en blanc. Des **flèches sur le bord** pointent vers chaque survivant connecté à Ground Zero et vers les caisses hors de portée ; sous le radar, **chrono et distance** de la caisse la plus proche.
+- **Jauge de repérage** sous le radar : vide quand aucun infecté ne t'a remarqué, verte puis orange puis rouge quand ils sont nombreux à te voir ou à fouiller l'endroit où ils t'ont entendu. Pleine : cache-toi. Sans le pack, la même jauge s'affiche en barre de boss.
+- **Largages** : plus de barre permanente ; seul le message radio s'affiche quand la caisse tombe (puis le radar donne la direction).
+- **Eau en bleu** : avec le pack, la barre d'hydratation est bleue et sans chiffre vert ; le pack est retiré en quittant Ground Zero, la barre d'expérience redevient verte ailleurs.
+- **À l'abri en voiture** : dans une voiture ou une camionnette, seuls le briseur, l'abomination et le Némésis peuvent encore te blesser. La moto ne protège pas.
+- **Camionnettes** : une place de stationnement sur quatre, 4 places (2 dans une voiture). Le premier monté conduit. Plus lente, gros réservoir, consomme plus. Dans les rues déjà visitées, une voiture garée sur quatre devient une camionnette au prochain chargement.
+- **Motos corrigées** : la détection des obstacles utilisait le gabarit d'une voiture, une moto garée derrière une voiture restait bloquée. Les autotests conduisent désormais voiture, moto et camionnette jusqu'au mur.
+
 ## Survie étendue — alpha.15
 
 **Ils sont plus nombreux.** Densité ×3,5 (au lieu de ×2,5), plafond de 200 infectés, 4 renforts par passage ; réglable sur le site (Ground Zero → Règles). Discrétion : **20 secondes** sans être vu ni entendu et ils passent leur chemin ; la marche s’entend à 8 blocs, la course à **32 blocs**. Seules les anciennes valeurs de référence sont remplacées : un réglage personnalisé reste tel quel.

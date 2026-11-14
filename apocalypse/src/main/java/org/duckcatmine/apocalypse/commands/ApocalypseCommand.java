@@ -81,7 +81,7 @@ public final class ApocalypseCommand implements TabExecutor {
             case "team", "equipe" -> plugin.teams().command(player, args);
             case "radar", "sonar" -> {
                 if (!plugin.sessions().isSurvivor(player)) Text.error(player, "Entre d'abord dans Ground Zero.");
-                else { plugin.radar().give(player); Text.info(player, "Sonar : tiens la carte en seconde main (F). Bleu : survivants. Rouge : infectés. Points extérieurs : joueurs éloignés."); }
+                else Text.info(player, "Radar en haut à droite de l'écran (accepte le pack Ground Zero) : rouge infectés, bleu survivants, vert coffres, blanc largages.");
             }
             case "stats" -> plugin.progress().stats(player);
             case "skills", "competences" -> plugin.progress().skills(player, args);

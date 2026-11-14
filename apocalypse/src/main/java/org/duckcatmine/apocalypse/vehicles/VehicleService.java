@@ -68,9 +68,8 @@ import org.duckcatmine.apocalypse.scenario.city.Streets;
  * Chunks generated before cars were entities get their block cars swapped (and street trees added) once, when loaded.
  */
 public final class VehicleService implements Listener {
-    public static final int REVISION = 2;
+    public static final int REVISION = 3;
     private static final double SEAT_HEIGHT = 0.40;
-    private static final double[][] SEATS = {{0.42, -0.05}, {-0.42, -0.05}, {0.42, -0.90}, {-0.42, -0.90}};
     private static final Set<Material> SIDEWALK = Set.of(Material.STONE_BRICKS, Material.CRACKED_STONE_BRICKS,
             Material.MOSSY_STONE_BRICKS, Material.SMOOTH_STONE);
 
@@ -301,8 +300,12 @@ public final class VehicleService implements Listener {
         int cx = chunk.getX(), cz = chunk.getZ();
         try {
             CityLayout layout = CityLayout.of(world.getSeed());
-            for (CityLayout.VehicleSpot spot : layout.vehicles(cx, cz)) convert(world, spot);
-            if (!isNew) plantTrees(world, layout, cx, cz);
+            boolean old = revision == null || revision < 2;
+            for (CityLayout.VehicleSpot spot : layout.vehicles(cx, cz)) {
+                if (old) convert(world, spot);
+                motorbike(world, spot);
+            }
+            if (!isNew && old) plantTrees(world, layout, cx, cz);
         } catch (RuntimeException e) {
             plugin.getLogger().log(Level.WARNING, "Mise à niveau du tronçon " + cx + "," + cz + " incomplète", e);
         }
@@ -354,6 +357,22 @@ public final class VehicleService implements Listener {
         converted++;
     }
 
+    /** One parking spot in five also gets a motorbike, parked just behind the car along the street. */
+    private void motorbike(World world, CityLayout.VehicleSpot spot) {
+        long seed = spot.seed();
+        if (Math.floorMod(seed >>> 17, 5L) != 0 || Streets.carBurnt(seed)) return;
+        int y = spot.y();
+        double x = spot.centerX() + (spot.alongX() ? 3.4 : 0), z = spot.centerZ() + (spot.alongX() ? 0 : 3.4);
+        Block feet = world.getBlockAt((int) Math.floor(x), y, (int) Math.floor(z));
+        if (!feet.isPassable() || !feet.getRelative(0, 1, 0).isPassable() || !feet.getRelative(0, -1, 0).isSolid()) return;
+        for (Entity near : world.getNearbyEntities(new Location(world, x, y, z), 1.2, 2, 1.2)) if (tag(near, NamespacedKeyKind.ID) != null) return;
+        float yaw = spot.alongX() ? 90f : 0f;
+        double fuel = Math.floorMod(seed >>> 23, 100L) < 30 ? 0 : 1 + Math.floorMod(seed >>> 29, 8L);
+        Vehicle vehicle = spawn(world, x, y, z, yaw, VehicleModel.MOTORBIKE, Streets.carPaint(seed >>> 3), fuel, 50 + Math.floorMod(seed >>> 37, 51L));
+        park(vehicle);
+        converted++;
+    }
+
     /** Street trees for chunks generated before they existed: whole trees inside the chunk, on intact sidewalk, in free air. */
     private void plantTrees(World world, CityLayout layout, int cx, int cz) {
         int x0 = cx << 4, z0 = cz << 4;
@@ -391,8 +410,8 @@ public final class VehicleService implements Listener {
         spawnParts(vehicle);
         Location at = new Location(world, x, y, z, yaw, 0);
         Interaction door = world.spawn(at, Interaction.class, hit -> {
-            hit.setInteractionWidth(2.3f);
-            hit.setInteractionHeight(1.75f);
+            hit.setInteractionWidth(model.hitboxWidth());
+            hit.setInteractionHeight(model.hitboxHeight());
             hit.setResponsive(true);
             mark(hit, id, "door");
         });
@@ -433,8 +452,9 @@ public final class VehicleService implements Listener {
         double rad = Math.toRadians(vehicle.yaw);
         double fx = -Math.sin(rad), fz = Math.cos(rad), lx = Math.cos(rad), lz = Math.sin(rad);
         Set<Long> cells = new HashSet<>();
-        for (double a = -0.75; a <= 0.76; a += 0.5) {
-            for (double b = -1.85; b <= 1.86; b += 0.5) {
+        double halfWidth = vehicle.model.halfWidth(), halfLength = vehicle.model.halfLength();
+        for (double a = -halfWidth; a <= halfWidth + 0.01; a += 0.4) {
+            for (double b = -halfLength; b <= halfLength + 0.01; b += 0.5) {
                 int bx = (int) Math.floor(vehicle.x + fx * b + lx * a), bz = (int) Math.floor(vehicle.z + fz * b + lz * a);
                 cells.add(key(bx, bz));
             }
@@ -491,7 +511,8 @@ public final class VehicleService implements Listener {
     }
 
     private Location seatLocation(Vehicle vehicle, int seat) {
-        Location location = local(vehicle, SEATS[seat][0], SEAT_HEIGHT, SEATS[seat][1]);
+        double[] at = vehicle.model.seat(seat);
+        Location location = local(vehicle, at[0], vehicle.model == VehicleModel.MOTORBIKE ? 0.62 : SEAT_HEIGHT, at[1]);
         // Keep the invisible mount's rotation fixed: changing it would rotate the player's camera every tick.
         location.setYaw(0);
         return location;
@@ -539,9 +560,9 @@ public final class VehicleService implements Listener {
             return;
         }
         int seat = -1;
-        for (int i = 0; i < Vehicle.SEATS && seat < 0; i++) if (vehicle.riders[i] == null) seat = i;
+        for (int i = 0; i < vehicle.model.seatCount() && seat < 0; i++) if (vehicle.riders[i] == null) seat = i;
         if (seat < 0) {
-            Text.warn(player, "Plus de place dans cette voiture.");
+            Text.warn(player, "Plus de place dans cette " + vehicle.model.label() + ".");
             return;
         }
         if (!vehicle.occupied()) unpark(vehicle);
@@ -624,7 +645,7 @@ public final class VehicleService implements Listener {
 
     /** Beside the door, else the other side, the front or the back; the ground must hold and the head be free. */
     private Location exitSpot(Vehicle vehicle, int seat, Player player) {
-        double side = SEATS[seat][0] > 0 ? 1 : -1, lz = SEATS[seat][1];
+        double side = vehicle.model.seat(seat)[0] >= 0 ? 1 : -1, lz = vehicle.model.seat(seat)[1];
         double[][] tries = {{side * 1.6, lz}, {-side * 1.6, lz}, {0, 3.0}, {0, -3.0}};
         for (double[] attempt : tries) {
             Location spot = local(vehicle, attempt[0], 0, attempt[1]);
@@ -667,7 +688,7 @@ public final class VehicleService implements Listener {
             Text.warn(player, "Une épave calcinée ne roulera plus.");
             return;
         }
-        double tank = plugin.settings().play().vehicles().tankLitres();
+        double tank = plugin.settings().play().vehicles().tankLitres() * vehicle.model.tankFactor();
         double poured = Math.min(plugin.items().fuel(can), tank - vehicle.fuel);
         if (plugin.items().fuel(can) < 0.5) {
             Text.warn(player, "Jerrican vide : accroupis-toi et clic droit sur une autre voiture pour siphonner.");
@@ -765,7 +786,7 @@ public final class VehicleService implements Listener {
         boolean forward = controls.forward(), backward = controls.backward(), left = controls.left(), right = controls.right();
         boolean handbrake = controls.handbrake(), horn = controls.horn();
         boolean driven = driver != null || simulated;
-        boolean canRun = (simulated || rules.enabled() && plugin.scenario().isEnabled()) && vehicle.model == VehicleModel.SEDAN
+        boolean canRun = (simulated || rules.enabled() && plugin.scenario().isEnabled()) && vehicle.model.drivable()
                 && vehicle.fuel > 0 && vehicle.health > 0;
         if (driven && canRun && !vehicle.engineOn && (forward || backward)) startEngine(vehicle);
         if (vehicle.engineOn && (!driven || !canRun)) {
@@ -774,7 +795,7 @@ public final class VehicleService implements Listener {
         }
         CityLayout layout = vehicle.world.getGenerator() instanceof GroundZeroGenerator ? CityLayout.of(vehicle.world.getSeed()) : null;
         boolean street = layout == null || layout.isStreet((int) Math.floor(vehicle.x), (int) Math.floor(vehicle.z));
-        double max = street ? rules.maxSpeedRoad() : rules.maxSpeedOffroad();
+        double max = (street ? rules.maxSpeedRoad() : rules.maxSpeedOffroad()) * vehicle.model.speedFactor();
         double speed = VehiclePhysics.speed(vehicle.speed, forward, backward, handbrake, vehicle.engineOn, max);
         float steering = driver != null && left == right
                 ? VehiclePhysics.steerToward(speed, vehicle.yaw, driver.getLocation().getYaw())
@@ -814,7 +835,7 @@ public final class VehicleService implements Listener {
         vehicle.yaw = yaw;
         vehicle.speed = speed;
         if (changed) place(vehicle);
-        if (vehicle.engineOn) vehicle.fuel = Math.max(0, vehicle.fuel - moved * rules.fuelPerBlock());
+        if (vehicle.engineOn) vehicle.fuel = Math.max(0, vehicle.fuel - moved * rules.fuelPerBlock() * vehicle.model.fuelFactor());
         if (Math.abs(vehicle.speed) > 0.02) hit(vehicle, driver, fx, fz);
         effects(vehicle, driver, horn, rules);
         if (driver != null && vehicle.ticks % 5 == 0) gauge(driver, vehicle);
@@ -1016,13 +1037,13 @@ public final class VehicleService implements Listener {
             vehicle.world.playSound(hood, Sound.ENTITY_MINECART_RIDING, 0.6f + pace * 0.5f, 0.5f + pace * 0.9f);
             plugin.noise().emit(hood, rules.engineNoise() + Math.abs(vehicle.speed) * 30, driver);
         }
-        if (horn && driver != null && vehicle.ticks - vehicle.lastHorn > 20 && vehicle.model == VehicleModel.SEDAN && vehicle.health > 0) {
+        if (horn && driver != null && vehicle.ticks - vehicle.lastHorn > 20 && vehicle.model.drivable() && vehicle.health > 0) {
             vehicle.lastHorn = vehicle.ticks;
             vehicle.world.playSound(hood, Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO, 3f, 1.25f);
             vehicle.world.playSound(hood, Sound.BLOCK_NOTE_BLOCK_BASS, 3f, 0.9f);
             plugin.noise().emit(hood, rules.hornNoise(), driver);
         }
-        if (vehicle.model == VehicleModel.SEDAN && vehicle.health < 30 && vehicle.ticks % 10 == 0)
+        if (vehicle.model.drivable() && vehicle.health < 30 && vehicle.ticks % 10 == 0)
             vehicle.world.spawnParticle(vehicle.health <= 0 ? Particle.CAMPFIRE_COSY_SMOKE : Particle.LARGE_SMOKE, hood, 2, 0.2, 0.1, 0.2, 0.01);
     }
 
@@ -1071,7 +1092,7 @@ public final class VehicleService implements Listener {
     /** A blast damages nearby cars; a car with fuel left that gets destroyed burns out a few seconds later. */
     public void blast(Location center, double radius, double power, Player source) {
         for (Vehicle vehicle : List.copyOf(vehicles.values())) {
-            if (!vehicle.world.equals(center.getWorld()) || vehicle.model != VehicleModel.SEDAN) continue;
+            if (!vehicle.world.equals(center.getWorld()) || !vehicle.model.drivable()) continue;
             double distance = local(vehicle, 0, 0.8, 0).distance(center);
             double reach = radius + 2;
             if (distance > reach) continue;
@@ -1089,7 +1110,7 @@ public final class VehicleService implements Listener {
         int[] count = {0};
         BukkitTask[] fire = new BukkitTask[1];
         fire[0] = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
-            if (!vehicles.containsKey(vehicle.id) || vehicle.model != VehicleModel.SEDAN) {
+            if (!vehicles.containsKey(vehicle.id) || !vehicle.model.drivable()) {
                 fire[0].cancel();
                 return;
             }

@@ -13,7 +13,23 @@ import org.joml.Vector3f;
  * so one yaw turns the whole model. Local axes: x towards the left side, y up, z towards the front.
  */
 public enum VehicleModel {
-    SEDAN, WRECK;
+    SEDAN, WRECK, MOTORBIKE;
+
+    private static final double[][] CAR_SEATS = {{0.42, -0.05}, {-0.42, -0.05}, {0.42, -0.90}, {-0.42, -0.90}};
+    private static final double[][] BIKE_SEATS = {{0, -0.15}, {0, -0.75}};
+
+    public boolean drivable() { return this != WRECK; }
+    public int seatCount() { return this == MOTORBIKE ? 2 : 4; }
+    public double[] seat(int index) { return (this == MOTORBIKE ? BIKE_SEATS : CAR_SEATS)[index]; }
+    /** Faster and lighter on fuel, but a small tank and a fragile frame. */
+    public double speedFactor() { return this == MOTORBIKE ? 1.25 : 1; }
+    public double tankFactor() { return this == MOTORBIKE ? 0.35 : 1; }
+    public double fuelFactor() { return this == MOTORBIKE ? 0.5 : 1; }
+    public float hitboxWidth() { return this == MOTORBIKE ? 1.1f : 2.3f; }
+    public float hitboxHeight() { return this == MOTORBIKE ? 1.3f : 1.75f; }
+    public double halfWidth() { return this == MOTORBIKE ? 0.2 : 0.75; }
+    public double halfLength() { return this == MOTORBIKE ? 0.85 : 1.85; }
+    public String label() { return this == MOTORBIKE ? "moto" : "voiture"; }
 
     public record Part(String role, BlockData data, Transformation transformation, boolean glow) {
     }
@@ -32,6 +48,20 @@ public enum VehicleModel {
             parts.add(part("rust", Material.BROWN_TERRACOTTA, -0.80, 0.70, 0.95, 1.60, 0.04, 1.00));
             for (double x : new double[]{-0.97, 0.72})
                 for (double z : new double[]{-1.55, 1.00}) parts.add(part("rim", Material.DEEPSLATE, x, 0.0, z, 0.25, 0.32, 0.55));
+            return parts;
+        }
+        if (this == MOTORBIKE) {
+            parts.add(part(BODY, paint, -0.20, 0.55, -0.35, 0.40, 0.30, 0.95));                    // tank and frame
+            parts.add(part("seat", Material.BLACK_WOOL, -0.18, 0.80, -0.95, 0.36, 0.10, 0.75));
+            parts.add(part("engine", Material.GRAY_CONCRETE, -0.17, 0.25, -0.35, 0.34, 0.30, 0.55));
+            parts.add(part("exhaust", Material.LIGHT_GRAY_CONCRETE, 0.17, 0.25, -1.15, 0.10, 0.10, 0.85));
+            parts.add(part("fork", Material.LIGHT_GRAY_CONCRETE, -0.07, 0.30, 0.70, 0.14, 0.75, 0.10));
+            parts.add(part("handlebar", Material.BLACK_CONCRETE, -0.38, 1.02, 0.62, 0.76, 0.06, 0.08));
+            parts.add(part("wheel", Material.BLACK_CONCRETE, -0.08, 0.0, 0.55, 0.16, 0.58, 0.58));
+            parts.add(part("wheel", Material.BLACK_CONCRETE, -0.08, 0.0, -1.20, 0.16, 0.58, 0.58));
+            parts.add(part("fender", paint, -0.11, 0.56, -1.25, 0.22, 0.06, 0.62));
+            parts.add(light(HEADLIGHT, false, -0.10, 0.86, 0.80, 0.20, 0.16, 0.06));
+            parts.add(light(TAILLIGHT, false, -0.08, 0.80, -1.35, 0.16, 0.08, 0.04));
             return parts;
         }
         parts.add(part(BODY, paint, -0.95, 0.30, -2.10, 1.90, 0.60, 4.20));

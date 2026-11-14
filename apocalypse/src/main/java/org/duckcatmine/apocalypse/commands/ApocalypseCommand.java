@@ -232,6 +232,18 @@ public final class ApocalypseCommand implements TabExecutor {
                 Text.good(sender, "Approche en préparation : jusqu’à " + size + " infecté(s), à au moins 150 blocs de tous les joueurs.");
             }
             case "destruction" -> destruction(sender, args, actor);
+            case "site" -> {
+                var world = plugin.scenario().world();
+                if (world == null) { Text.error(sender, "Ground Zero n'existe pas."); return; }
+                if (args.length < 3) {
+                    for (var site : plugin.sites().sites(world))
+                        Text.info(sender, site.id() + " · " + site.label() + " · X " + site.x() + ", Z " + site.z() + (plugin.sites().built(site.id()) ? " · construit" : ""));
+                    return;
+                }
+                if (!plugin.sites().force(world, args[2])) { Text.error(sender, "Lieu inconnu ou déjà construit : " + args[2]); return; }
+                audit(actor, "admin_site", args[2]);
+                Text.good(sender, "Construction de " + args[2] + " dès que ses tronçons sont chargés.");
+            }
             case "nemesis", "drop", "survivor" -> {
                 Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : null;
                 if (target == null || !plugin.sessions().isSurvivor(target) || plugin.scenario().inRefuge(target.getLocation())) {
@@ -549,7 +561,7 @@ public final class ApocalypseCommand implements TabExecutor {
             options.add("skip");
         } else if (args[0].equalsIgnoreCase("admin") && sender.hasPermission(ADMIN)) {
             if (args.length == 2) options.addAll(List.of("status", "enable", "disable", "reload", "selftest", "world", "give", "map", "threat",
-                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives", "teleport", "teleport-point", "renovate", "departure", "nemesis", "drop", "survivor"));
+                    "destruction", "horde", "pvp", "settings", "set", "preset", "evacuate", "lives", "teleport", "teleport-point", "renovate", "departure", "nemesis", "drop", "survivor", "site"));
             else if (args.length == 3 && args[1].equalsIgnoreCase("departure")) options.addAll(List.of("start", "cancel"));
             else if ((args.length == 3 || args.length == 4) && args[1].equalsIgnoreCase("teleport"))
                 Bukkit.getOnlinePlayers().stream().filter(plugin.sessions()::isSurvivor).forEach(p -> options.add(p.getName()));

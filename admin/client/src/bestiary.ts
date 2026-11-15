@@ -5,21 +5,25 @@ export const monsters: Record<
   walker: {
     name: 'Errant',
     role: 'La horde',
+    model: true,
     note: 'Lent seul, dangereux quand les rues se remplissent. Il cherche l’origine des bruits.',
   },
   pursuer: {
     name: 'Poursuivant',
     role: 'La traque',
+    model: true,
     note: 'Tenace et attentif. Brise sa ligne de vue puis reste silencieux pour lui échapper.',
   },
   runner: {
     name: 'Sprinteur',
     role: 'La vitesse',
+    model: true,
     note: 'Une accélération brutale, puis un temps de récupération. Garde une porte de sortie.',
   },
   howler: {
     name: 'Hurleur',
     role: 'L’alarme',
+    model: true,
     note: 'Son cri rameute les infectés. Un coup pendant sa préparation peut l’interrompre.',
   },
   spitter: {
@@ -67,11 +71,25 @@ export const monsters: Record<
   infected_wolf: {
     name: 'Loup infecté',
     role: 'Le prédateur',
+    model: true,
     note: 'Rapide, mobile et capable de mordre. La limite globale de faune reste applicable.',
   },
   infected_livestock: {
     name: 'Bête infectée',
     role: 'La contamination',
+    model: true,
     note: 'Une bête autrefois paisible devenue dangereuse. La limite globale de faune reste applicable.',
+  },
+  nemesis: {
+    name: 'Némésis',
+    role: 'Le boss',
+    model: true,
+    note: 'Géant blindé qui traque tout survivant et enfonce les murs. Il faut des roquettes ; en sprintant, on le distance.',
+  },
+  smiler: {
+    name: 'Souriant',
+    role: 'La terreur nocturne',
+    model: true,
+    note: 'Lent, mais son sourire luit dans le noir et il tue en deux coups. Garde tes distances.',
   },
 };

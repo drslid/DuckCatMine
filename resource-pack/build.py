@@ -250,6 +250,38 @@ def build(output: Path, ffmpeg: str):
         for index,(role,(shirt,trousers,hat,accent)) in enumerate(SURVIVORS.items()):
             skin(assets/"textures/entity/survivor"/(role+".png"),shirt,trousers,hat,accent,900+index)
             skin(assets/"textures/entity/survivor"/(role+"_infected.png"),shirt,trousers,hat,accent,900+index,True)
+        # Panel portraits of the infected drawn on vanilla bodies (no pack model): simple voxel bodies, same textures style.
+        def cube(f,t,top,side,front):
+            return {"from":f,"to":t,"faces":{"up":{"texture":"#"+top},"east":{"texture":"#"+side},"south":{"texture":"#"+front}}}
+        def body(shape):
+            if shape in ("human","howler"):
+                head=([3,24,3],[13,34,13]) if shape=="howler" else ([4,24,4],[12,32,12])
+                return [cube([4,0,6],[8,12,10],"cloth","cloth","cloth"),cube([8,0,6],[12,12,10],"cloth","cloth","cloth"),
+                        cube([4,12,6],[12,24,10],"cloth","cloth","blood"),cube([0,20,6],[4,24,18],"skin","skin","wound"),
+                        cube([12,20,6],[16,24,18],"skin","wound","skin"),cube(head[0],head[1],"skin","skin","face")]
+            if shape=="wolf":
+                return [cube([2,6,0],[8,12,12],"skin","skin","skin"),cube([1,8,12],[9,15,18],"skin","skin","face"),
+                        cube([3,8,18],[7,11,21],"skin","wound","blood"),cube([1,15,13],[3,17,15],"skin","skin","skin"),
+                        cube([7,15,13],[9,17,15],"skin","skin","skin"),cube([4,9,-5],[6,11,0],"skin","skin","skin")]+[
+                        cube([x,0,z],[x+2,6,z+2],"skin","skin","skin") for x in (2,6) for z in (1,9)]
+            return [cube([0,10,0],[10,20,16],"skin","wound","skin"),cube([1,14,16],[9,22,22],"skin","skin","face"),
+                    cube([0,22,18],[2,24,19],"bone","bone","bone"),cube([8,22,18],[10,24,19],"bone","bone","bone")]+[
+                    cube([x,0,z],[x+3,10,z+3],"skin","skin","skin") for x in (0,7) for z in (0,13)]
+        native=work/"native"
+        NATIVE={"walker":("Errant",(96,122,84),(222,40,30),(70,78,96),"human"),
+                "pursuer":("Poursuivant",(110,118,80),(240,200,40),(92,60,48),"human"),
+                "runner":("Sprinteur",(128,112,92),(250,60,40),(40,70,120),"human"),
+                "howler":("Hurleur",(140,104,104),(255,90,60),(80,40,40),"howler"),
+                "infected_wolf":("Loup infecté",(92,90,88),(255,60,30),(70,60,55),"wolf"),
+                "infected_livestock":("Bête infectée",(120,92,70),(240,50,40),(90,70,60),"cow")}
+        for index,(kind,(label,base,eye,cloth,shape)) in enumerate(NATIVE.items()):
+            paths={key:native/f"{kind}_{key}.png" for key in TEXTURE_KEYS}
+            texture(paths["skin"],base,eye,500+index*71,kind=kind)
+            texture(paths["face"],base,eye,500+index*71,True,kind=kind)
+            fabric(paths["cloth"],cloth,500+index*53)
+            blood(paths["blood"],500+index*31)
+            for key,color in [("wound",(78,31,36)),("bone",(188,179,141)),("eye",eye)]:png(paths[key],[(*color,255)]*1024)
+            thumbnail(ROOT.parent/'admin/public/horror'/f'{kind}.svg',body(shape),assets,kind,label,paths)
         # HUD radar font. A glyph's top row t (radar pixels, map circle in rows 0-56) has ascent -8-t. The map is made of
         # 1 px cells (one glyph per row); markers are 4x-resolution glyphs so arrows, dots and the N stay sharp.
         png(assets/"textures/font/radar_cell.png",[(255,255,255,255)])

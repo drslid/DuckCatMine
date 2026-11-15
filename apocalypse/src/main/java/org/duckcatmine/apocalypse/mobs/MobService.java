@@ -311,6 +311,20 @@ public final class MobService {
         return goal == null ? null : goal.clone();
     }
 
+    /** The search is over: the infected gives up and walks off elsewhere instead of standing where it lost you. */
+    private static void wanderOff(Mob mob) {
+        Location here = mob.getLocation();
+        double angle = java.util.concurrent.ThreadLocalRandom.current().nextDouble(Math.PI * 2), distance = 14 + java.util.concurrent.ThreadLocalRandom.current().nextDouble(10);
+        int x = (int) Math.floor(here.getX() + Math.cos(angle) * distance), z = (int) Math.floor(here.getZ() + Math.sin(angle) * distance);
+        if (!here.getWorld().isChunkLoaded(x >> 4, z >> 4)) {
+            mob.getPathfinder().stopPathfinding();
+            return;
+        }
+        int y = here.getWorld().getHighestBlockYAt(x, z, org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1;
+        if (Math.abs(y - here.getY()) > 6 || !mob.getPathfinder().moveTo(new Location(here.getWorld(), x + 0.5, y, z + 0.5), 0.8))
+            mob.getPathfinder().stopPathfinding();
+    }
+
     /** See -> pursue; lose sight -> investigate only the remembered place; silence -> wander again. */
     private void perceive(Mob mob, Tracked state, ApocalypseConfig.Archetype archetype, long now) {
         Location here = mob.getLocation();
@@ -332,7 +346,7 @@ public final class MobService {
         }
         Location goal = state.hunt.goal(now);
         if (goal == null || !goal.getWorld().equals(mob.getWorld())) {
-            if (state.navigatingSearch) mob.getPathfinder().stopPathfinding();
+            if (state.navigatingSearch) wanderOff(mob);
             state.navigatingSearch = false;
             return;
         }

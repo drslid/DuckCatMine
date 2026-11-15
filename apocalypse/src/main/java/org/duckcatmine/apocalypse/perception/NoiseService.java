@@ -63,8 +63,18 @@ public final class NoiseService implements Listener {
         if (player.isSprinting()) return false;
         ApocalypseConfig.Perception perception = plugin.settings().play().perception();
         double distance = player.getLocation().distance(mob.getLocation());
+        if (distance > 3 && !inView(mob, player)) return true;
         if (player.isSneaking() && distance > perception.sneakDetection()) return true;
+        if (org.duckcatmine.apocalypse.survival.HandLight.level(player) > 0) return false;
         return light(player.getLocation().getBlock()) <= perception.darkLightLevel() && distance > perception.darkDetection();
+    }
+
+    /** Infected see in a 130° cone ahead of them; behind them a silent survivor goes unnoticed. */
+    public static boolean inView(Mob mob, Player player) {
+        Location eye = mob.getEyeLocation();
+        org.bukkit.util.Vector look = eye.getDirection().setY(0), to = player.getLocation().toVector().subtract(eye.toVector()).setY(0);
+        if (look.lengthSquared() < 1e-6 || to.lengthSquared() < 1e-6) return true;
+        return look.normalize().dot(to.normalize()) > Math.cos(Math.toRadians(65));
     }
 
     /** Visible light: block light, or sky light dimmed at night (raw sky light does not change with the time of day). */

@@ -238,7 +238,7 @@ public record ApocalypseConfig(Scenario scenario, Refuge refuge, Infection infec
                 (float) read.decimal("infection.antidote-speed-multiplier", 1.0, 0.1, 1.0),
                 read.decimal("infection.bite-multiplier", 1.0, 0, 3));
         Death death = new Death(
-                read.integer("death.bag-lifetime-seconds", 300, 30, 3600) * 1000L,
+                read.integer("death.bag-lifetime-seconds", 600, 30, 3600) * 1000L,
                 read.decimal("death.bag-access-radius", 4.5, 2, 8));
         long protectionMs = read.integer("respawn.protection-seconds", 30, 0, 120) * 1000L;
         Loot loot = new Loot(

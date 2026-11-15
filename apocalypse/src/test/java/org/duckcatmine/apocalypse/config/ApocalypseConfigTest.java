@@ -33,7 +33,7 @@ class ApocalypseConfigTest {
         assertEquals(60_000, config.infection().durationMs());
         assertFalse(config.infection().repeatedBitesResetTimer());
         assertEquals(2.0f, config.infection().antidoteUseSeconds());
-        assertEquals(300_000, config.death().bagLifetimeMs());
+        assertEquals(600_000, config.death().bagLifetimeMs());
         assertEquals(30_000, config.protectionMs());
         assertEquals(0.12, config.loot().bonusRollChance(), 1e-9);
         assertEquals(30 * 60_000L, config.search().refillMs());
@@ -69,7 +69,7 @@ class ApocalypseConfigTest {
         assertEquals(3.5, config.spawning().density(), 1e-9);
         assertEquals(4, config.spawning().perTick());
         assertEquals(10, config.play().leaveSeconds());
-        assertEquals(20, config.play().perception().investigateSeconds());
+        assertEquals(30, config.play().perception().investigateSeconds());
         assertEquals(8, config.play().noise().walk());
         assertEquals(12, config.play().noise().blockBreak());
         assertTrue(config.play().noise().walk() < config.play().noise().sprint());

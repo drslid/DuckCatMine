@@ -133,7 +133,7 @@ public final class HorrorService implements Listener,AutoCloseable {
         if(!eligible(target)||now<nextDamage.getOrDefault(target.getUniqueId(),0L))return;
         nextDamage.put(target.getUniqueId(),now+1000);
         var builder=DamageSource.builder(DamageType.MAGIC);Entity source=Bukkit.getEntity(owner);
-        if(source!=null)builder.withCausingEntity(source);if(direct!=null)builder.withDirectEntity(direct);
+        if(source!=null)builder.withCausingEntity(source).withDirectEntity(direct!=null?direct:source);
         applying=true;try{target.damage(amount,builder.build());}finally{applying=false;}
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)public void onDamage(EntityDamageEvent e){

@@ -108,6 +108,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private org.duckcatmine.apocalypse.survival.TreasureService treasures;
     private org.duckcatmine.apocalypse.scenario.city.SiteService sites;
     private org.duckcatmine.apocalypse.radar.HudRadarService hudRadar;
+    private org.duckcatmine.apocalypse.survival.HandLight handLight;
     private final EventLog events = new EventLog();
     private SettingsService tuning;
     private ProtectionService protection;
@@ -194,6 +195,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             treasures = new org.duckcatmine.apocalypse.survival.TreasureService(this);
             sites = new org.duckcatmine.apocalypse.scenario.city.SiteService(this);
             hudRadar = new org.duckcatmine.apocalypse.radar.HudRadarService(this);
+            handLight = new org.duckcatmine.apocalypse.survival.HandLight(this);
             scenario.load();
             director.restore();
             if (scenario.isEnabled()) clock.resume();
@@ -331,6 +333,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             turrets.tick();
             alarms.tick();
             hudRadar.tick();
+            handLight.tick();
             sessions.tickLeaves();
             if (ticks % TICKS_PER_SECOND == 0) {
                 noise.tick();
@@ -398,6 +401,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         if(supplyDrops!=null)supplyDrops.stop();
         if(survivors!=null)survivors.stop();
         if(hudRadar!=null)hudRadar.stop();
+        if(handLight!=null)handLight.stop();
         if (renovator != null) renovator.close();
         if (turrets != null) turrets.close();
         if (ticker != null) ticker.cancel();

@@ -32,16 +32,23 @@ import org.duckcatmine.apocalypse.DuckCatApocalypse;
  * boss bar shows the detection gauge.
  */
 public final class HudRadarService {
-    public static final int DIAMETER = 57, RADIUS = DIAMETER / 2, RANGE = 128, GAUGE_ROWS = 3, ROWS = DIAMETER + 1 + GAUGE_ROWS;
+    public static final int DIAMETER = 57, RADIUS = DIAMETER / 2, RANGE = 128, GAUGE_TOP = 70, GAUGE_ROWS = 3, ROWS = GAUGE_TOP + GAUGE_ROWS;
     public static final double BLOCKS_PER_PIXEL = (double) RANGE / RADIUS;
     public static final int CELL = 4;
-    public static final int RED = 0xFF3B30, BOSS = 0xFF00A0, BLUE = 0x4FB4FF, GREEN = 0x37E05A, WHITE = 0xFFFFFF, RIM = 0x1B2126,
-            NORTH = 0xE53935, UNKNOWN = 0x101315, GAUGE_BACK = 0x2A2F33;
+    public static final int RED = 0xFF3B30, BOSS = 0xFF00A0, PURPLE = 0xB46CFF, BLUE = 0x4FB4FF, GREEN = 0x37E05A, WHITE = 0xFFFFFF, RIM = 0x1B2126,
+            NORTH = 0xFF4A3D, UNKNOWN = 0x101315, GAUGE_BACK = 0x2A2F33, STATUS = 0x8FD19E;
+    /** Pack glyphs drawn at four times the GUI resolution: 64 rim positions for arrows and the N, dots for every row. */
+    static final char ARROW = 0xE500, NORTH_MARK = 0xE540, SMALL_DOT = 0xE600, BIG_DOT = 0xE680, SELF = 0xE6F0;
+    static final int STEPS = 64, RING_X = -10, RING_ADVANCE = 79, DOT_MIN_TOP = -3, DOT_MAX_TOP = 70;
+    static final char INFO_DIGITS = 0xE400, STATUS_DIGITS = 0xE420;
     public static final Key FONT = Key.key("duckcatmine", "radar");
     /** Map's left edge, right of the screen centre, in GUI pixels: near the right edge at common GUI scales. */
     public static final int OFFSET = 150;
-    private static final String DIGITS = "0123456789:m▣";
+    private static final String DIGITS = "0123456789:m▣sh";
     private record Cached(int color, long until) {}
+    /** One sharp glyph at a horizontal offset from the map's left edge; the vertical place is baked into the glyph. */
+    record Mark(int x, char glyph, int advance, int color) {}
+    private record Frame(Integer[][] pixels, List<Mark> marks) {}
     private final DuckCatApocalypse plugin;
     private final Map<Long, Cached> terrain = new HashMap<>();
     private final Map<Long, List<int[]>> containers = new HashMap<>();
@@ -72,21 +79,26 @@ public final class HudRadarService {
         return width;
     }
 
-    /** Small 3×5 digits below the map (plus ':' 'm' and a crate icon); unknown characters become a space. */
-    public static String digits(String text) {
+    /** Small 3×5 glyphs below the map (digits, ':' 'm' 's' 'h', a crate icon); unknown characters become a space. */
+    public static String digits(String text, char base) {
         StringBuilder out = new StringBuilder();
         for (char c : text.toCharArray()) {
             int index = DIGITS.indexOf(c);
-            out.append(index < 0 ? space(4) : String.valueOf((char) (0xE400 + index)));
+            out.append(index < 0 ? space(4) : String.valueOf((char) (base + index)));
         }
         return out.toString();
     }
 
+    public static Component compose(Integer[][] pixels, String info) {
+        return compose(pixels, List.of(), info, null);
+    }
+
     /**
      * One component: each pixel is a 1 px glyph followed by a 1 px step back, so pixels touch; rows are stacked by the
-     * font's per-row ascent and each row returns to the left edge. The whole title nets to a constant width.
+     * font's per-row ascent and each row returns to the left edge, like every mark and text line. The whole title nets
+     * to a constant width.
      */
-    public static Component compose(Integer[][] pixels, String info) {
+    public static Component compose(Integer[][] pixels, List<Mark> marks, String info, String status) {
         TextComponent.Builder root = Component.text().font(FONT).shadowColor(ShadowColor.none());
         root.append(Component.text(space(2 * OFFSET)));
         for (int r = 0; r < pixels.length; r++) {
@@ -104,14 +116,22 @@ public final class HudRadarService {
             }
             if (cursor > 0) root.append(Component.text(space(-cursor)));
         }
-        if (info != null && !info.isEmpty()) {
-            String text = digits(info);
-            int width = textWidth(info), start = Math.max(0, (DIAMETER - width) / 2);
-            root.append(Component.text(space(start)));
-            root.append(Component.text(text, NamedTextColor.WHITE));
-            root.append(Component.text(space(-(start + width))));
+        for (Mark mark : marks) {
+            if (mark.x() != 0) root.append(Component.text(space(mark.x())));
+            root.append(Component.text(String.valueOf(mark.glyph()), TextColor.color(mark.color())));
+            root.append(Component.text(space(-(mark.x() + mark.advance()))));
         }
+        line(root, info, INFO_DIGITS, NamedTextColor.WHITE);
+        line(root, status, STATUS_DIGITS, TextColor.color(STATUS));
         return root.build();
+    }
+
+    private static void line(TextComponent.Builder root, String text, char base, TextColor color) {
+        if (text == null || text.isEmpty()) return;
+        int width = textWidth(text), start = Math.max(0, (DIAMETER - width) / 2);
+        root.append(Component.text(space(start)));
+        root.append(Component.text(digits(text, base), color));
+        root.append(Component.text(space(-(start + width))));
     }
 
     // ------------------------------------------------------------------ geometry
@@ -136,16 +156,25 @@ public final class HudRadarService {
         for (int dx = 0; dx < size; dx++) for (int dy = 0; dy < size; dy++) put(px, cx + dx - size / 2, cy + dy - size / 2, color);
     }
 
-    /** A small chevron on the rim pointing towards a target. */
-    static void arrow(Integer[][] px, double sx, double sy, int color) {
-        double length = Math.hypot(sx, sy);
-        if (length < 0.001) return;
-        double ux = sx / length, uy = sy / length, nx = -uy, ny = ux;
-        for (int t = 0; t <= 3; t++) {
-            double along = RADIUS - 1.5 - t;
-            for (double k = -t * 0.6; k <= t * 0.6 + 1e-6; k += 0.5)
-                put(px, (int) Math.round(RADIUS + ux * along + nx * k), (int) Math.round(RADIUS + uy * along + ny * k), color);
-        }
+    /** A sharp arrow just outside the circle, pointing towards a target. */
+    static Mark arrow(double sx, double sy, int color) {
+        return new Mark(RING_X, (char) (ARROW + step(sx, sy)), RING_ADVANCE, color);
+    }
+
+    static int step(double sx, double sy) {
+        double angle = Math.atan2(sx, -sy);
+        return Math.floorMod((int) Math.round(angle / (2 * Math.PI) * STEPS), STEPS);
+    }
+
+    /** A round dot centred on a map pixel: 3 px (infected) or 5 px (survivors, bosses, crates). */
+    static Mark dot(double sx, double sy, boolean big, int color) {
+        int size = big ? 5 : 3, half = size / 2;
+        int top = Math.max(DOT_MIN_TOP, Math.min(DOT_MAX_TOP, (int) Math.round(RADIUS + sy) - half));
+        return new Mark((int) Math.round(RADIUS + sx) - half, (char) ((big ? BIG_DOT : SMALL_DOT) + top - DOT_MIN_TOP), size + 1, color);
+    }
+
+    private static boolean within(double[] s, double margin) {
+        return s[0] * s[0] + s[1] * s[1] < (RADIUS - margin) * (RADIUS - margin);
     }
 
     // ------------------------------------------------------------------ rendering
@@ -172,10 +201,10 @@ public final class HudRadarService {
                 if (frames % 4 == 0) fallback(player, gauge);
                 continue;
             }
-            Integer[][] pixels = draw(world, player, mobs, drops, gauge, now);
+            Frame frame = draw(world, player, mobs, drops, gauge, now);
             String info = info(player, drops);
             BossBar bar = bars.get(player.getUniqueId());
-            Component title = compose(pixels, info);
+            Component title = compose(frame.pixels(), frame.marks(), info, status(player, now));
             if (bar == null) {
                 bar = BossBar.bossBar(title, 0f, BossBar.Color.PINK, BossBar.Overlay.PROGRESS);
                 bars.put(player.getUniqueId(), bar);
@@ -209,6 +238,12 @@ public final class HudRadarService {
         bar.color(gauge < 0.5 ? BossBar.Color.YELLOW : BossBar.Color.RED);
     }
 
+    /** Ping and time since this session began, e.g. "42ms 1h05". */
+    private static String status(Player player, long now) {
+        long minutes = Math.max(0, now - player.getLastLogin()) / 60_000;
+        return Math.min(9999, player.getPing()) + "ms " + minutes / 60 + "h" + String.format("%02d", minutes % 60);
+    }
+
     private String info(Player player, List<Map<String, Object>> drops) {
         Map<String, Object> nearest = null;
         double best = Double.MAX_VALUE;
@@ -221,9 +256,10 @@ public final class HudRadarService {
         return "▣ " + left / 60 + ":" + String.format("%02d", left % 60) + " " + Math.round(best) + "m";
     }
 
-    private Integer[][] draw(World world, Player player, List<org.duckcatmine.apocalypse.mobs.MobService.MapPosition> mobs,
-                             List<Map<String, Object>> drops, double gauge, long now) {
+    private Frame draw(World world, Player player, List<org.duckcatmine.apocalypse.mobs.MobService.MapPosition> mobs,
+                       List<Map<String, Object>> drops, double gauge, long now) {
         Integer[][] px = new Integer[ROWS][DIAMETER];
+        List<Mark> marks = new ArrayList<>();
         Location at = player.getLocation();
         float yaw = at.getYaw();
         double rad = Math.toRadians(yaw), fx = -Math.sin(rad), fz = Math.cos(rad), rx = -Math.cos(rad), rz = -Math.sin(rad);
@@ -243,43 +279,39 @@ public final class HudRadarService {
                 }
         for (var mob : mobs) {
             double[] s = screen(mob.x() + 0.5 - at.getX(), mob.z() + 0.5 - at.getZ(), yaw);
-            if (s[0] * s[0] + s[1] * s[1] >= (RADIUS - 1) * (RADIUS - 1)) continue;
             boolean boss = "nemesis".equals(mob.type()) || "abomination".equals(mob.type());
-            blob(px, s[0], s[1], boss ? BOSS : RED, boss ? 3 : 1);
+            if (within(s, boss ? 3 : 2)) marks.add(dot(s[0], s[1], boss, boss ? BOSS : RED));
+        }
+        for (var survivor : plugin.survivors().snapshot()) {
+            double[] s = screen(survivor.x() + 0.5 - at.getX(), survivor.z() + 0.5 - at.getZ(), yaw);
+            if (within(s, 3)) marks.add(dot(s[0], s[1], true, BLUE));
         }
         for (var drop : drops) {
             double[] s = screen(((Number) drop.get("x")).doubleValue() + 0.5 - at.getX(), ((Number) drop.get("z")).doubleValue() + 0.5 - at.getZ(), yaw);
-            if (s[0] * s[0] + s[1] * s[1] < (RADIUS - 3) * (RADIUS - 3)) blob(px, s[0], s[1], WHITE, 3);
-            else arrow(px, s[0], s[1], WHITE);
+            marks.add(within(s, 3) ? dot(s[0], s[1], true, WHITE) : arrow(s[0], s[1], WHITE));
         }
         for (Player other : world.getPlayers()) {
             if (other == player || other.isDead() || !plugin.sessions().isSurvivor(other)) continue;
             double[] s = screen(other.getX() - at.getX(), other.getZ() - at.getZ(), yaw);
-            if (s[0] * s[0] + s[1] * s[1] < (RADIUS - 4) * (RADIUS - 4)) blob(px, s[0], s[1], BLUE, 2);
-            arrow(px, s[0], s[1], BLUE);
+            if (within(s, 3)) marks.add(dot(s[0], s[1], true, PURPLE));
+            marks.add(arrow(s[0], s[1], PURPLE));
         }
-        // Rim, north mark and the player's own arrow (always pointing up).
+        // Rim, the N outside the circle and the player's own arrow (always pointing up).
         for (int y = 0; y < DIAMETER; y++)
             for (int x = 0; x < DIAMETER; x++)
                 if (inside(x, y) && Math.hypot(x - RADIUS, y - RADIUS) > RADIUS - 1) px[y][x] = RIM;
         double[] north = screen(0, -1, yaw);
-        double length = Math.hypot(north[0], north[1]);
-        int nx = (int) Math.round(RADIUS + north[0] / length * (RADIUS - 5)), ny = (int) Math.round(RADIUS + north[1] / length * (RADIUS - 5));
-        String[] letter = {"#..#", "##.#", "#.##", "#..#", "#..#"};
-        for (int y = -3; y <= 3; y++) for (int x = -3; x <= 2; x++) put(px, nx + x, ny + y, RIM);
-        for (int y = 0; y < letter.length; y++)
-            for (int x = 0; x < 4; x++) if (letter[y].charAt(x) == '#') put(px, nx - 2 + x, ny - 2 + y, NORTH);
-        int[][] self = {{0, -2}, {-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {0, 0}, {1, 0}, {-2, 1}, {-1, 1}, {1, 1}, {2, 1}};
-        for (int[] p : self) put(px, RADIUS + p[0], RADIUS + p[1], WHITE);
+        marks.add(new Mark(RING_X, (char) (NORTH_MARK + step(north[0], north[1])), RING_ADVANCE, NORTH));
+        marks.add(new Mark(RADIUS - 4, SELF, 10, WHITE));
         // Detection gauge under the map: empty when nobody noticed you, full when many infected are onto you.
         int width = 41, left = (DIAMETER - width) / 2, filled = (int) Math.round(gauge * (width - 2));
         int color = gauge < 0.34 ? 0x3DDC84 : gauge < 0.67 ? 0xFFC233 : 0xFF3B30;
         for (int r = 0; r < GAUGE_ROWS; r++)
             for (int x = 0; x < width; x++) {
                 boolean frame = r == 0 || r == GAUGE_ROWS - 1 || x == 0 || x == width - 1;
-                px[DIAMETER + 1 + r][left + x] = frame ? GAUGE_BACK : x - 1 < filled ? color : 0x15191C;
+                px[GAUGE_TOP + r][left + x] = frame ? GAUGE_BACK : x - 1 < filled ? color : 0x15191C;
             }
-        return px;
+        return new Frame(px, marks);
     }
 
     private int terrain(World world, int gx, int gz, long now) {

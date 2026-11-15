@@ -17,7 +17,7 @@ class PackTest(unittest.TestCase):
             self.assertEqual({n for n in names if n.startswith('assets/minecraft/')},{'assets/minecraft/items/paper.json','assets/minecraft/textures/gui/sprites/boss_bar/pink_background.png',
                 'assets/minecraft/textures/gui/sprites/hud/experience_bar_background.png','assets/minecraft/textures/gui/sprites/hud/experience_bar_progress.png'})
             radar=json.loads(z.read('assets/duckcatmine/font/radar.json'))['providers']
-            self.assertEqual(len(radar),63);self.assertTrue(all(p['ascent']<=p['height'] for p in radar if p['type']=='bitmap'))
+            self.assertEqual(len(radar),353);self.assertTrue(all(p['ascent']<=p['height'] for p in radar if p['type']=='bitmap'))
             for role in ['engineer','scientist','guard','explorer']:
                 for suffix in ['','_infected']:self.assertTrue(z.read(f'assets/duckcatmine/textures/entity/survivor/{role}{suffix}.png').startswith(b'\x89PNG'))
             dispatcher=json.loads(z.read('assets/minecraft/items/paper.json'))['model']

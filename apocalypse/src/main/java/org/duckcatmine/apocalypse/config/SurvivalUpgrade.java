@@ -12,7 +12,7 @@ public final class SurvivalUpgrade {
     public static boolean migrate(YamlConfiguration config, YamlConfiguration defaults) {
         config.setDefaults(defaults);
         int version = config.isSet("survival-content-version") ? config.getInt("survival-content-version") : 1;
-        if (version >= 8) return false;
+        if (version >= 9) return false;
         if (version < 2) {
             for (String id : List.of("shotgun", "smg")) {
                 String path = "recipes." + id;
@@ -116,7 +116,11 @@ public final class SurvivalUpgrade {
                 if(!config.isSet(path)&&defaults.isSet(path))config.set(path,defaults.getDouble(path));
             }
         }
-        config.set("survival-content-version", 8);
+        if (version < 9) {
+            if (config.getInt("death.bag-lifetime-seconds", 300) == 300) config.set("death.bag-lifetime-seconds", 600);
+            if (config.getDouble("perception.investigate-seconds", 20) == 20) config.set("perception.investigate-seconds", 30);
+        }
+        config.set("survival-content-version", 9);
         return true;
     }
     private static void copy(YamlConfiguration target,YamlConfiguration defaults,String path){

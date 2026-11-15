@@ -5,7 +5,7 @@ import argparse, base64, hashlib, html, json, math, random, shutil, struct, subp
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 FORMAT = [97, 1]  # Minecraft Java 26.3, verified against its version.json and Mojang release notes.
 ROSTER = {
     "spitter": ("Cracheur d’acide", (83, 106, 62), (215, 244, 82)),
@@ -250,16 +250,76 @@ def build(output: Path, ffmpeg: str):
         for index,(role,(shirt,trousers,hat,accent)) in enumerate(SURVIVORS.items()):
             skin(assets/"textures/entity/survivor"/(role+".png"),shirt,trousers,hat,accent,900+index)
             skin(assets/"textures/entity/survivor"/(role+"_infected.png"),shirt,trousers,hat,accent,900+index,True)
-        # HUD radar font: one 1 px glyph per row (stacked by ascent), power-of-two spaces, 3×5 digits under the map.
+        # HUD radar font. A glyph's top row t (radar pixels, map circle in rows 0-56) has ascent -8-t. The map is made of
+        # 1 px cells (one glyph per row); markers are 4x-resolution glyphs so arrows, dots and the N stay sharp.
         png(assets/"textures/font/radar_cell.png",[(255,255,255,255)])
-        rows=61
+        rows=73
         providers=[{"type":"space","advances":{**{chr(0xE300+b):-(1<<b) for b in range(8)},**{chr(0xE310+b):1<<b for b in range(8)}}}]
-        for r in range(rows):providers.append({"type":"bitmap","file":"duckcatmine:font/radar_cell.png","ascent":1-r,"height":1,"chars":[chr(0xE200+r)]})
+        for r in range(rows):providers.append({"type":"bitmap","file":"duckcatmine:font/radar_cell.png","ascent":-8-r,"height":1,"chars":[chr(0xE200+r)]})
         glyphs=["111101101101111","010110010010111","111001111100111","111001111001111","101101111001001","111100111001111",
-                "111100111101111","111001010010010","111101111101111","111101111001111","000010000010000","000111111101101","111110101011111"]
+                "111100111101111","111001010010010","111101111101111","111101111001111","000010000010000","000111111101101","111110101011111",
+                "011100010001110","100100110101101"]
         strip=[(255,255,255,255) if glyphs[i//3][y*3+i%3]=="1" else (0,0,0,0) for y in range(5) for i in range(len(glyphs)*3)]
         png_rect(assets/"textures/font/radar_digits.png",strip,len(glyphs)*3,5)
-        providers.append({"type":"bitmap","file":"duckcatmine:font/radar_digits.png","ascent":-rows,"height":5,"chars":["".join(chr(0xE400+i) for i in range(len(glyphs)))]})
+        for base,top in [(0xE400,75),(0xE420,82)]:
+            providers.append({"type":"bitmap","file":"duckcatmine:font/radar_digits.png","ascent":-8-top,"height":5,"chars":["".join(chr(base+i) for i in range(len(glyphs)))]})
+        S=3  # texture pixels per GUI pixel (ring glyphs stay within a 256 px font atlas sheet)
+        def raster(w,h,inside,box=None):
+            """w x h GUI px glyph, 4x4 supersampled per texture pixel; inside(x, y) -> RGBA or None in GUI px, only inside box."""
+            bx0,by0,bx1,by1=box or (0,0,w,h)
+            out=[]
+            for ty in range(h*S):
+                for tx in range(w*S):
+                    if not (bx0<=tx/S<=bx1 and by0<=ty/S<=by1):
+                        out.append((0,0,0,0));continue
+                    acc=[0,0,0,0]
+                    for sy in range(4):
+                        for sx in range(4):
+                            c=inside((tx+(sx+.5)/4)/S,(ty+(sy+.5)/4)/S)
+                            if c:acc=[acc[i]+c[i]*(c[3] if i<3 else 1) for i in range(3)]+[acc[3]+c[3]]
+                    a=acc[3]/16
+                    out.append((0,0,0,0) if a<=0 else (round(acc[0]/acc[3]),round(acc[1]/acc[3]),round(acc[2]/acc[3]),round(a)))
+            out[-1]=out[-1] if out[-1][3] else (0,0,0,1)  # keeps the advance at the full glyph width
+            return out
+        def poly(points,x,y):
+            hit=False
+            for i in range(len(points)):
+                (x1,y1),(x2,y2)=points[i],points[i-1]
+                if (y1>y)!=(y2>y) and x<(x2-x1)*(y-y1)/(y2-y1)+x1:hit=not hit
+            return hit
+        WHITE,DARK=(255,255,255,255),(16,18,20,230)
+        def disc(cx,cy,r,ring):
+            def f(x,y):
+                d=math.hypot(x-cx,y-cy)
+                return WHITE if d<=r else DARK if d<=r+ring else None
+            return f
+        R,RING,X0,WIDE,K=28,34.5,-10,78,64
+        for k in range(K):
+            a=2*math.pi*k/K;ux,uy=math.sin(a),-math.cos(a);cx,cy=R+.5+RING*ux,R+.5+RING*uy
+            top=math.floor(cy)-5
+            def arrow(x,y,cx=cx,cy=cy,ux=ux,uy=uy,top=top):
+                gx,gy=x+X0,y+top;px,py=-uy,ux
+                pts=[(cx+ux*4,cy+uy*4),(cx-ux*3+px*3.4,cy-uy*3+py*3.4),(cx-ux*1.2,cy-uy*1.2),(cx-ux*3-px*3.4,cy-uy*3-py*3.4)]
+                return WHITE if poly(pts,gx,gy) else None
+            png_rect(assets/f"textures/font/radar_arrow_{k}.png",raster(WIDE,10,arrow,(cx-X0-5,cy-top-5,cx-X0+5,cy-top+5)),WIDE*S,10*S)
+            providers.append({"type":"bitmap","file":f"duckcatmine:font/radar_arrow_{k}.png","ascent":-8-top,"height":10,"chars":[chr(0xE500+k)]})
+            ncx,ncy=R+.5+(RING-1.5)*ux,R+.5+(RING-1.5)*uy;ntop=math.floor(ncy)-5
+            def north(x,y,ncx=ncx,ncy=ncy,ntop=ntop):
+                gx,gy=x+X0-ncx,y+ntop-ncy
+                if abs(gx)<=1.9 and abs(gy)<=2.6 and (abs(gx)>=1.1 or abs(gx-gy*.73)<=.55):return WHITE
+                return DARK if math.hypot(gx,gy)<=4.2 else None
+            png_rect(assets/f"textures/font/radar_north_{k}.png",raster(WIDE,10,north,(ncx-X0-5,ncy-ntop-5,ncx-X0+5,ncy-ntop+5)),WIDE*S,10*S)
+            providers.append({"type":"bitmap","file":f"duckcatmine:font/radar_north_{k}.png","ascent":-8-ntop,"height":10,"chars":[chr(0xE540+k)]})
+        for size,base,name in [(3,0xE600,"small"),(5,0xE680,"big")]:
+            png_rect(assets/f"textures/font/radar_dot_{name}.png",raster(size,size,disc(size/2,size/2,size/2-.55,.55)),size*S,size*S)
+            for t in range(-3,71):
+                providers.append({"type":"bitmap","file":f"duckcatmine:font/radar_dot_{name}.png","ascent":-8-t,"height":size,"chars":[chr(base+t+3)]})
+        self_arrow=[(4.5,.6),(8,8.2),(4.5,6.2),(1,8.2)]
+        def me(x,y):
+            if poly(self_arrow,x,y):return WHITE
+            return DARK if any(poly(self_arrow,x+dx,y+dy) for dx,dy in [(.7,0),(-.7,0),(0,.7),(0,-.7)]) else None
+        png_rect(assets/"textures/font/radar_self.png",raster(9,9,me),9*S,9*S)
+        providers.append({"type":"bitmap","file":"duckcatmine:font/radar_self.png","ascent":-8-24,"height":9,"chars":[chr(0xE6F0)]})
         write_json(assets/"font/radar.json",{"providers":providers})
         # The radar rides an empty pink boss bar whose background is transparent in this pack.
         png_rect(pack/"assets/minecraft/textures/gui/sprites/boss_bar/pink_background.png",[(0,0,0,0)]*(182*5),182,5)

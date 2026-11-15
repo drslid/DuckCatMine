@@ -4,6 +4,16 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Radar net, motos, discrétion — alpha.18
+
+- **Radar plus net** (pack 1.5.0) : flèches, « N », points et ta propre flèche sont dessinés trois fois plus finement que la carte. Les flèches vers les autres joueurs (**violet**) et vers les caisses (blanc) sont **à l'extérieur du cercle**, le « N » aussi. Points : joueurs connectés en violet, **survivants à sauver en bleu**, infectés en rouge, boss en rose, caisses en blanc. Sous la jauge, en vert pâle : **ping et temps de jeu** de la session (le serveur ne peut pas connaître les FPS du client).
+- **Motos réparées pour de bon** : garées, elles étaient entourées de blocs invisibles qui cachaient leur zone de clic ; on ne pouvait pas monter dessus. Elles ne sont plus solides à l'arrêt, et les motos collées à une camionnette sont reculées.
+- **Voiture bloquée** : un joueur debout à côté des portières immobilisait la voiture ; seul ce qui se trouve devant (ou derrière en marche arrière) l'arrête maintenant. Clic droit avec un jerrican sur un véhicule plein (ou avec un jerrican vide) : on monte au lieu d'être bloqué dehors.
+- **Sac de mort : 10 minutes** au lieu de 5 pour revenir chercher ses affaires.
+- **Discrétion** : les infectés ne remarquent un survivant silencieux que devant eux (champ de vision de 130°) ; on les entend marcher et courir, jamais accroupi. Hors de vue et sans bruit pendant 30 s, ils abandonnent et repartent ailleurs.
+- **Double-clic** sur un objet d'un coffre ou d'un conteneur : il va directement dans l'inventaire.
+- **Torche en main** (ou lanterne, dans l'une ou l'autre main) : elle éclaire autour de toi, mais dans le noir les infectés te voient aussi.
+
 ## Radar GPS, discrétion et camionnettes — alpha.16
 
 - **Radar GPS** (pack 1.4.0) : la carte en main disparaît (elle est retirée des inventaires). En haut à droite, un radar rond, au pixel près, tourne avec toi : **le haut est la direction où tu regardes**, un « N » rouge sur le bord indique le nord. Il couvre **128 blocs** autour de toi : relief, routes, toits, eau et arbres en couleur ; infectés en rouge (boss en rose), survivants en bleu, coffres de fouille pas encore ouverts en vert, caisses en blanc. Des **flèches sur le bord** pointent vers chaque survivant connecté à Ground Zero et vers les caisses hors de portée ; sous le radar, **chrono et distance** de la caisse la plus proche.

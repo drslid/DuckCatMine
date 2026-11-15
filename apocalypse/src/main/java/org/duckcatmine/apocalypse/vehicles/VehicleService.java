@@ -68,7 +68,9 @@ import org.duckcatmine.apocalypse.scenario.city.Streets;
  * Chunks generated before cars were entities get their block cars swapped (and street trees added) once, when loaded.
  */
 public final class VehicleService implements Listener {
-    public static final int REVISION = 5;
+    public static final int REVISION = 6;
+    /** Distance from a parked car's centre to the motorbike behind it (clear of a van's rear). */
+    private static final double BIKE_GAP = 4.3;
     private static final double SEAT_HEIGHT = 0.40;
     private static final Set<Material> SIDEWALK = Set.of(Material.STONE_BRICKS, Material.CRACKED_STONE_BRICKS,
             Material.MOSSY_STONE_BRICKS, Material.SMOOTH_STONE);
@@ -226,6 +228,10 @@ public final class VehicleService implements Listener {
             else vehicle.parts.add(entity.getUniqueId());
         }
         vehicles.put(id, vehicle);
+        if (vehicle.model == VehicleModel.MOTORBIKE && !vehicle.barriers.isEmpty()) {
+            unpark(vehicle);
+            save(vehicle);
+        }
     }
 
     @EventHandler
@@ -319,6 +325,7 @@ public final class VehicleService implements Listener {
                 else if (revision < 4) toVan(spot);
                 if (!old && revision < 5) moreFuel(spot);
                 if (revision == null || revision < 3) motorbike(world, spot);
+                else if (revision < 6) moveBike(world, spot);
             }
             if (!isNew && old) plantTrees(world, layout, cx, cz);
         } catch (RuntimeException e) {
@@ -407,14 +414,44 @@ public final class VehicleService implements Listener {
         }
     }
 
-    /** One parking spot in five also gets a motorbike, parked just behind the car along the street. */
+    /** Older motorbikes stood 3.4 blocks behind the car, touching a van: move them back and turn them away from it. */
+    private void moveBike(World world, CityLayout.VehicleSpot spot) {
+        double oldX = spot.centerX() + (spot.alongX() ? 3.4 : 0), oldZ = spot.centerZ() + (spot.alongX() ? 0 : 3.4);
+        double x = spot.centerX() + (spot.alongX() ? BIKE_GAP : 0), z = spot.centerZ() + (spot.alongX() ? 0 : BIKE_GAP);
+        for (Vehicle bike : List.copyOf(vehicles.values())) {
+            if (bike.model != VehicleModel.MOTORBIKE || bike.occupied() || active.contains(bike.id)
+                    || Math.abs(bike.x - oldX) > 0.6 || Math.abs(bike.z - oldZ) > 0.6) continue;
+            unpark(bike);
+            if (bikeFits(world, x, spot.y(), z, bike)) {
+                bike.x = x;
+                bike.z = z;
+            }
+            bike.yaw = spot.alongX() ? -90f : 0f;
+            place(bike);
+            save(bike);
+            converted++;
+            return;
+        }
+    }
+
+    private boolean bikeFits(World world, double x, int y, double z, Vehicle self) {
+        Block feet = world.getBlockAt((int) Math.floor(x), y, (int) Math.floor(z));
+        if (!feet.isPassable() || !feet.getRelative(0, 1, 0).isPassable() || !feet.getRelative(0, -1, 0).isSolid()) return false;
+        for (Vehicle other : vehicles.values()) {
+            if (other == self || !other.world.equals(world)) continue;
+            double reach = other.model.halfLength() + VehicleModel.MOTORBIKE.halfLength() + 0.3;
+            if (Math.hypot(other.x - x, other.z - z) < reach) return false;
+        }
+        return true;
+    }
+
+    /** One parking spot in five also gets a motorbike, parked behind the car along the street. */
     private void motorbike(World world, CityLayout.VehicleSpot spot) {
         long seed = spot.seed();
         if (Math.floorMod(seed >>> 17, 5L) != 0 || Streets.carBurnt(seed)) return;
         int y = spot.y();
-        double x = spot.centerX() + (spot.alongX() ? 3.4 : 0), z = spot.centerZ() + (spot.alongX() ? 0 : 3.4);
-        Block feet = world.getBlockAt((int) Math.floor(x), y, (int) Math.floor(z));
-        if (!feet.isPassable() || !feet.getRelative(0, 1, 0).isPassable() || !feet.getRelative(0, -1, 0).isSolid()) return;
+        double x = spot.centerX() + (spot.alongX() ? BIKE_GAP : 0), z = spot.centerZ() + (spot.alongX() ? 0 : BIKE_GAP);
+        if (!bikeFits(world, x, y, z, null)) return;
         for (Entity near : world.getNearbyEntities(new Location(world, x, y, z), 1.2, 2, 1.2)) if (tag(near, NamespacedKeyKind.ID) != null) return;
         float yaw = spot.alongX() ? -90f : 0f; // facing away from the car parked in front of it
         double fuel = Math.floorMod(seed >>> 23, 100L) < 30 ? 0 : 1 + Math.floorMod(seed >>> 29, 8L);
@@ -499,6 +536,12 @@ public final class VehicleService implements Listener {
     /** An empty car standing still becomes solid: barrier blocks in its free footprint, removed when someone gets in. */
     private void park(Vehicle vehicle) {
         unpark(vehicle);
+        if (vehicle.model == VehicleModel.MOTORBIKE) {
+            // Barriers would enclose the bike's small hitbox: clicks would hit the blocks, never the bike.
+            active.remove(vehicle.id);
+            save(vehicle);
+            return;
+        }
         double rad = Math.toRadians(vehicle.yaw);
         double fx = -Math.sin(rad), fz = Math.cos(rad), lx = Math.cos(rad), lz = Math.sin(rad);
         Set<Long> cells = new HashSet<>();
@@ -590,7 +633,7 @@ public final class VehicleService implements Listener {
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (plugin.items().is(hand, ItemRegistry.JERRYCAN)) {
             if (player.isSneaking()) siphon(player, vehicle, hand);
-            else refuel(player, vehicle, hand);
+            else if (!refuel(player, vehicle, hand)) enter(player, vehicle);
             return;
         }
         if (plugin.items().is(hand, "scrap")) {
@@ -733,27 +776,26 @@ public final class VehicleService implements Listener {
         save(vehicle);
     }
 
-    private void refuel(Player player, Vehicle vehicle, ItemStack can) {
+    /** Pours the jerrycan into the tank; false when there is nothing to pour (the click then gets the player in). */
+    private boolean refuel(Player player, Vehicle vehicle, ItemStack can) {
         if (vehicle.model == VehicleModel.WRECK) {
             Text.warn(player, "Une épave calcinée ne roulera plus.");
-            return;
+            return true;
         }
         double tank = plugin.settings().play().vehicles().tankLitres() * vehicle.model.tankFactor();
         double poured = Math.min(plugin.items().fuel(can), tank - vehicle.fuel);
-        if (plugin.items().fuel(can) < 0.5) {
+        if (plugin.items().fuel(can) < 0.5 && vehicle.fuel < 0.5) {
             Text.warn(player, "Jerrican vide : accroupis-toi et clic droit sur une autre voiture pour siphonner.");
-            return;
+            return true;
         }
-        if (poured < 0.5) {
-            Text.info(player, "Le réservoir est plein.");
-            return;
-        }
+        if (poured < 0.5) return false;
         vehicle.fuel += poured;
         plugin.items().setFuel(can, plugin.items().fuel(can) - poured);
         player.getInventory().setItemInMainHand(can);
         vehicle.world.playSound(player.getLocation(), Sound.ITEM_BUCKET_EMPTY_LAVA, 1f, 1.2f);
-        Text.good(player, String.format(java.util.Locale.ROOT, "Plein fait : +%.0f L (réservoir : %.0f L).", poured, vehicle.fuel));
+        Text.good(player, String.format(java.util.Locale.ROOT, "Plein fait : +%.0f L (réservoir : %.0f L). Clic droit à nouveau pour monter.", poured, vehicle.fuel));
         save(vehicle);
+        return true;
     }
 
     private void repair(Player player, Vehicle vehicle, ItemStack scrap) {
@@ -931,7 +973,8 @@ public final class VehicleService implements Listener {
                 throw new IllegalStateException(parts + " pièces, portière " + vehicle.interaction);
             park(vehicle);
             int barriers = vehicle.barriers.size();
-            if (barriers < (model == VehicleModel.MOTORBIKE ? 3 : 12)) throw new IllegalStateException(model.label() + " garée peu solide : " + barriers + " blocs barrière");
+            if (model == VehicleModel.MOTORBIKE ? barriers != 0 : barriers < 12)
+                throw new IllegalStateException(model.label() + " garée : " + barriers + " blocs barrière (une moto doit rester cliquable, une voiture solide)");
             unpark(vehicle);
             testSeat = world.spawn(seatLocation(vehicle,0),ItemDisplay.class);
             passenger = world.spawn(seatLocation(vehicle,0),ArmorStand.class, entity -> { entity.setGravity(false); entity.setVisible(false); });
@@ -1052,10 +1095,11 @@ public final class VehicleService implements Listener {
 
     /** Runs into what stands in front: infected and animals are hurt and thrown aside; protected survivors stop the car. */
     private void hit(Vehicle vehicle, Player driver, double fx, double fz) {
-        double sign = Math.signum(vehicle.speed);
-        Location front = new Location(vehicle.world, vehicle.x + fx * 1.5 * sign, vehicle.y + 0.8, vehicle.z + fz * 1.5 * sign);
+        double sign = Math.signum(vehicle.speed), ahead = vehicle.model.halfLength() + 0.4, reach = vehicle.model.halfWidth() + 0.45;
+        // Only what stands in the path: a friend beside the doors must not pin the car in place.
+        Location front = new Location(vehicle.world, vehicle.x + fx * ahead * sign, vehicle.y + 0.8, vehicle.z + fz * ahead * sign);
         long now = System.currentTimeMillis();
-        for (Entity entity : vehicle.world.getNearbyEntities(front, 1.4, 0.9, 1.4)) {
+        for (Entity entity : vehicle.world.getNearbyEntities(front, reach, 0.9, reach)) {
             if (!(entity instanceof LivingEntity living) || living.isDead() || entity instanceof ArmorStand
                     || riderToCar.containsKey(entity.getUniqueId())) continue;
             if (living instanceof Player target && (target.getGameMode() == GameMode.SPECTATOR || target.getGameMode() == GameMode.CREATIVE)) continue;

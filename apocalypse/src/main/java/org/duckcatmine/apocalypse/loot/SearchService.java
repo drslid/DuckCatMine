@@ -19,6 +19,8 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.BlockInventoryHolder;
@@ -173,6 +175,22 @@ public final class SearchService implements Listener {
             PlaceType type = PlaceType.byId(place);
             if (type != null) mark(state.getBlock(), type, null);
         }
+    }
+
+    /** Double-click on an item of a container: it goes straight into the player's inventory (the first click picked it up). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDoubleClick(InventoryClickEvent event) {
+        if (event.getClick() != ClickType.DOUBLE_CLICK || !(event.getWhoClicked() instanceof Player player)
+                || !plugin.scenario().isScenarioWorld(player.getWorld())) return;
+        Inventory top = event.getView().getTopInventory();
+        if (!(top.getHolder(false) instanceof BlockInventoryHolder) || event.getClickedInventory() != top) return;
+        event.setCancelled(true);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            ItemStack cursor = player.getItemOnCursor();
+            if (cursor.isEmpty() || player.getOpenInventory().getTopInventory() != top) return;
+            var left = player.getInventory().addItem(cursor);
+            player.setItemOnCursor(left.isEmpty() ? null : left.values().iterator().next());
+        });
     }
 
     /** Native breaking releases the inventory exactly once, including unopened generated loot. */

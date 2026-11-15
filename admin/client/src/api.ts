@@ -1,4 +1,4 @@
-import { image as demoImage } from './demo';
+import { image as demoImage } from './demo-image';
 export const demo = import.meta.env.MODE === 'demo';
 let csrf = '';
 export function setCsrf(value = '') {

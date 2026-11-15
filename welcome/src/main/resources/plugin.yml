@@ -1,5 +1,5 @@
 name: DuckCatWelcome
-version: '1.0.0'
+version: '1.0.1'
 main: org.duckcatmine.welcome.DuckCatWelcome
 api-version: '26.3'
 description: Accueil et commandes pratiques de DuckCatMine.

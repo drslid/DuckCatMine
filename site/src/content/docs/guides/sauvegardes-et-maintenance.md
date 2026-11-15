@@ -6,7 +6,11 @@ sidebar: { order: 6 }
 
 ## Sauvegarder le monde
 
-Les sauvegardes quotidiennes couvrent le dossier de données Minecraft et sont conservées sept jours. **Réglages → Sauvegardes → Sauvegarder** lance une copie cohérente avec le jeu, puis permet de télécharger l’archive.
+Les sauvegardes quotidiennes couvrent le dossier de données Minecraft. **Réglages → Sauvegardes → Sauvegarder** lance une copie cohérente avec le jeu, puis permet de télécharger l’archive.
+
+Le worker conserve **les cinq archives les plus récentes au total**, qu’elles soient automatiques, manuelles ou créées avant une restauration. Il vérifie la dernière archive avant le nettoyage, au plus tard une minute après la fin d’une opération. Le nettoyage attend si une sauvegarde est en cours ou si une restauration utilise une archive. Une sauvegarde échouée bloque le nettoyage pour préserver les copies précédentes.
+
+Dans **Réglages → Sauvegardes**, le bouton **Supprimer** permet de retirer une ancienne archive après confirmation. La plus récente est protégée. La suppression libère de l’espace sans déconnecter les joueurs et ne modifie pas le monde actuel. Le panneau affiche le nombre d’archives et leur espace disque total.
 
 Conservez aussi des copies **hors du VPS**. Une archive sur le même disque ne protège pas contre la perte du serveur.
 

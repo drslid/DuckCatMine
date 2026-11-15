@@ -96,6 +96,7 @@ public final class DuckCatWelcome extends JavaPlugin implements Listener {
             if (!player.isOnline()) return;
             player.sendTitle(ChatColor.GOLD + "DuckCatMine", ChatColor.YELLOW + "Ton aventure commence ici", 10, 65, 20);
             player.sendMessage(PREFIX + ChatColor.YELLOW + "Bienvenue " + player.getName() + " ! " + ChatColor.WHITE + "Ouvre " + ChatColor.AQUA + "/guide" + ChatColor.WHITE + " pour découvrir le serveur.");
+            if (PanelBridge.scenario(player) != null) return;
             player.sendMessage(ChatColor.GRAY + "Maison : /sethome · /home   |   Départ : /spawn · /construire   |   Aide : /aides");
             if (getConfig().getBoolean("open-menu-on-join", true)) openGuide(player);
         }, 40L);

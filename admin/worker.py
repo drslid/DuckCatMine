@@ -11,6 +11,7 @@ import tarfile
 import time
 from datetime import datetime, timezone
 from plugin_manager import PluginManager
+import backup_manager
 
 
 PROJECT = pathlib.Path(os.environ.get('PROJECT_DIR', '/srv/duckcatmine'))
@@ -19,7 +20,7 @@ DATA = PROJECT / 'data'
 BACKUPS = PROJECT / 'backups'
 COMPOSE = PROJECT / 'compose.yaml'
 PENDING = pathlib.Path(os.environ.get('PENDING_FILE', str(PROJECT / 'admin' / 'state' / 'pending-settings.json')))
-BACKUP_NAME = re.compile(r'^(?:world|manual|pre-restore)-[0-9-]+\.tar\.gz$')
+BACKUP_NAME = backup_manager.BACKUP_NAME
 PROPERTIES = {
     'motd': ('motd', lambda v: isinstance(v, str) and 1 <= len(v) <= 80 and not any(c in v for c in '\r\n\0')),
     'maxPlayers': ('max-players', lambda v: type(v) is int and 2 <= v <= 50),
@@ -150,9 +151,30 @@ def extract_archive(filename):
 def snapshot_before_restore():
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
     filename = BACKUPS / f'pre-restore-{stamp}.tar.gz'
-    with tarfile.open(filename, 'w:gz') as archive:
-        archive.add(DATA, arcname='.')
+    partial = filename.with_suffix('.gz.partial')
+    try:
+        with tarfile.open(partial, 'w:gz') as archive:
+            archive.add(DATA, arcname='.')
+        partial.replace(filename)
+    finally:
+        partial.unlink(missing_ok=True)
     return filename
+
+
+def backup_required_files():
+    return ['plugins/' + item['filename']
+            for item in PluginManager(DATA, JOBS).inventory() if item['core']]
+
+
+def prune_backups():
+    try:
+        removed = backup_manager.prune(BACKUPS, JOBS, backup_required_files())
+        if removed:
+            print('Backup retention: ' + json.dumps(removed), flush=True)
+    except BlockingIOError:
+        pass  # An automatic backup is currently writing under the same lock.
+    except Exception as error:
+        print(f'Backup retention deferred: {error}', flush=True)
 
 
 def clear_data():
@@ -174,6 +196,13 @@ def clear_data():
 
 def run_job(job):
     kind = job.get('type')
+    if kind == 'backup-delete':
+        try:
+            removed = backup_manager.delete(BACKUPS, JOBS, job.get('backup'),
+                                            job.get('expected'), backup_required_files())
+        except BlockingIOError as error:
+            raise RuntimeError('Une sauvegarde est en cours ; réessaie dans quelques instants.') from error
+        return f'Sauvegarde supprimée : {removed["name"]} ({removed["size"]} octets libérés).'
     if kind == 'plugin-stage':
         return PluginManager(DATA, JOBS).stage(job)
     if kind == 'plugin-cancel':
@@ -239,7 +268,7 @@ def run_job(job):
         if not isinstance(name, str) or not BACKUP_NAME.fullmatch(name):
             raise ValueError('Nom de sauvegarde invalide.')
         source = BACKUPS / name
-        if not source.is_file():
+        if source.is_symlink() or not source.is_file():
             raise FileNotFoundError('Sauvegarde introuvable.')
         with tarfile.open(source, 'r:gz') as archive:
             members = safe_members(archive)
@@ -292,6 +321,7 @@ def main():
         failed.write_text(json.dumps({'ok': False, 'error': 'Opération interrompue ; vérifier le serveur avant de réessayer.'}), encoding='utf-8')
         stale.unlink()
     last_metrics = 0
+    last_retention = 0
     plugins = PluginManager(DATA, JOBS)
     idle_since = {}
     last_idle_check = {}
@@ -324,6 +354,9 @@ def main():
                 if now - idle_since[job_id] < 300:
                     continue
             handle_request(filename)
+        if time.monotonic() - last_retention > 60:
+            prune_backups()
+            last_retention = time.monotonic()
         time.sleep(2)
 
 

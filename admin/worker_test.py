@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, '/')
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import worker
 
 
@@ -57,6 +57,22 @@ class WorkerTests(unittest.TestCase):
                 self.assertFalse((worker.DATA / 'world').exists())
             finally:
                 worker.DATA = previous
+
+    def test_manual_delete_never_stops_or_contacts_minecraft(self):
+        with patch.object(worker.backup_manager, 'delete', return_value={'name': 'world-1.tar.gz', 'size': 123}), \
+                patch.object(worker, 'backup_required_files', return_value=[]), \
+                patch.object(worker, 'compose') as compose:
+            message = worker.run_job({'type': 'backup-delete', 'backup': 'world-1.tar.gz', 'expected': {}})
+            self.assertIn('123 octets', message)
+            compose.assert_not_called()
+
+    def test_failed_snapshot_does_not_publish_a_complete_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(worker, 'BACKUPS', pathlib.Path(directory)), \
+                    patch.object(tarfile.TarFile, 'add', side_effect=OSError('disk full')):
+                with self.assertRaises(OSError):
+                    worker.snapshot_before_restore()
+                self.assertEqual(list(pathlib.Path(directory).iterdir()), [])
 
     def test_restore_refuses_archives_missing_plugin_binaries_before_stopping_game(self):
         with tempfile.TemporaryDirectory() as directory:

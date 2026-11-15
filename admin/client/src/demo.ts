@@ -1,4 +1,6 @@
+import {demoArchetypes} from './bestiary-demo';
 // This adapter runs entirely in the browser. It never contacts a game server.
+import { gzSettings, gzCatalog, gzPresets, gzItems } from './ground-zero-demo';
 const meta = {
   diamond: ['Diamant', 'other'],
   elytra: ['Élytres', 'tools'],
@@ -82,16 +84,19 @@ const state: any = {
     spawn_mobs: 'true',
   },
   pending: {},
+  backupLimit: 5,
   backups: [
     {
       name: 'world-20261020-180000.tar.gz',
       at: '2026-10-20T18:00:00Z',
       size: 384 * 1024 ** 2,
+      canDelete: false,
     },
     {
       name: 'world-20261019-180000.tar.gz',
       at: '2026-10-19T18:00:00Z',
       size: 360 * 1024 ** 2,
+      canDelete: true,
     },
   ],
   metrics: {
@@ -197,6 +202,155 @@ const demoCatalog = [
     downloads: 46700,
   },
 ];
+const apocalypseRules = { pvp: false, destruction: true, globalCap: 60 };
+let apocalypseThreat = 3.4;
+let apocalypseEnabled = true;
+const evacuated = new Set<string>();
+const gzEvents = [
+  { at: Date.now() - 80000, kind: 'join', text: 'Sam a rejoint Ground Zero' },
+  {
+    at: Date.now() - 180000,
+    kind: 'horde',
+    text: 'Une horde approche du centre-ville',
+  },
+];
+let gzDeparture = {
+  members: ['Noah', 'Lea'],
+  phase: 'waiting',
+  target: 'point commun dans la ville',
+};
+let gzDepartureEnd = 0;
+const gzRelocated = new Map<string, { x: number; z: number }>();
+function demoApocalypse() {
+  if (gzDepartureEnd && Date.now() >= gzDepartureEnd) {
+    gzDeparture = { ...gzDeparture, members: [], phase: 'waiting' };
+    gzDepartureEnd = 0;
+  }
+  return {
+    installed: true,
+    stale: false,
+    ageSeconds: 2,
+    version: 3,
+    capabilities: [
+      'departure',
+      'teleport',
+      'mouse-driving',
+      'infected-map',
+      'map-teleport',
+      'radar',
+      'city-renovation',
+      'radar-100',
+      'horror-v1',
+      'horror-v2',
+      'infected-tuning',
+      'weapon-recoil',
+      'indoor-encounters',
+      'renovation-v3',
+    ],
+    departure: gzDeparture,
+    generatedAt: Date.now(),
+    running: true,
+    enabled: apocalypseEnabled,
+    world: 'ground_zero',
+    epoch: 2,
+    database: true,
+    time: { day: 4, night: false },
+    threat: {
+      level: apocalypseThreat,
+      phase: 'pressure',
+      phaseLabel: 'pression',
+      secondsLeft: 74,
+      hordes: 3,
+    },
+    rules: {...apocalypseRules,minSpawnDistance:110,maxSpawnDistance:190,despawnDistance:200},
+    radarRange: 100,
+    weaponModels: true,
+    infected: { walker: 9, pursuer: 4, runner: 2, howler: 1, infected_wolf: 1 },
+    archetypes: demoArchetypes,
+    archetypeLabels: {
+      ...Object.fromEntries(demoArchetypes.map(a=>[a.id,a.name])),
+      walker: 'Errant',
+      pursuer: 'Poursuivant',
+      runner: 'Sprinteur',
+      howler: 'Hurleur',
+      infected_wolf: 'Loup infecté',
+    },
+    infectedTotal: 17,
+    infectedPositions: Array.from({ length: 17 }, (_, i) => ({
+      id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+      type: i === 0 ? 'abomination' : i < 4 ? 'runner' : 'walker',
+      x: 110 + (i % 5) * 12 + Math.round(Math.sin(Date.now() / 5000 + i) * 3),
+      y: 65,
+      z: -60 + Math.floor(i / 5) * 14,
+    })),
+    incubatingAnimals: 1,
+    activeInfections: 1,
+    activeBags: 1,
+    damagedBlocks: 3,
+    survivors: [
+      {
+        name: 'Alex',
+        y: 65,
+        yaw: 0,
+        x: 120,
+        z: -64,
+        sector: 'Centre-ville',
+        inRefuge: false,
+        health: 14,
+        infectionSeconds: null,
+        team: 'Corbeaux',
+        points: 340,
+        lifeSeconds: 2710,
+      },
+      {
+        name: 'Sam',
+        y: 65,
+        yaw: -90,
+        x: 126,
+        z: -58,
+        sector: 'Centre-ville',
+        inRefuge: false,
+        health: 6.5,
+        infectionSeconds: 38,
+        team: 'Corbeaux',
+        points: 95,
+        lifeSeconds: 980,
+      },
+      {
+        name: 'Mia',
+        y: 65,
+        yaw: 0,
+        x: 2,
+        z: 4,
+        sector: 'Refuge',
+        inRefuge: true,
+        health: 20,
+        infectionSeconds: null,
+        team: null,
+        points: 0,
+        lifeSeconds: 120,
+      },
+    ]
+      .map((s) => ({ ...s, ...gzRelocated.get(s.name) }))
+      .filter((s) => apocalypseEnabled && !evacuated.has(s.name)),
+    teams: [{ name: 'Corbeaux', members: ['Alex', 'Sam'] }],
+    classicProfilesHeld: 0,
+    refuge: { x: 0, z: 0, radius: 12 },
+    borderSize: 3072,
+    map: { minX: -320, minZ: -320, size: 640 },
+    mapRenderedAt: Date.now() - 3600000,
+    settings: gzSettings,
+    settingsCatalog: gzCatalog,
+    presets: gzPresets,
+    items: gzItems,
+    events: gzEvents,
+    leaderboard: [
+      { name: 'Alex', points: 340 },
+      { name: 'Sam', points: 95 },
+      { name: 'Mia', points: 0 },
+    ],
+  };
+}
 export async function request(url: string, method = 'GET', data: any = {}) {
   const u = new URL(url, 'https://demo.invalid');
   if (u.pathname === '/api/me' || u.pathname === '/api/login')
@@ -254,6 +408,85 @@ export async function request(url: string, method = 'GET', data: any = {}) {
   if (u.pathname === '/api/plugins/cancel') {
     demoPending = demoPending.filter((p) => p.id !== data.artifact);
     return { id: 'demo-job' };
+  }
+  if (u.pathname === '/api/apocalypse')
+    return structuredClone(demoApocalypse());
+  if (u.pathname === '/api/apocalypse/action') {
+    if (data.action === 'departure-start') {
+      gzDeparture.phase = 'countdown';
+      gzDepartureEnd = Date.now() + 5000;
+      return { result: 'Démonstration : départ groupé dans 5 secondes.' };
+    }
+    if (data.action === 'departure-cancel') {
+      gzDeparture.members = [];
+      gzDeparture.phase = 'waiting';
+      gzDepartureEnd = 0;
+    }
+    if (data.action === 'teleport-point') {
+      gzRelocated.set('Alex', { x: data.value.x, z: data.value.z });
+      return {
+        result:
+          'Démonstration : Alex a rejoint le point choisi. Aucun serveur contacté.',
+      };
+    }
+    if (data.action === 'teleport') {
+      const at = demoApocalypse().survivors.find(
+        (s) => s.name === data.value.target,
+      );
+      if (!at || at.name === data.value.player)
+        throw new Error('Choisis un autre survivant présent.');
+      gzRelocated.set(data.value.player, { x: at.x + 2, z: at.z });
+      return {
+        result: `Démonstration : ${data.value.player} a rejoint ${at.name}.`,
+      };
+    }
+    if (data.action === 'enable') apocalypseEnabled = true;
+    if (data.action === 'disable') apocalypseEnabled = false;
+    if (data.action === 'set') gzSettings[data.value.key] = data.value.value;
+    if (data.action === 'preset')
+      Object.assign(gzSettings, gzPresets[data.value].values);
+    if (data.action === 'evacuate') evacuated.add(data.value);
+    if (data.action === 'give') {
+      gzEvents.unshift({
+        at: Date.now(),
+        kind: 'admin',
+        text: `Alex a donné ${data.value.count} × ${gzItems.find((i) => i.id === data.value.item)?.name} à ${data.value.player} (démo)`,
+      });
+      return { result: 'Démonstration : don simulé, aucun serveur contacté.' };
+    }
+    if (data.action === 'lives-reset') {
+      if (demoApocalypse().survivors.length)
+        throw new Error(
+          'Fais d’abord sortir tous les survivants de Ground Zero.',
+        );
+      evacuated.clear();
+    }
+    if (data.action.startsWith('world-'))
+      throw new Error(
+        'Le monde de démonstration est déjà associé. Cette opération est simulée uniquement sur un monde absent.',
+      );
+    apocalypseRules.globalCap = gzSettings['global-cap'];
+    if (data.action === 'status' || data.action === 'settings')
+      return {
+        result:
+          'Monde : ground_zero | base : OK\nInventaires classiques gardés : 0\nDémonstration : aucune action sur un serveur réel.',
+      };
+    if (data.action === 'pvp') apocalypseRules.pvp = !!data.value;
+    if (data.action === 'destruction')
+      apocalypseRules.destruction = !!data.value;
+    if (data.action === 'threat')
+      apocalypseThreat = Number(data.value) || apocalypseThreat;
+    if (data.action === 'selftest')
+      return {
+        result: [
+          'OK  objets du scénario : 27 objets authentifiés',
+          'OK  siège en situation : porte en bois enfoncée par un errant en 14 coups, roche intacte',
+          'OK  faune contaminée : vache convertie en bétail infecté',
+          'OK  largage : 40 tirages hors refuge, dont 31 en ville',
+          'Autotest réussi.',
+        ].join('\n'),
+      };
+    return { result: 'Démonstration : action simulée.' };
   }
   if (u.pathname === '/api/status')
     return structuredClone({ ...state, observedAt: new Date().toISOString() });
@@ -405,6 +638,12 @@ export async function request(url: string, method = 'GET', data: any = {}) {
     return { id: 'demo-policy' };
   }
   if (u.pathname === '/api/jobs') {
+    if (data.type === 'backup-delete') {
+      const backup = state.backups.find((b) => b.name === data.backup);
+      if (!backup?.canDelete) throw new Error('La sauvegarde la plus récente est protégée.');
+      if (data.confirm !== 'SUPPRIMER') throw new Error('Confirmation manquante.');
+      state.backups = state.backups.filter((b) => b.name !== data.backup);
+    }
     if (data.type === 'restart') {
       demoPlugins.push(
         ...demoPending.map((p) => ({
@@ -422,24 +661,4 @@ export async function request(url: string, method = 'GET', data: any = {}) {
     return { status: 'done', ok: true, message: 'Opération simulée terminée.' };
   return { ok: true, result: 'Action simulée.' };
 }
-export function image(id: string) {
-  const name = id.replace('minecraft:', '');
-  const egg = name.endsWith('_egg');
-  const green = name.includes('emerald');
-  const stone = name.includes('stone') || name.includes('iron');
-  const color = green
-    ? '#6bc58d'
-    : stone
-      ? '#a9b9be'
-      : name.includes('diamond')
-        ? '#7fd6db'
-        : name.includes('apple')
-          ? '#dbaa64'
-          : '#bd9b65';
-  const art = egg
-    ? `<path d="M10 3h12l7 12v11l-6 6H9l-6-6V15z" fill="${color}"/><path d="M10 9h6v6h-6zM20 19h6v6h-6z" fill="#758a62"/>`
-    : name.includes('diamond') || green
-      ? `<path d="M8 3h18l7 10-16 20L1 13z" fill="${color}"/><path d="M8 3 1 13h32M8 3l9 30 9-30" fill="none" stroke="#e6f7ec" stroke-width="2"/>`
-      : `<path d="m2 10 15-8 15 8v17l-15 8-15-8z" fill="${color}"/><path d="m2 10 15 8 15-8M17 18v17" fill="none" stroke="#493e34" stroke-width="2"/>`;
-  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 36">${art}</svg>`)}`;
-}
+export { image } from './demo-image';

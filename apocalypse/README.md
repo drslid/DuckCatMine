@@ -4,8 +4,9 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
-## Chiens et 4x4 — alpha.19
+## Chiens, 4x4 et jetpack — alpha.19 et alpha.20
 
+- **Jetpack (alpha.20)** : une caisse de largage sur cinq en contient un. Porte-le sur le torse ; en l'air, maintiens **Saut** pour monter. Il brûle l'essence d'un jerrican de ton inventaire (environ 50 s de poussée pour 20 L) et laisse une descente ralentie pour atterrir. Très bruyant : les infectés l'entendent à près de 50 blocs.
 - **Chiens de compagnie** : de temps en temps, un chien errant apparaît dans les rues à une vingtaine de blocs de toi. Donne-lui de la viande (crue ou cuite, même de la chair putréfiée) ou un os : au bout de quelques bouchées il t'adopte. Il te suit, attaque les infectés à moins de 12 blocs, et les infectés ne l'attaquent jamais (ni ne le contaminent). Clic droit : il reste à cet endroit ; clic droit à nouveau : il te suit.
 - **4x4** : un véhicule garé sur six (hors camionnettes), 4 places, abrite comme une voiture, roule à pleine vitesse hors des routes et franchit des marches d'un bloc et demi, comme un cheval. Les rues déjà visitées en reçoivent à leur prochain chargement.
 - **Bestiaire du panneau** : chaque infecté a désormais son portrait, y compris l'errant, le poursuivant, le sprinteur, le hurleur, le loup, la bête infectée, le Némésis et le Souriant.

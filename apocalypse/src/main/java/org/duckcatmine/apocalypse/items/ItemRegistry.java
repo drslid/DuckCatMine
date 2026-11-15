@@ -195,6 +195,9 @@ public final class ItemRegistry {
         definitions.put(TIMER, new Definition("Minuteur de cuisine", NamedTextColor.AQUA, Material.SNOWBALL, "minecraft:compass", 4,
                 List.of("À lancer (clic droit) : tic-tac discret, puis sonnerie.", "Accroupi + clic droit : régler le délai.",
                         "Attire les infectés proches ; se ramasse ensuite.")));
+        definitions.put("jetpack", new Definition("Jetpack", NamedTextColor.GOLD, Material.LEATHER_CHESTPLATE, null, 1,
+                List.of("À porter sur le torse. En l'air, maintiens Saut : décollage.", "Brûle l'essence d'un jerrican de ton inventaire.",
+                        "Très bruyant : tout le quartier l'entend.")));
     }
 
     public static boolean isMelee(String id) {

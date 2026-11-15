@@ -198,6 +198,8 @@ public final class DuckCatApocalypse extends JavaPlugin {
             hudRadar = new org.duckcatmine.apocalypse.radar.HudRadarService(this);
             handLight = new org.duckcatmine.apocalypse.survival.HandLight(this);
             dogs = new org.duckcatmine.apocalypse.fauna.DogService(this);
+            var jetpacks = new org.duckcatmine.apocalypse.survival.JetpackService(this);
+            getServer().getScheduler().runTaskTimer(this, jetpacks::tick, 1L, 1L);
             scenario.load();
             director.restore();
             if (scenario.isEnabled()) clock.resume();

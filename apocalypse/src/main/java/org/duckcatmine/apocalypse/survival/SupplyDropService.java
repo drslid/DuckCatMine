@@ -217,6 +217,8 @@ public final class SupplyDropService implements Listener {
             ItemStack stack = plugin.items().loot(entry.item(), entry.amount());
             if (stack != null) inventory.setItem(free.remove(random.nextInt(free.size())), stack);
         }
+        if (random.nextInt(5) == 0 && !free.isEmpty())
+            inventory.setItem(free.remove(random.nextInt(free.size())), plugin.items().create(JetpackService.ID, 1));
     }
 
     private void vanish(Drop drop, boolean announce) {

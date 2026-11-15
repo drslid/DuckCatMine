@@ -366,6 +366,8 @@ final class SelfTest {
                 org.duckcatmine.apocalypse.vehicles.VehicleModel.MOTORBIKE));
         check(lines, "camionnette", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 212, 0),
                 org.duckcatmine.apocalypse.vehicles.VehicleModel.VAN));
+        check(lines, "4x4", () -> plugin.vehicles().selfTest(street(plugin, world).getBlock().getLocation().add(0, 218, 0),
+                org.duckcatmine.apocalypse.vehicles.VehicleModel.JEEP));
         check(lines, "némésis", () -> {
             Location at = street(plugin, world).getBlock().getLocation().add(-6.5, 200, 0.5);
             for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) at.clone().add(dx, -1, dz).getBlock().setType(Material.STONE, false);

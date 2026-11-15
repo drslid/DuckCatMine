@@ -68,7 +68,7 @@ import org.duckcatmine.apocalypse.scenario.city.Streets;
  * Chunks generated before cars were entities get their block cars swapped (and street trees added) once, when loaded.
  */
 public final class VehicleService implements Listener {
-    public static final int REVISION = 6;
+    public static final int REVISION = 7;
     /** Distance from a parked car's centre to the motorbike behind it (clear of a van's rear). */
     private static final double BIKE_GAP = 4.3;
     private static final double SEAT_HEIGHT = 0.40;
@@ -323,6 +323,7 @@ public final class VehicleService implements Listener {
             for (CityLayout.VehicleSpot spot : layout.vehicles(cx, cz)) {
                 if (old) convert(world, spot);
                 else if (revision < 4) toVan(spot);
+                if (!old && revision < 7 && jeep(spot.seed())) swap(spot, VehicleModel.JEEP);
                 if (!old && revision < 5) moreFuel(spot);
                 if (revision == null || revision < 3) motorbike(world, spot);
                 else if (revision < 6) moveBike(world, spot);
@@ -373,7 +374,8 @@ public final class VehicleService implements Listener {
         float yaw = spot.alongX() ? (flip ? 90f : -90f) : (flip ? 0f : 180f);
         double fuel = burnt || Math.floorMod(seed >>> 40, 100L) < 35 ? 0 : 4 + 2 * Math.floorMod(seed >>> 48, 13L);
         double health = burnt ? 0 : 45 + Math.floorMod(seed >>> 52, 56L);
-        Vehicle vehicle = spawn(world, spot.centerX(), y, spot.centerZ(), yaw, burnt ? VehicleModel.WRECK : van(seed) ? VehicleModel.VAN : VehicleModel.SEDAN,
+        Vehicle vehicle = spawn(world, spot.centerX(), y, spot.centerZ(), yaw, burnt ? VehicleModel.WRECK : van(seed) ? VehicleModel.VAN
+                : jeep(seed) ? VehicleModel.JEEP : VehicleModel.SEDAN,
                 Streets.carPaint(seed), fuel, health);
         park(vehicle);
         converted++;
@@ -383,9 +385,17 @@ public final class VehicleService implements Listener {
         return Math.floorMod(seed >>> 13, 4L) == 0 && !Streets.carBurnt(seed);
     }
 
+    /** One parked car in six that is not a van is a 4x4. */
+    private static boolean jeep(long seed) {
+        return !van(seed) && Math.floorMod(seed >>> 21, 6L) == 0 && !Streets.carBurnt(seed);
+    }
+
     /** Parked cars of already converted streets: one in four becomes a van, same paint, fuel and state. */
     private void toVan(CityLayout.VehicleSpot spot) {
-        if (!van(spot.seed())) return;
+        if (van(spot.seed())) swap(spot, VehicleModel.VAN);
+    }
+
+    private void swap(CityLayout.VehicleSpot spot, VehicleModel model) {
         for (Vehicle vehicle : List.copyOf(vehicles.values())) {
             if (vehicle.model != VehicleModel.SEDAN || vehicle.occupied() || active.contains(vehicle.id)
                     || Math.abs(vehicle.x - spot.centerX()) > 1.5 || Math.abs(vehicle.z - spot.centerZ()) > 1.5) continue;
@@ -393,10 +403,10 @@ public final class VehicleService implements Listener {
             vehicle.parts.clear();
             vehicle.body = null;
             unpark(vehicle);
-            vehicle.model = VehicleModel.VAN;
+            vehicle.model = model;
             spawnParts(vehicle);
             Entity door = vehicle.interaction == null ? null : Bukkit.getEntity(vehicle.interaction);
-            if (door instanceof Interaction hitbox) { hitbox.setInteractionWidth(VehicleModel.VAN.hitboxWidth()); hitbox.setInteractionHeight(VehicleModel.VAN.hitboxHeight()); }
+            if (door instanceof Interaction hitbox) { hitbox.setInteractionWidth(model.hitboxWidth()); hitbox.setInteractionHeight(model.hitboxHeight()); }
             park(vehicle);
             converted++;
             return;
@@ -605,7 +615,8 @@ public final class VehicleService implements Listener {
 
     private Location seatLocation(Vehicle vehicle, int seat) {
         double[] at = vehicle.model.seat(seat);
-        Location location = local(vehicle, at[0], vehicle.model == VehicleModel.MOTORBIKE ? 0.62 : vehicle.model == VehicleModel.VAN ? 0.8 : SEAT_HEIGHT, at[1]);
+        Location location = local(vehicle, at[0], vehicle.model == VehicleModel.MOTORBIKE ? 0.62 : vehicle.model == VehicleModel.VAN ? 0.8
+                : vehicle.model == VehicleModel.JEEP ? 0.95 : SEAT_HEIGHT, at[1]);
         // Keep the invisible mount's rotation fixed: changing it would rotate the player's camera every tick.
         location.setYaw(0);
         return location;
@@ -887,7 +898,7 @@ public final class VehicleService implements Listener {
         }
         CityLayout layout = vehicle.world.getGenerator() instanceof GroundZeroGenerator ? CityLayout.of(vehicle.world.getSeed()) : null;
         boolean street = layout == null || layout.isStreet((int) Math.floor(vehicle.x), (int) Math.floor(vehicle.z));
-        double max = (street ? rules.maxSpeedRoad() : rules.maxSpeedOffroad()) * vehicle.model.speedFactor();
+        double max = (street || vehicle.model.offroad() ? rules.maxSpeedRoad() : rules.maxSpeedOffroad()) * vehicle.model.speedFactor();
         double speed = VehiclePhysics.speed(vehicle.speed, forward, backward, handbrake, vehicle.engineOn, max);
         float steering = driver != null && left == right
                 ? VehiclePhysics.steerToward(speed, vehicle.yaw, driver.getLocation().getYaw())
@@ -911,7 +922,7 @@ public final class VehicleService implements Listener {
         }
         double y = vehicle.y;
         if (ground > y + 0.01) {
-            if (ground - y > 0.4) speed *= 0.75;
+            if (ground - y > 0.4) speed *= vehicle.model.offroad() ? 0.92 : 0.75;
             y = ground;
             vehicle.fall = 0;
         } else if (ground < y - 0.01 || vehicle.fall > 0) {
@@ -1048,8 +1059,8 @@ public final class VehicleService implements Listener {
         if (!world.isChunkLoaded(bx >> 4, bz >> 4) || !world.getWorldBorder().isInside(new Location(world, px, vehicle.y, pz)))
             return Double.NaN;
         if (plugin.scenario().isScenarioWorld(world) && plugin.scenario().refugeArea().near(bx, bz, 1)) return Double.NaN;
-        double limit = vehicle.y + 1.05;
-        int top = (int) Math.floor(vehicle.y + 1.65), bottom = (int) Math.floor(vehicle.y) - 3;
+        double limit = vehicle.y + vehicle.model.climb();
+        int top = (int) Math.floor(limit + 0.6), bottom = (int) Math.floor(vehicle.y) - 3;
         for (int by = top; by >= bottom; by--) {
             Block block = world.getBlockAt(bx, by, bz);
             if (block.isLiquid()) return Double.NaN;

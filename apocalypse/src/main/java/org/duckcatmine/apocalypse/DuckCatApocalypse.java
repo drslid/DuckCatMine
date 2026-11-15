@@ -109,6 +109,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
     private org.duckcatmine.apocalypse.scenario.city.SiteService sites;
     private org.duckcatmine.apocalypse.radar.HudRadarService hudRadar;
     private org.duckcatmine.apocalypse.survival.HandLight handLight;
+    private org.duckcatmine.apocalypse.fauna.DogService dogs;
     private final EventLog events = new EventLog();
     private SettingsService tuning;
     private ProtectionService protection;
@@ -196,6 +197,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
             sites = new org.duckcatmine.apocalypse.scenario.city.SiteService(this);
             hudRadar = new org.duckcatmine.apocalypse.radar.HudRadarService(this);
             handLight = new org.duckcatmine.apocalypse.survival.HandLight(this);
+            dogs = new org.duckcatmine.apocalypse.fauna.DogService(this);
             scenario.load();
             director.restore();
             if (scenario.isEnabled()) clock.resume();
@@ -246,6 +248,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
         events.registerEvents(intro, this);
         events.registerEvents(departures, this);
         events.registerEvents(thirst, this);
+        events.registerEvents(dogs, this);
         events.registerEvents(beds, this);
         events.registerEvents(alarms, this);
         events.registerEvents(horses, this);
@@ -350,6 +353,7 @@ public final class DuckCatApocalypse extends JavaPlugin {
                 treasures.tick();
                 sites.tick();
                 fauna.tick();
+                dogs.tick();
                 bags.tick();
                 protection.tick();
                 safePositions.sampleAll();

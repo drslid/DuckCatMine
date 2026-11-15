@@ -4,6 +4,12 @@ Extension optionnelle de DuckCatMine : un scénario de survie horrifique dans un
 
 **État : alpha, jalon J5 « ensemble ou seul ».** Ce n'est pas encore la v0.1 décrite dans le cahier des charges : voir les tableaux ci-dessous.
 
+## Chiens et 4x4 — alpha.19
+
+- **Chiens de compagnie** : de temps en temps, un chien errant apparaît dans les rues à une vingtaine de blocs de toi. Donne-lui de la viande (crue ou cuite, même de la chair putréfiée) ou un os : au bout de quelques bouchées il t'adopte. Il te suit, attaque les infectés à moins de 12 blocs, et les infectés ne l'attaquent jamais (ni ne le contaminent). Clic droit : il reste à cet endroit ; clic droit à nouveau : il te suit.
+- **4x4** : un véhicule garé sur six (hors camionnettes), 4 places, abrite comme une voiture, roule à pleine vitesse hors des routes et franchit des marches d'un bloc et demi, comme un cheval. Les rues déjà visitées en reçoivent à leur prochain chargement.
+- **Bestiaire du panneau** : chaque infecté a désormais son portrait, y compris l'errant, le poursuivant, le sprinteur, le hurleur, le loup, la bête infectée, le Némésis et le Souriant.
+
 ## Radar net, motos, discrétion — alpha.18
 
 - **Radar plus net** (pack 1.5.0) : flèches, « N », points et ta propre flèche sont dessinés trois fois plus finement que la carte. Les flèches vers les autres joueurs (**violet**) et vers les caisses (blanc) sont **à l'extérieur du cercle**, le « N » aussi. Points : joueurs connectés en violet, **survivants à sauver en bleu**, infectés en rouge, boss en rose, caisses en blanc. Sous la jauge, en vert pâle : **ping et temps de jeu** de la session (le serveur ne peut pas connaître les FPS du client).

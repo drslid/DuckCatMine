@@ -13,7 +13,7 @@ import org.joml.Vector3f;
  * so one yaw turns the whole model. Local axes: x towards the left side, y up, z towards the front.
  */
 public enum VehicleModel {
-    SEDAN, WRECK, MOTORBIKE, VAN;
+    SEDAN, WRECK, MOTORBIKE, VAN, JEEP;
 
     /** Infected heavy enough to reach someone sitting in a car or a van. */
     public static final java.util.Set<String> HEAVY_INFECTED = java.util.Set.of("breaker", "abomination", "nemesis");
@@ -22,19 +22,22 @@ public enum VehicleModel {
     private static final double[][] BIKE_SEATS = {{0, -0.15}, {0, -0.75}};
 
     public boolean drivable() { return this != WRECK; }
-    public boolean shields() { return this == SEDAN || this == VAN; }
-    /** Cars take a driver and a passenger, vans four people; the first one in drives. */
-    public int seatCount() { return this == VAN ? 4 : 2; }
+    public boolean shields() { return this == SEDAN || this == VAN || this == JEEP; }
+    /** Cars take a driver and a passenger, vans and 4x4s four people; the first one in drives. */
+    public int seatCount() { return this == VAN || this == JEEP ? 4 : 2; }
     public double[] seat(int index) { return (this == MOTORBIKE ? BIKE_SEATS : this == VAN ? VAN_SEATS : CAR_SEATS)[index]; }
     /** Motorbikes: faster and frugal, small tank. Cars burn half the configured rate. Vans: slower, big tank. */
     public double speedFactor() { return this == MOTORBIKE ? 1.25 : this == VAN ? 0.85 : 1; }
-    public double tankFactor() { return this == MOTORBIKE ? 0.35 : this == VAN ? 1.6 : 1; }
-    public double fuelFactor() { return this == MOTORBIKE ? 0.5 : this == VAN ? 0.7 : 0.5; }
-    public float hitboxWidth() { return this == MOTORBIKE ? 1.1f : this == VAN ? 2.6f : 2.3f; }
-    public float hitboxHeight() { return this == MOTORBIKE ? 1.3f : this == VAN ? 2.4f : 1.75f; }
-    public double halfWidth() { return this == MOTORBIKE ? 0.2 : this == VAN ? 0.85 : 0.75; }
-    public double halfLength() { return this == MOTORBIKE ? 0.85 : this == VAN ? 2.3 : 1.85; }
-    public String label() { return this == MOTORBIKE ? "moto" : this == VAN ? "camionnette" : "voiture"; }
+    public double tankFactor() { return this == MOTORBIKE ? 0.35 : this == VAN ? 1.6 : this == JEEP ? 1.3 : 1; }
+    public double fuelFactor() { return this == MOTORBIKE ? 0.5 : this == VAN ? 0.7 : this == JEEP ? 0.6 : 0.5; }
+    /** Highest step the wheels climb, in blocks: a 4x4 climbs like a horse jumps. */
+    public double climb() { return this == JEEP ? 1.55 : 1.05; }
+    public boolean offroad() { return this == JEEP; }
+    public float hitboxWidth() { return this == MOTORBIKE ? 1.1f : this == VAN ? 2.6f : this == JEEP ? 2.4f : 2.3f; }
+    public float hitboxHeight() { return this == MOTORBIKE ? 1.3f : this == VAN ? 2.4f : this == JEEP ? 2.2f : 1.75f; }
+    public double halfWidth() { return this == MOTORBIKE ? 0.2 : this == VAN ? 0.85 : this == JEEP ? 0.8 : 0.75; }
+    public double halfLength() { return this == MOTORBIKE ? 0.85 : this == VAN ? 2.3 : this == JEEP ? 2.0 : 1.85; }
+    public String label() { return this == MOTORBIKE ? "moto" : this == VAN ? "camionnette" : this == JEEP ? "4x4" : "voiture"; }
 
     public record Part(String role, BlockData data, Transformation transformation, boolean glow) {
     }
@@ -84,6 +87,23 @@ public enum VehicleModel {
             parts.add(part("bumper", Material.GRAY_CONCRETE, -1.02, 0.30, 2.42, 2.04, 0.18, 0.10));
             parts.add(part("bumper", Material.GRAY_CONCRETE, -1.02, 0.30, -2.52, 2.04, 0.18, 0.10));
             parts.add(part("doors", Material.GRAY_CONCRETE, -0.55, 0.45, -2.47, 0.02, 1.55, 0.02));
+            return parts;
+        }
+        if (this == JEEP) {
+            parts.add(part(BODY, paint, -1.00, 0.55, -2.15, 2.00, 0.80, 4.30));                    // lifted body
+            parts.add(part("glass", Material.BLACK_STAINED_GLASS, -0.92, 1.35, -1.55, 1.84, 0.80, 2.55));
+            parts.add(part("roof", paint, -0.95, 2.15, -1.60, 1.90, 0.10, 2.65));
+            parts.add(part("headliner", Material.GRAY_WOOL, -0.90, 2.145, -1.55, 1.80, -0.02, 2.55));
+            parts.add(part("rack", Material.BLACK_CONCRETE, -0.85, 2.25, -1.40, 1.70, 0.08, 2.20));
+            for (double x : new double[]{-1.08, 0.70})
+                for (double z : new double[]{-1.70, 1.00}) parts.add(part("wheel", Material.BLACK_CONCRETE, x, 0.0, z, 0.38, 0.88, 0.85));
+            parts.add(part("spare", Material.BLACK_CONCRETE, -0.40, 0.85, -2.45, 0.80, 0.80, 0.25));
+            parts.add(light(HEADLIGHT, false, 0.50, 0.95, 2.14, 0.36, 0.18, 0.04));
+            parts.add(light(HEADLIGHT, false, -0.86, 0.95, 2.14, 0.36, 0.18, 0.04));
+            parts.add(light(TAILLIGHT, false, -0.95, 1.00, -2.18, 1.90, 0.12, 0.04));
+            parts.add(part("bumper", Material.BLACK_CONCRETE, -1.04, 0.45, 2.12, 2.08, 0.25, 0.14));
+            parts.add(part("bumper", Material.BLACK_CONCRETE, -1.04, 0.45, -2.25, 2.08, 0.25, 0.12));
+            parts.add(part("grille", Material.GRAY_CONCRETE, -0.45, 0.75, 2.15, 0.90, 0.30, 0.03));
             return parts;
         }
         parts.add(part(BODY, paint, -0.95, 0.30, -2.10, 1.90, 0.60, 4.20));
